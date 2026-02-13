@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InvPlanet - Sistema de Inventario</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/auth.css">
+    <link rel="icon" href="assets/favicon.ico" type="image/x-icon">
+</head>
+<body class="auth-page">
+    <!-- Fondo decorativo -->
+    <div class="auth-background">
+        <div class="planet"></div>
+        <div class="stars"></div>
+    </div>
+
+    <!-- Contenedor principal -->
+    <div class="auth-container">
+        <div class="auth-card">
+            <!-- Encabezado -->
+            <div class="auth-header">
+                <div class="logo">
+                    <i class="fas fa-globe-americas"></i>
+                    <div class="logo-text">
+                        <h1>InvPlanet</h1>
+                        <p class="tagline">Sistema de Gestión de Inventario</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Credenciales de demostración -->
+            <div class="demo-credentials">
+                <h3><i class="fas fa-key"></i> Credenciales de Acceso</h3>
+                <p>Usa estas credenciales para acceder al sistema:</p>
+                
+                <div class="credentials-grid">
+                    <div class="credential-item">
+                        <div class="credential-label">Usuario Administrador</div>
+                        <div class="credential-value" id="adminUser">admin</div>
+                        <button class="copy-btn" onclick="copiarTexto('admin')">
+                            <i class="fas fa-copy"></i> Copiar
+                        </button>
+                    </div>
+                    
+                    <div class="credential-item">
+                        <div class="credential-label">Contraseña</div>
+                        <div class="credential-value" id="adminPass">admin123</div>
+                        <button class="copy-btn" onclick="copiarTexto('admin123')">
+                            <i class="fas fa-copy"></i> Copiar
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="quick-login">
+                    <button class="quick-btn admin" onclick="rellenarCredenciales('admin', 'admin123')">
+                        <i class="fas fa-user-shield"></i> Acceso Admin
+                    </button>
+                    <button class="quick-btn user" onclick="rellenarCredenciales('usuario', 'usuario123')">
+                        <i class="fas fa-user"></i> Acceso Usuario
+                    </button>
+                </div>
+            </div>
+
+            <!-- Formulario de login -->
+            <form id="loginForm" class="auth-form">
+                <div class="form-group">
+                    <label for="username">
+                        <i class="fas fa-user"></i> Usuario
+                    </label>
+                    <input 
+                        type="text" 
+                        id="username" 
+                        name="username" 
+                        placeholder="Ingresa tu usuario" 
+                        required
+                        autocomplete="username"
+                        autofocus
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="password">
+                        <i class="fas fa-lock"></i> Contraseña
+                    </label>
+                    <div class="password-container">
+                        <input 
+                            type="password" 
+                            id="password" 
+                            name="password" 
+                            placeholder="Ingresa tu contraseña" 
+                            required
+                            autocomplete="current-password"
+                        >
+                        <button type="button" class="toggle-password" id="togglePassword">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="form-options">
+                    <label class="checkbox-container">
+                        <input type="checkbox" id="rememberMe">
+                        <span class="checkmark"></span>
+                        Recordar usuario
+                    </label>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-block">
+                    <i class="fas fa-sign-in-alt"></i> Iniciar Sesión
+                </button>
+
+                <!-- Mensajes -->
+                <div id="errorMessage" class="error-message" style="display: none;">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <span id="errorText"></span>
+                </div>
+
+                <div id="successMessage" class="success-message" style="display: none;">
+                    <i class="fas fa-check-circle"></i>
+                    <span id="successText"></span>
+                </div>
+
+                <!-- Configuración inicial -->
+                <div class="first-time" id="firstTimeSection" style="display: none;">
+                    <div class="first-time-content">
+                        <h3><i class="fas fa-rocket"></i> Configuración Inicial</h3>
+                        <p>Es la primera vez que usas InvPlanet. El sistema ha sido configurado automáticamente.</p>
+                        <p><strong>Credenciales creadas:</strong></p>
+                        <ul>
+                            <li>Usuario: <strong>admin</strong> / Contraseña: <strong>admin123</strong></li>
+                            <li>Usuario: <strong>usuario</strong> / Contraseña: <strong>usuario123</strong></li>
+                        </ul>
+                    </div>
+                </div>
+            </form>
+
+            <!-- Estado del sistema -->
+            <div class="system-status">
+                <div class="status-item">
+                    <span><i class="fas fa-database"></i> Almacenamiento</span>
+                    <span class="status-value status-good" id="storageStatus">Disponible</span>
+                </div>
+                <div class="status-item">
+                    <span><i class="fas fa-clock"></i> Hora del Sistema</span>
+                    <span class="status-value" id="systemTime">Cargando...</span>
+                </div>
+            </div>
+
+            <!-- Información del sistema -->
+            <div class="system-info">
+                <div class="info-item">
+                    <i class="fas fa-boxes"></i>
+                    <span>Inventario Completo</span>
+                </div>
+                <div class="info-item">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Reportes en Tiempo Real</span>
+                </div>
+                <div class="info-item">
+                    <i class="fas fa-shield-alt"></i>
+                    <span>Seguro y Local</span>
+                </div>
+            </div>
+
+            <!-- Pie de página -->
+            <footer class="auth-footer">
+                <p>&copy; 2024 InvPlanet - Sistema de Gestión de Inventario</p>
+                <p class="version">Versión 2.0.0</p>
+                <button class="btn btn-small btn-danger" onclick="window.resetSystem ? resetSystem() : alert('Función resetSystem no disponible')" style="margin-top: 10px;">
+                    <i class="fas fa-redo"></i> Resetear Sistema
+                </button>
+            </footer>
+        </div>
+    </div>
+
+    <!-- Modal de recuperación -->
+    <div class="modal" id="recoveryModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-life-ring"></i> Recuperar Acceso</h3>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Para recuperar el acceso al sistema, usa las credenciales por defecto:</p>
+                
+                <div class="recovery-options">
+                    <div class="recovery-option">
+                        <h4><i class="fas fa-user-shield"></i> Administrador</h4>
+                        <div class="master-password-info">
+                            <code>admin / admin123</code>
+                            <button class="btn btn-small" onclick="copiarTexto('admin:admin123')">
+                                <i class="fas fa-copy"></i> Copiar
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="recovery-option">
+                        <h4><i class="fas fa-user"></i> Usuario</h4>
+                        <div class="master-password-info">
+                            <code>usuario / usuario123</code>
+                            <button class="btn btn-small" onclick="copiarTexto('usuario:usuario123')">
+                                <i class="fas fa-copy"></i> Copiar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="alert alert-info">
+                    <i class="fas fa-lightbulb"></i>
+                    Si olvidas las credenciales, puedes resetear el sistema usando el botón "Resetear Sistema".
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/auth.js"></script>
+    <script>
+        // Funciones específicas de la página de login
+        function copiarTexto(texto) {
+            navigator.clipboard.writeText(texto).then(() => {
+                mostrarMensajeTemporal(`"${texto}" copiado al portapapeles`, 'success');
+            }).catch(err => {
+                console.error('Error al copiar: ', err);
+                mostrarMensaje('Error al copiar al portapapeles', 'error');
+            });
+        }
+        
+        function rellenarCredenciales(usuario, contrasena) {
+            document.getElementById('username').value = usuario;
+            document.getElementById('password').value = contrasena;
+            mostrarMensaje(`Credenciales de ${usuario} cargadas`, 'success');
+        }
+        
+        function mostrarMensaje(text, type = 'error') {
+            const errorMessage = document.getElementById('errorMessage');
+            const successMessage = document.getElementById('successMessage');
+            const errorText = document.getElementById('errorText');
+            const successText = document.getElementById('successText');
+            
+            if (type === 'error') {
+                errorText.textContent = text;
+                errorMessage.style.display = 'flex';
+                successMessage.style.display = 'none';
+                
+                setTimeout(() => {
+                    errorMessage.style.display = 'none';
+                }, 5000);
+            } else {
+                successText.textContent = text;
+                successMessage.style.display = 'flex';
+                errorMessage.style.display = 'none';
+                
+                setTimeout(() => {
+                    successMessage.style.display = 'none';
+                }, 3000);
+            }
+        }
+        
+        function mostrarMensajeTemporal(mensaje, tipo = 'info') {
+            const mensajeEl = document.createElement('div');
+            mensajeEl.className = `alert alert-${tipo}`;
+            mensajeEl.innerHTML = `
+                <i class="fas fa-${tipo === 'success' ? 'check-circle' : 'info-circle'}"></i>
+                ${mensaje}
+            `;
+            mensajeEl.style.position = 'fixed';
+            mensajeEl.style.top = '20px';
+            mensajeEl.style.right = '20px';
+            mensajeEl.style.zIndex = '10000';
+            mensajeEl.style.animation = 'slideInLeft 0.3s ease';
+            
+            document.body.appendChild(mensajeEl);
+            
+            setTimeout(() => {
+                mensajeEl.style.animation = 'slideInLeft 0.3s ease reverse';
+                setTimeout(() => {
+                    if (mensajeEl.parentNode) {
+                        mensajeEl.remove();
+                    }
+                }, 300);
+            }, 3000);
+        }
+        
+        function verificarStorage() {
+            try {
+                localStorage.setItem('__test__', 'test');
+                localStorage.removeItem('__test__');
+                document.getElementById('storageStatus').textContent = 'Disponible';
+                document.getElementById('storageStatus').className = 'status-value status-good';
+                return true;
+            } catch (e) {
+                document.getElementById('storageStatus').textContent = 'No disponible';
+                document.getElementById('storageStatus').className = 'status-value text-danger';
+                mostrarMensaje('Error: Almacenamiento local no disponible. Algunas funciones pueden no funcionar.', 'error');
+                return false;
+            }
+        }
+        
+        function actualizarHora() {
+            const ahora = new Date();
+            const timeString = ahora.toLocaleTimeString('es-ES', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+            const timeElement = document.getElementById('systemTime');
+            if (timeElement) {
+                timeElement.textContent = timeString;
+            }
+        }
+        
+        // Función para verificar si es la primera vez
+        function checkFirstTime() {
+            try {
+                const isFirstTime = !localStorage.getItem('invplanet_initialized');
+                return isFirstTime;
+            } catch (e) {
+                return false;
+            }
+        }
+        
+        // Función para resetear el sistema
+        function resetSystem() {
+            if (confirm('¿ESTÁS SEGURO? Esto borrará TODOS los datos del sistema (usuarios, productos, ventas, etc.). Esta acción no se puede deshacer.')) {
+                try {
+                    // Limpiar localStorage
+                    localStorage.clear();
+                    mostrarMensaje('Sistema reseteado correctamente. Recargando...', 'success');
+                    
+                    // Recargar la página después de un breve retraso
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1500);
+                } catch (e) {
+                    mostrarMensaje('Error al resetear el sistema: ' + e.message, 'error');
+                }
+            }
+        }
+        
+        // Configurar eventos
+        document.addEventListener('DOMContentLoaded', function() {
+            // Configurar storage y hora
+            verificarStorage();
+            actualizarHora();
+            setInterval(actualizarHora, 1000);
+            
+            // Mostrar/ocultar contraseña
+            const toggleBtn = document.getElementById('togglePassword');
+            const passwordInput = document.getElementById('password');
+            
+            if (toggleBtn && passwordInput) {
+                toggleBtn.addEventListener('click', function() {
+                    const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+                    passwordInput.setAttribute('type', type);
+                    this.innerHTML = type === 'password' ? '<i class="fas fa-eye"></i>' : '<i class="fas fa-eye-slash"></i>';
+                });
+            }
+            
+            // Manejar login
+            const loginForm = document.getElementById('loginForm');
+            if (loginForm) {
+                loginForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    
+                    const username = document.getElementById('username').value.trim();
+                    const password = document.getElementById('password').value.trim();
+                    const rememberMe = document.getElementById('rememberMe').checked;
+                    
+                    if (!username || !password) {
+                        mostrarMensaje('Por favor, completa todos los campos');
+                        return;
+                    }
+                    
+                    // Verificar si el sistema de autenticación está cargado
+                    if (typeof login === 'function') {
+                        const result = login(username, password, rememberMe);
+                        
+                        if (result && result.success) {
+                            mostrarMensaje('¡Inicio de sesión exitoso! Redirigiendo...', 'success');
+                            setTimeout(() => {
+                                window.location.href = 'dashboard.html';
+                            }, 1000);
+                        } else {
+                            mostrarMensaje(result ? result.message : 'Error en el inicio de sesión');
+                        }
+                    } else {
+                        mostrarMensaje('Error: Sistema de autenticación no disponible');
+                    }
+                });
+            }
+            
+            // Mostrar primera configuración si es necesario
+            try {
+                const isFirstTime = checkFirstTime();
+                if (isFirstTime) {
+                    document.getElementById('firstTimeSection').style.display = 'block';
+                }
+            } catch (e) {
+                console.error('Error al verificar primera vez:', e);
+            }
+            
+            // Configurar botones de modal de recuperación
+            const recoveryModal = document.getElementById('recoveryModal');
+            const closeModalBtn = document.querySelector('#recoveryModal .close-modal');
+            
+            if (recoveryModal && closeModalBtn) {
+                closeModalBtn.addEventListener('click', function() {
+                    recoveryModal.style.display = 'none';
+                });
+                
+                // Cerrar modal al hacer clic fuera
+                recoveryModal.addEventListener('click', function(e) {
+                    if (e.target === recoveryModal) {
+                        recoveryModal.style.display = 'none';
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>

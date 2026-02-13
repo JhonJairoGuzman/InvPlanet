@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug InvPlanet</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f0f0f0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            margin: 10px 0;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            text-align: center;
+            text-decoration: none;
+        }
+        .btn:hover {
+            background: #2980b9;
+        }
+        .btn.success {
+            background: #2ecc71;
+        }
+        .btn.danger {
+            background: #e74c3c;
+        }
+        pre {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            overflow: auto;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Debug InvPlanet</h1>
+        
+        <button class="btn" onclick="setupDefaultUsers()">
+            1. Crear Usuarios por Defecto
+        </button>
+        
+        <button class="btn success" onclick="goToLogin()">
+            2. Ir a Página de Login
+        </button>
+        
+        <button class="btn danger" onclick="clearAllData()">
+            Limpiar Todo (Reset)
+        </button>
+        
+        <h3>Estado Actual:</h3>
+        <pre id="status">Cargando...</pre>
+        
+        <h3>Credenciales por Defecto:</h3>
+        <ul>
+            <li><strong>Admin:</strong> admin / admin123</li>
+            <li><strong>Usuario:</strong> usuario / usuario123</li>
+        </ul>
+    </div>
+
+    <script>
+        function updateStatus() {
+            const status = {
+                localStorage: Object.keys(localStorage),
+                authData: JSON.parse(localStorage.getItem('invplanet_auth') || '[]'),
+                session: JSON.parse(localStorage.getItem('invplanet_session') || 'null'),
+                config: JSON.parse(localStorage.getItem('invplanet_config') || '{}')
+            };
+            
+            document.getElementById('status').textContent = JSON.stringify(status, null, 2);
+        }
+        
+        function setupDefaultUsers() {
+            // Función hash simple
+            function hashPassword(password) {
+                let hash = 0;
+                for (let i = 0; i < password.length; i++) {
+                    const char = password.charCodeAt(i);
+                    hash = ((hash << 5) - hash) + char;
+                    hash = hash & hash;
+                }
+                return Math.abs(hash).toString();
+            }
+            
+            const users = [
+                {
+                    username: 'admin',
+                    password: hashPassword('admin123'),
+                    role: 'admin',
+                    nombre: 'Administrador',
+                    fechaCreacion: new Date().toISOString(),
+                    activo: true
+                },
+                {
+                    username: 'usuario',
+                    password: hashPassword('usuario123'),
+                    role: 'usuario',
+                    nombre: 'Usuario Demo',
+                    fechaCreacion: new Date().toISOString(),
+                    activo: true
+                }
+            ];
+            
+            localStorage.setItem('invplanet_auth', JSON.stringify(users));
+            
+            // Configuración básica
+            const config = {
+                nombreNegocio: 'Mi Negocio',
+                horaApertura: '08:00',
+                horaCierre: '22:00',
+                moneda: 'COP',
+                impuesto: 19,
+                margenGanancia: 30
+            };
+            
+            localStorage.setItem('invplanet_config', JSON.stringify(config));
+            
+            alert('Usuarios creados exitosamente!\n\nUsuario: admin\nContraseña: admin123\n\nUsuario: usuario\nContraseña: usuario123');
+            updateStatus();
+        }
+        
+        function goToLogin() {
+            window.location.href = 'index.html';
+        }
+        
+        function clearAllData() {
+            if (confirm('¿Estás seguro de borrar TODOS los datos?')) {
+                localStorage.clear();
+                alert('Datos borrados. Recargando...');
+                updateStatus();
+            }
+        }
+        
+        // Inicializar
+        updateStatus();
+    </script>
+</body>
+</html>
