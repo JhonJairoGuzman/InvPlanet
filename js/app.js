@@ -1,4 +1,4 @@
-﻿// js/app.js - VERSIÓN DEFINITIVA - COMPLETA CON FACTURACIÓN Y EDICIÓN
+﻿// js/app.js - VERSIÓN DEFINITIVA - CON WHATSAPP, DOMICILIOS Y NOTAS
 // ============================================
 
 class InvPlanetApp {
@@ -13,8 +13,9 @@ class InvPlanetApp {
         this.modalOpen = false;
         this.ventasRealizadas = [];
         this.gastosRegistrados = [];
+        this.numeroWhatsApp = '+573243898130'; // Número fijo para órdenes
         
-        console.log('%c🔥 InvPlanet App v9.0 - COMPLETA CON EDICIÓN Y FACTURACIÓN', 'background: #27ae60; color: white; padding: 5px 10px; border-radius: 5px;');
+        console.log('%c🔥 InvPlanet App v11.0 - CON WHATSAPP, DOMICILIOS Y NOTAS', 'background: #25D366; color: white; padding: 5px 10px; border-radius: 5px;');
         this.verificarStorage();
         this.cargarNombreNegocio();
     }
@@ -1091,7 +1092,7 @@ class InvPlanetApp {
     }
 
     // ============================================
-    // VENTAS CON FACTURACIÓN ELECTRÓNICA Y ANULACIÓN
+    // VENTAS CON WHATSAPP, DOMICILIOS Y NOTAS
     // ============================================
 
     loadVentasView() {
@@ -1142,6 +1143,7 @@ class InvPlanetApp {
                                 <th>Número</th>
                                 <th>Fecha</th>
                                 <th>Cliente</th>
+                                <th>Tipo</th>
                                 <th>Productos</th>
                                 <th>Total</th>
                                 <th>Estado</th>
@@ -1170,6 +1172,9 @@ class InvPlanetApp {
         const hoy = new Date().toDateString();
         const ventasHoy = completadas.filter(v => new Date(v.fecha).toDateString() === hoy);
         const totalHoy = ventasHoy.reduce((sum, v) => sum + (v.total || 0), 0);
+        
+        const domicilios = completadas.filter(v => v.tipoEntrega === 'domicilio').length;
+        const mesas = completadas.filter(v => v.tipoEntrega === 'mesa').length;
         
         return `
             <div class="resumen-card">
@@ -1207,6 +1212,20 @@ class InvPlanetApp {
                     <p>Ventas Hoy</p>
                 </div>
             </div>
+            <div class="resumen-card">
+                <i class="fas fa-motorcycle"></i>
+                <div>
+                    <h4>${domicilios}</h4>
+                    <p>Domicilios</p>
+                </div>
+            </div>
+            <div class="resumen-card">
+                <i class="fas fa-utensils"></i>
+                <div>
+                    <h4>${mesas}</h4>
+                    <p>Mesas</p>
+                </div>
+            </div>
         `;
     }
 
@@ -1214,7 +1233,7 @@ class InvPlanetApp {
         if (ventas.length === 0) {
             return `
                 <tr>
-                    <td colspan="7" class="text-center">
+                    <td colspan="8" class="text-center">
                         <i class="fas fa-shopping-cart fa-3x mb-3" style="color: #ddd;"></i>
                         <h4>No hay ventas registradas</h4>
                         <p>¡Comienza realizando tu primera venta!</p>
@@ -1229,11 +1248,15 @@ class InvPlanetApp {
         let html = '';
         ventas.sort((a, b) => new Date(b.fecha) - new Date(a.fecha)).forEach(v => {
             const fecha = new Date(v.fecha);
+            const tipoIcono = v.tipoEntrega === 'domicilio' ? '🛵' : '🍽️';
+            const tipoTexto = v.tipoEntrega === 'domicilio' ? 'Domicilio' : 'Mesa ' + (v.mesa || '');
+            
             html += `
                 <tr>
                     <td>${v.numero || 'N/A'}</td>
                     <td>${fecha.toLocaleDateString()} ${fecha.toLocaleTimeString()}</td>
                     <td>${v.cliente || 'Consumidor Final'}</td>
+                    <td><span title="${v.tipoEntrega === 'domicilio' ? v.direccion : ''}">${tipoIcono} ${tipoTexto}</span></td>
                     <td>${v.productos?.length || 0}</td>
                     <td>$${v.total || 0}</td>
                     <td><span class="badge ${v.estado === 'anulada' ? 'badge-danger' : 'badge-success'}">${v.estado || 'completada'}</span></td>
@@ -1241,12 +1264,15 @@ class InvPlanetApp {
                         <button class="btn btn-sm btn-info" onclick="window.app.verDetalleVenta('${v.id}')">
                             <i class="fas fa-eye"></i>
                         </button>
+                        <button class="btn btn-sm btn-success" onclick="window.app.enviarWhatsApp('${v.id}')">
+                            <i class="fab fa-whatsapp"></i>
+                        </button>
                         <button class="btn btn-sm btn-primary" onclick="window.app.imprimirFactura('${v.id}')">
                             <i class="fas fa-print"></i>
                         </button>
                         ${v.estado !== 'anulada' ? `
                         <button class="btn btn-sm btn-danger" onclick="window.app.anularVenta('${v.id}')">
-                            <i class="fas fa-ban"></i> Anular
+                            <i class="fas fa-ban"></i>
                         </button>
                         ` : ''}
                     </td>
@@ -1325,7 +1351,66 @@ class InvPlanetApp {
     }
 
     // ============================================
-    // MODAL NUEVA VENTA
+    // ENVIAR POR WHATSAPP
+    // ============================================
+
+    enviarWhatsApp(id) {
+        const venta = storage.getVenta?.(id);
+        if (!venta) {
+            this.mostrarMensaje('❌ Venta no encontrada', 'error');
+            return;
+        }
+        
+        // Construir mensaje de WhatsApp
+        let mensaje = `🍔 *NUEVA ORDEN - ${venta.numero}*\n\n`;
+        mensaje += `📅 *Fecha:* ${new Date(venta.fecha).toLocaleString()}\n`;
+        mensaje += `👤 *Cliente:* ${venta.cliente}\n`;
+        
+        if (venta.tipoEntrega === 'domicilio') {
+            mensaje += `🛵 *Tipo:* Domicilio\n`;
+            mensaje += `📍 *Dirección:* ${venta.direccion || 'No especificada'}\n`;
+            mensaje += `📌 *Referencia:* ${venta.referencia || 'No especificada'}\n`;
+            mensaje += `📞 *Teléfono:* ${venta.telefono || 'No especificado'}\n`;
+        } else {
+            mensaje += `🍽️ *Tipo:* Mesa\n`;
+            mensaje += `🪑 *Mesa:* ${venta.mesa || 'No especificada'}\n`;
+        }
+        
+        mensaje += `\n*PRODUCTOS:*\n`;
+        
+        venta.productos?.forEach((p, i) => {
+            mensaje += `${i+1}. ${p.nombre} x${p.cantidad} - $${p.subtotal.toLocaleString()}\n`;
+            if (p.nota) {
+                mensaje += `   📝 *Nota:* ${p.nota}\n`;
+            }
+            if (p.adiciones && p.adiciones.length > 0) {
+                mensaje += `   ➕ Adiciones: ${p.adiciones.join(', ')}\n`;
+            }
+        });
+        
+        if (venta.notaGeneral) {
+            mensaje += `\n📝 *NOTA GENERAL:* ${venta.notaGeneral}\n`;
+        }
+        
+        mensaje += `\n💰 *Subtotal:* $${venta.subtotal.toLocaleString()}`;
+        mensaje += `\n🧾 *Impuesto:* $${venta.impuesto.toLocaleString()}`;
+        mensaje += `\n💵 *TOTAL:* $${venta.total.toLocaleString()}`;
+        mensaje += `\n💳 *Método de pago:* ${venta.metodoPago}`;
+        
+        mensaje += `\n\n✅ *Gracias por su compra!*`;
+        
+        // Codificar mensaje para URL
+        const mensajeCodificado = encodeURIComponent(mensaje);
+        
+        // Abrir WhatsApp
+        const url = `https://wa.me/${this.numeroWhatsApp}?text=${mensajeCodificado}`;
+        window.open(url, '_blank');
+        
+        this.mostrarMensaje('📱 Orden enviada por WhatsApp', 'success');
+    }
+
+    // ============================================
+    // MODAL NUEVA VENTA CON DOMICILIO/MESA Y NOTAS
     // ============================================
 
     mostrarModalNuevaVenta() {
@@ -1391,15 +1476,15 @@ class InvPlanetApp {
         
         const modalHTML = `
             <div class="modal-overlay active" id="modalNuevaVenta">
-                <div class="modal-content" style="max-width: 1200px; width: 95%; height: 90vh;">
+                <div class="modal-content" style="max-width: 1400px; width: 95%; height: 95vh;">
                     <div class="modal-header">
                         <h3><i class="fas fa-cash-register" style="color: #27ae60;"></i> Nueva Venta</h3>
                         <button class="close-modal" onclick="window.app.cerrarModal('modalNuevaVenta')">&times;</button>
                     </div>
-                    <div class="modal-body" style="height: calc(90vh - 80px); padding: 25px; overflow-y: auto;">
+                    <div class="modal-body" style="height: calc(95vh - 80px); padding: 25px; overflow-y: auto;">
                         <div style="display: flex; gap: 30px; height: 100%;">
                             
-                            <!-- PRODUCTOS -->
+                            <!-- COLUMNA IZQUIERDA - PRODUCTOS -->
                             <div style="flex: 1.5; display: flex; flex-direction: column; height: 100%; border-right: 2px solid #ecf0f1; padding-right: 25px;">
                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                                     <h4 style="margin:0;">Productos Disponibles</h4>
@@ -1413,56 +1498,109 @@ class InvPlanetApp {
                                 </div>
                             </div>
                             
-                            <!-- CARRITO -->
-                            <div style="flex: 1; display: flex; flex-direction: column; height: 100%;">
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                                    <h4 style="margin:0;">Carrito de Venta</h4>
-                                    <span class="badge badge-success" id="carritoItemsCount" style="font-size: 1.1em; padding: 8px 20px;">0</span>
-                                </div>
+                            <!-- COLUMNA DERECHA - CARRITO Y DATOS -->
+                            <div style="flex: 1.5; display: flex; flex-direction: column; height: 100%;">
                                 
-                                <div id="carritoItems" style="flex: 1; overflow-y: auto; background: #f8fafc; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
-                                    <div class="text-center py-5">
-                                        <i class="fas fa-shopping-cart fa-4x mb-3" style="color: #dcdde1;"></i>
-                                        <h5 style="color: #7f8c8d;">El carrito está vacío</h5>
+                                <!-- TIPO DE ENTREGA -->
+                                <div style="margin-bottom: 20px;">
+                                    <h4 style="margin:0 0 15px 0;">Tipo de Entrega</h4>
+                                    <div style="display: flex; gap: 20px;">
+                                        <label style="flex:1; padding: 15px; border: 2px solid #ddd; border-radius: 10px; text-align: center; cursor: pointer;" id="tipoMesaLabel" onclick="window.app.seleccionarTipoEntrega('mesa')">
+                                            <input type="radio" name="tipoEntrega" value="mesa" checked style="display: none;"> 
+                                            <i class="fas fa-utensils" style="font-size: 24px; display: block; margin-bottom: 5px;"></i>
+                                            <strong>Mesa</strong>
+                                        </label>
+                                        <label style="flex:1; padding: 15px; border: 2px solid #ddd; border-radius: 10px; text-align: center; cursor: pointer;" id="tipoDomicilioLabel" onclick="window.app.seleccionarTipoEntrega('domicilio')">
+                                            <input type="radio" name="tipoEntrega" value="domicilio" style="display: none;">
+                                            <i class="fas fa-motorcycle" style="font-size: 24px; display: block; margin-bottom: 5px;"></i>
+                                            <strong>Domicilio</strong>
+                                        </label>
                                     </div>
                                 </div>
                                 
-                                <div style="background: linear-gradient(135deg, #2c3e50, #34495e); color: white; padding: 25px; border-radius: 16px; margin-bottom: 20px;">
-                                    <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
-                                        <span>Subtotal:</span>
-                                        <span style="font-weight: bold;" id="subtotalCarrito">$0</span>
+                                <!-- CAMPOS DINÁMICOS SEGÚN TIPO -->
+                                <div id="camposEntrega">
+                                    <!-- CAMPOS PARA MESA (por defecto) -->
+                                    <div id="camposMesa" style="margin-bottom: 20px;">
+                                        <div class="form-group">
+                                            <label>Número de Mesa</label>
+                                            <input type="text" id="mesaNumero" class="form-control" placeholder="Ej: Mesa 5">
+                                        </div>
                                     </div>
-                                    <div style="display: flex; justify-content: space-between; margin-bottom: 15px; opacity: 0.9;">
-                                        <span>Impuesto (${impuesto}%):</span>
-                                        <span id="impuestoCarrito">$0</span>
-                                    </div>
-                                    <div style="display: flex; justify-content: space-between; font-size: 1.5em; font-weight: bold; border-top: 2px solid rgba(255,255,255,0.2); padding-top: 20px;">
-                                        <span>TOTAL:</span>
-                                        <span id="totalCarrito">$0</span>
+                                    
+                                    <!-- CAMPOS PARA DOMICILIO (ocultos inicialmente) -->
+                                    <div id="camposDomicilio" style="display: none; margin-bottom: 20px;">
+                                        <div class="form-group">
+                                            <label>Nombre del Cliente *</label>
+                                            <input type="text" id="domicilioNombre" class="form-control" placeholder="Nombre completo">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Dirección *</label>
+                                            <input type="text" id="domicilioDireccion" class="form-control" placeholder="Calle, carrera, número">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Punto de Referencia</label>
+                                            <input type="text" id="domicilioReferencia" class="form-control" placeholder="Cerca de...">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Teléfono *</label>
+                                            <input type="tel" id="domicilioTelefono" class="form-control" placeholder="Número de contacto">
+                                        </div>
                                     </div>
                                 </div>
                                 
-                                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-                                    <input type="text" id="clienteNombre" class="form-control" placeholder="Nombre del cliente" style="flex: 1;">
-                                    <input type="text" id="clienteNIT" class="form-control" placeholder="NIT/Cédula" style="flex: 1;">
+                                <!-- NOTA GENERAL -->
+                                <div style="margin-bottom: 20px;">
+                                    <label>Nota General para la Orden</label>
+                                    <textarea id="notaGeneral" class="form-control" rows="2" placeholder="Ej: Sin cebolla, salsa aparte, etc..."></textarea>
                                 </div>
                                 
-                                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-                                    <select id="metodoPago" class="form-control" style="flex: 1;">
-                                        <option value="efectivo">Efectivo</option>
-                                        <option value="tarjeta">Tarjeta</option>
-                                        <option value="transferencia">Transferencia</option>
-                                    </select>
-                                    <input type="email" id="clienteEmail" class="form-control" placeholder="Email para factura" style="flex: 1;">
-                                </div>
-                                
-                                <div style="display: flex; gap: 15px;">
-                                    <button class="btn btn-secondary" style="flex: 1;" onclick="window.app.limpiarCarrito()">
-                                        <i class="fas fa-trash"></i> Limpiar
-                                    </button>
-                                    <button class="btn btn-success" style="flex: 2;" onclick="window.app.finalizarVenta()">
-                                        <i class="fas fa-check-circle"></i> Finalizar Venta
-                                    </button>
+                                <!-- CARRITO -->
+                                <div style="flex: 1; display: flex; flex-direction: column; min-height: 300px;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                                        <h4 style="margin:0;">Carrito de Venta</h4>
+                                        <span class="badge badge-success" id="carritoItemsCount" style="font-size: 1.1em; padding: 8px 20px;">0</span>
+                                    </div>
+                                    
+                                    <div id="carritoItems" style="flex: 1; overflow-y: auto; background: #f8fafc; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+                                        <div class="text-center py-5">
+                                            <i class="fas fa-shopping-cart fa-4x mb-3" style="color: #dcdde1;"></i>
+                                            <h5 style="color: #7f8c8d;">El carrito está vacío</h5>
+                                        </div>
+                                    </div>
+                                    
+                                    <div style="background: linear-gradient(135deg, #2c3e50, #34495e); color: white; padding: 25px; border-radius: 16px; margin-bottom: 20px;">
+                                        <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
+                                            <span>Subtotal:</span>
+                                            <span style="font-weight: bold;" id="subtotalCarrito">$0</span>
+                                        </div>
+                                        <div style="display: flex; justify-content: space-between; margin-bottom: 15px; opacity: 0.9;">
+                                            <span>Impuesto (${impuesto}%):</span>
+                                            <span id="impuestoCarrito">$0</span>
+                                        </div>
+                                        <div style="display: flex; justify-content: space-between; font-size: 1.5em; font-weight: bold; border-top: 2px solid rgba(255,255,255,0.2); padding-top: 20px;">
+                                            <span>TOTAL:</span>
+                                            <span id="totalCarrito">$0</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                                        <select id="metodoPago" class="form-control" style="flex: 1;">
+                                            <option value="efectivo">Efectivo</option>
+                                            <option value="tarjeta">Tarjeta</option>
+                                            <option value="transferencia">Transferencia</option>
+                                        </select>
+                                        <input type="email" id="clienteEmail" class="form-control" placeholder="Email para factura" style="flex: 1;">
+                                    </div>
+                                    
+                                    <div style="display: flex; gap: 15px;">
+                                        <button class="btn btn-secondary" style="flex: 1;" onclick="window.app.limpiarCarrito()">
+                                            <i class="fas fa-trash"></i> Limpiar
+                                        </button>
+                                        <button class="btn btn-success" style="flex: 2;" onclick="window.app.finalizarVenta()">
+                                            <i class="fas fa-check-circle"></i> Finalizar Venta
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1475,8 +1613,31 @@ class InvPlanetApp {
         this.modalOpen = true;
     }
 
+    seleccionarTipoEntrega(tipo) {
+        const camposMesa = document.getElementById('camposMesa');
+        const camposDomicilio = document.getElementById('camposDomicilio');
+        const labelMesa = document.getElementById('tipoMesaLabel');
+        const labelDomicilio = document.getElementById('tipoDomicilioLabel');
+        
+        if (tipo === 'mesa') {
+            camposMesa.style.display = 'block';
+            camposDomicilio.style.display = 'none';
+            labelMesa.style.borderColor = '#27ae60';
+            labelMesa.style.backgroundColor = '#f0fff0';
+            labelDomicilio.style.borderColor = '#ddd';
+            labelDomicilio.style.backgroundColor = 'white';
+        } else {
+            camposMesa.style.display = 'none';
+            camposDomicilio.style.display = 'block';
+            labelMesa.style.borderColor = '#ddd';
+            labelMesa.style.backgroundColor = 'white';
+            labelDomicilio.style.borderColor = '#27ae60';
+            labelDomicilio.style.backgroundColor = '#f0fff0';
+        }
+    }
+
     // ============================================
-    // MÉTODOS DEL CARRITO
+    // MÉTODOS DEL CARRITO CON NOTAS Y ADICIONES
     // ============================================
 
     agregarAlCarrito(productoId) {
@@ -1491,6 +1652,10 @@ class InvPlanetApp {
             return;
         }
         
+        // Preguntar si quiere agregar nota o adiciones
+        const nota = prompt(`¿Nota para ${producto.nombre}? (Ej: Sin cebolla, bien asado, etc)`, '');
+        const adiciones = prompt(`¿Adiciones para ${producto.nombre}? (Ej: Queso extra, tocineta, etc - separado por comas)`, '');
+        
         const existe = this.carritoVenta.findIndex(i => i.productoId === productoId);
         
         if (existe !== -1) {
@@ -1500,6 +1665,8 @@ class InvPlanetApp {
             }
             this.carritoVenta[existe].cantidad++;
             this.carritoVenta[existe].subtotal = this.carritoVenta[existe].cantidad * this.carritoVenta[existe].precioUnitario;
+            if (nota) this.carritoVenta[existe].nota = nota;
+            if (adiciones) this.carritoVenta[existe].adiciones = adiciones.split(',').map(a => a.trim());
             this.mostrarMensaje(`✓ +1 ${producto.nombre}`, 'success');
         } else {
             this.carritoVenta.push({
@@ -1509,7 +1676,9 @@ class InvPlanetApp {
                 precioUnitario: producto.precioVenta,
                 cantidad: 1,
                 subtotal: producto.precioVenta,
-                stockDisponible: producto.unidades
+                stockDisponible: producto.unidades,
+                nota: nota || '',
+                adiciones: adiciones ? adiciones.split(',').map(a => a.trim()) : []
             });
             this.mostrarMensaje(`✓ ${producto.nombre} agregado`, 'success');
         }
@@ -1549,30 +1718,49 @@ class InvPlanetApp {
         this.carritoVenta.forEach((item, i) => {
             subtotal += item.subtotal;
             
+            let adicionesHTML = '';
+            if (item.adiciones && item.adiciones.length > 0) {
+                adicionesHTML = `<div style="font-size: 0.85em; color: #e67e22; margin-top: 5px;">
+                    <i class="fas fa-plus-circle"></i> Adiciones: ${item.adiciones.join(', ')}
+                </div>`;
+            }
+            
+            let notaHTML = '';
+            if (item.nota) {
+                notaHTML = `<div style="font-size: 0.85em; color: #3498db; margin-top: 5px;">
+                    <i class="fas fa-sticky-note"></i> Nota: ${item.nota}
+                </div>`;
+            }
+            
             html += `
                 <div style="background: white; border-radius: 10px; padding: 15px; margin-bottom: 10px; border: 1px solid #ecf0f1;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <div>
-                            <strong>${item.nombre}</strong><br>
-                            <small>$${item.precioUnitario} c/u</small>
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                        <div style="flex: 2;">
+                            <strong style="font-size: 1.1em;">${item.nombre}</strong><br>
+                            <small style="color: #7f8c8d;">$${item.precioUnitario} c/u</small>
+                            ${notaHTML}
+                            ${adicionesHTML}
                         </div>
                         <div style="display: flex; align-items: center; gap: 15px;">
                             <button class="btn btn-sm btn-outline-secondary" 
                                     onclick="window.app.disminuirCantidad(${i})"
+                                    style="width: 35px; height: 35px; border-radius: 8px;"
                                     ${item.cantidad <= 1 ? 'disabled' : ''}>
                                 <i class="fas fa-minus"></i>
                             </button>
-                            <span style="font-weight: bold; min-width: 30px; text-align: center;">${item.cantidad}</span>
+                            <span style="font-weight: bold; min-width: 30px; text-align: center; font-size: 1.2em;">${item.cantidad}</span>
                             <button class="btn btn-sm btn-outline-primary" 
                                     onclick="window.app.aumentarCantidad(${i})"
+                                    style="width: 35px; height: 35px; border-radius: 8px;"
                                     ${item.cantidad >= item.stockDisponible ? 'disabled' : ''}>
                                 <i class="fas fa-plus"></i>
                             </button>
                         </div>
-                        <div>
-                            <strong>$${item.subtotal}</strong>
+                        <div style="text-align: right; min-width: 100px;">
+                            <strong style="font-size: 1.2em; color: #27ae60;">$${item.subtotal}</strong>
                             <button class="btn btn-sm btn-link text-danger" 
-                                    onclick="window.app.eliminarDelCarrito(${i})">
+                                    onclick="window.app.eliminarDelCarrito(${i})"
+                                    style="margin-left: 10px;">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </div>
@@ -1630,6 +1818,21 @@ class InvPlanetApp {
             return;
         }
         
+        // Determinar tipo de entrega
+        const tipoMesa = document.querySelector('input[name="tipoEntrega"]:checked')?.value || 'mesa';
+        
+        // Validar campos según tipo
+        if (tipoMesa === 'domicilio') {
+            const nombre = document.getElementById('domicilioNombre')?.value;
+            const direccion = document.getElementById('domicilioDireccion')?.value;
+            const telefono = document.getElementById('domicilioTelefono')?.value;
+            
+            if (!nombre || !direccion || !telefono) {
+                this.mostrarMensaje('❌ Completa todos los campos del domicilio', 'error');
+                return;
+            }
+        }
+        
         if (!confirm('¿Confirmar la venta?')) {
             return;
         }
@@ -1637,21 +1840,37 @@ class InvPlanetApp {
         const config = storage.getConfig?.() || {};
         const impuestoPorcentaje = (config.impuesto || 19) / 100;
         
-        const clienteNombre = document.getElementById('clienteNombre')?.value || 'Consumidor Final';
-        const clienteNIT = document.getElementById('clienteNIT')?.value || 'CF';
         const clienteEmail = document.getElementById('clienteEmail')?.value || '';
         const metodoPago = document.getElementById('metodoPago')?.value || 'efectivo';
+        const notaGeneral = document.getElementById('notaGeneral')?.value || '';
         
         const subtotal = this.carritoVenta.reduce((sum, item) => sum + item.subtotal, 0);
         const impuesto = subtotal * impuestoPorcentaje;
         const total = subtotal + impuesto;
         
+        // Preparar datos de entrega
+        let datosEntrega = {};
+        if (tipoMesa === 'mesa') {
+            datosEntrega = {
+                tipoEntrega: 'mesa',
+                mesa: document.getElementById('mesaNumero')?.value || 'No especificada'
+            };
+        } else {
+            datosEntrega = {
+                tipoEntrega: 'domicilio',
+                cliente: document.getElementById('domicilioNombre')?.value,
+                direccion: document.getElementById('domicilioDireccion')?.value,
+                referencia: document.getElementById('domicilioReferencia')?.value || '',
+                telefono: document.getElementById('domicilioTelefono')?.value
+            };
+        }
+        
         const venta = {
             id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
             numero: `FAC-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}${String(storage.getVentas?.().length + 1).padStart(5, '0')}`,
             fecha: new Date().toISOString(),
-            cliente: clienteNombre,
-            nit: clienteNIT,
+            cliente: tipoMesa === 'mesa' ? 'Mesa ' + (document.getElementById('mesaNumero')?.value || '') : document.getElementById('domicilioNombre')?.value,
+            ...datosEntrega,
             email: clienteEmail,
             productos: this.carritoVenta.map(item => ({
                 productoId: item.productoId,
@@ -1659,8 +1878,11 @@ class InvPlanetApp {
                 codigo: item.codigo,
                 cantidad: item.cantidad,
                 precioUnitario: item.precioUnitario,
-                subtotal: item.subtotal
+                subtotal: item.subtotal,
+                nota: item.nota || '',
+                adiciones: item.adiciones || []
             })),
+            notaGeneral: notaGeneral,
             subtotal: subtotal,
             impuesto: impuesto,
             total: total,
@@ -1683,6 +1905,11 @@ class InvPlanetApp {
         storage.saveVentas?.(ventas);
         
         this.mostrarMensaje('✅ Venta realizada exitosamente', 'success');
+        
+        // Preguntar si enviar por WhatsApp
+        if (confirm('¿Enviar orden por WhatsApp?')) {
+            this.enviarWhatsApp(venta.id);
+        }
         
         // Generar factura
         setTimeout(() => {
@@ -1708,9 +1935,24 @@ class InvPlanetApp {
         const config = storage.getConfig?.() || {};
         const nombreNegocio = config.nombreNegocio || 'Mi Negocio';
         
+        let entregaInfo = '';
+        if (venta.tipoEntrega === 'domicilio') {
+            entregaInfo = `
+                <p><strong>Tipo:</strong> Domicilio 🛵</p>
+                <p><strong>Dirección:</strong> ${venta.direccion}</p>
+                <p><strong>Referencia:</strong> ${venta.referencia || 'N/A'}</p>
+                <p><strong>Teléfono:</strong> ${venta.telefono}</p>
+            `;
+        } else {
+            entregaInfo = `
+                <p><strong>Tipo:</strong> Mesa 🍽️</p>
+                <p><strong>Mesa:</strong> ${venta.mesa || 'No especificada'}</p>
+            `;
+        }
+        
         const modalHTML = `
             <div class="modal-overlay active" id="modalDetalleVenta">
-                <div class="modal-content" style="max-width: 800px;">
+                <div class="modal-content" style="max-width: 900px;">
                     <div class="modal-header">
                         <h3><i class="fas fa-file-invoice"></i> Detalle de Venta</h3>
                         <button class="close-modal" onclick="window.app.cerrarModal('modalDetalleVenta')">&times;</button>
@@ -1723,10 +1965,11 @@ class InvPlanetApp {
                             <h4>${venta.numero}</h4>
                             <p><strong>Fecha:</strong> ${fecha.toLocaleDateString()} ${fecha.toLocaleTimeString()}</p>
                             <p><strong>Cliente:</strong> ${venta.cliente}</p>
-                            <p><strong>NIT:</strong> ${venta.nit || 'CF'}</p>
+                            ${entregaInfo}
                             <p><strong>Email:</strong> ${venta.email || 'No registrado'}</p>
                             <p><strong>Método de Pago:</strong> ${venta.metodoPago}</p>
                             <p><strong>Estado:</strong> <span class="badge ${venta.estado === 'anulada' ? 'badge-danger' : 'badge-success'}">${venta.estado}</span></p>
+                            ${venta.notaGeneral ? `<p><strong>Nota General:</strong> ${venta.notaGeneral}</p>` : ''}
                         </div>
                         
                         <table class="table">
@@ -1737,6 +1980,7 @@ class InvPlanetApp {
                                     <th>Cantidad</th>
                                     <th>Precio Unit.</th>
                                     <th>Subtotal</th>
+                                    <th>Notas</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -1747,6 +1991,10 @@ class InvPlanetApp {
                                         <td>${p.cantidad}</td>
                                         <td>$${p.precioUnitario}</td>
                                         <td>$${p.subtotal}</td>
+                                        <td>
+                                            ${p.nota ? `<small>📝 ${p.nota}</small>` : ''}
+                                            ${p.adiciones?.length ? `<br><small>➕ ${p.adiciones.join(', ')}</small>` : ''}
+                                        </td>
                                     </tr>
                                 `).join('')}
                             </tbody>
@@ -1759,10 +2007,13 @@ class InvPlanetApp {
                         </div>
                         
                         <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                            <button class="btn btn-success" onclick="window.app.enviarWhatsApp('${venta.id}')">
+                                <i class="fab fa-whatsapp"></i> WhatsApp
+                            </button>
                             <button class="btn btn-primary" onclick="window.app.imprimirFactura('${venta.id}')">
                                 <i class="fas fa-print"></i> Imprimir Factura
                             </button>
-                            <button class="btn btn-success" onclick="window.app.enviarFacturaEmail('${venta.id}')">
+                            <button class="btn btn-info" onclick="window.app.enviarFacturaEmail('${venta.id}')">
                                 <i class="fas fa-envelope"></i> Enviar por Email
                             </button>
                         </div>
@@ -1789,6 +2040,21 @@ class InvPlanetApp {
         const telefono = config.telefono || '';
         const email = config.email || '';
         
+        let entregaInfo = '';
+        if (venta.tipoEntrega === 'domicilio') {
+            entregaInfo = `
+                <p><strong>Tipo:</strong> Domicilio</p>
+                <p><strong>Dirección:</strong> ${venta.direccion}</p>
+                <p><strong>Referencia:</strong> ${venta.referencia || 'N/A'}</p>
+                <p><strong>Teléfono:</strong> ${venta.telefono}</p>
+            `;
+        } else {
+            entregaInfo = `
+                <p><strong>Tipo:</strong> Mesa</p>
+                <p><strong>Mesa:</strong> ${venta.mesa || 'No especificada'}</p>
+            `;
+        }
+        
         const facturaHTML = `
             <!DOCTYPE html>
             <html>
@@ -1803,6 +2069,7 @@ class InvPlanetApp {
                     table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
                     th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
                     th { background-color: #f2f2f2; }
+                    .nota-producto { font-size: 0.9em; color: #666; font-style: italic; }
                     .totales { text-align: right; }
                     .footer { margin-top: 40px; text-align: center; font-size: 12px; color: #666; }
                     @media print {
@@ -1827,7 +2094,7 @@ class InvPlanetApp {
                 <div class="cliente-info">
                     <h3>DATOS DEL CLIENTE</h3>
                     <p><strong>Nombre:</strong> ${venta.cliente}</p>
-                    <p><strong>NIT/Cédula:</strong> ${venta.nit || 'CF'}</p>
+                    ${entregaInfo}
                     <p><strong>Email:</strong> ${venta.email || 'No registrado'}</p>
                 </div>
                 
@@ -1845,7 +2112,11 @@ class InvPlanetApp {
                         ${venta.productos.map(p => `
                             <tr>
                                 <td>${p.codigo || 'N/A'}</td>
-                                <td>${p.nombre}</td>
+                                <td>
+                                    ${p.nombre}
+                                    ${p.nota ? `<div class="nota-producto">📝 ${p.nota}</div>` : ''}
+                                    ${p.adiciones?.length ? `<div class="nota-producto">➕ ${p.adiciones.join(', ')}</div>` : ''}
+                                </td>
                                 <td>${p.cantidad}</td>
                                 <td>$${p.precioUnitario.toLocaleString()}</td>
                                 <td>$${p.subtotal.toLocaleString()}</td>
@@ -1853,6 +2124,8 @@ class InvPlanetApp {
                         `).join('')}
                     </tbody>
                 </table>
+                
+                ${venta.notaGeneral ? `<p><strong>Nota General:</strong> ${venta.notaGeneral}</p>` : ''}
                 
                 <div class="totales">
                     <p><strong>Subtotal:</strong> $${venta.subtotal.toLocaleString()}</p>
@@ -2309,6 +2582,9 @@ class InvPlanetApp {
         const totalGastos = gastos.reduce((s, g) => s + (g.monto || 0), 0);
         const utilidad = totalVentas - totalGastos;
         
+        const domicilios = ventas.filter(v => v.tipoEntrega === 'domicilio' && v.estado === 'completada').length;
+        const mesas = ventas.filter(v => v.tipoEntrega === 'mesa' && v.estado === 'completada').length;
+        
         const contentArea = document.getElementById('mainContent');
         contentArea.innerHTML = `
             <div class="reportes-view">
@@ -2335,6 +2611,14 @@ class InvPlanetApp {
                             <div class="stat-item">
                                 <label>Valor Inventario:</label>
                                 <span>$${inventario.reduce((s, p) => s + ((p.costoUnitario || 0) * (p.unidades || 0)), 0).toLocaleString()}</span>
+                            </div>
+                            <div class="stat-item">
+                                <label>Domicilios:</label>
+                                <span>${domicilios}</span>
+                            </div>
+                            <div class="stat-item">
+                                <label>Mesas:</label>
+                                <span>${mesas}</span>
                             </div>
                         </div>
                     </div>
@@ -2454,7 +2738,9 @@ class InvPlanetApp {
                 Numero: v.numero,
                 Fecha: new Date(v.fecha).toLocaleDateString(),
                 Cliente: v.cliente,
-                NIT: v.nit || 'CF',
+                Tipo: v.tipoEntrega === 'domicilio' ? 'Domicilio' : 'Mesa ' + (v.mesa || ''),
+                Direccion: v.direccion || '',
+                Telefono: v.telefono || '',
                 Productos: v.productos?.length || 0,
                 Subtotal: v.subtotal,
                 Impuesto: v.impuesto,
@@ -2548,6 +2834,11 @@ class InvPlanetApp {
                             <div class="form-group">
                                 <label>Email</label>
                                 <input type="email" id="configEmail" class="form-control" value="${config.email || ''}">
+                            </div>
+                            <div class="form-group">
+                                <label>Número WhatsApp para Órdenes</label>
+                                <input type="text" id="configWhatsApp" class="form-control" value="${config.whatsApp || '+573243898130'}" placeholder="Ej: +573243898130">
+                                <small class="text-muted">Las órdenes se enviarán a este número</small>
                             </div>
                             <button type="button" class="btn btn-primary" onclick="window.app.guardarConfigNegocio()">
                                 Guardar Cambios
@@ -2651,6 +2942,10 @@ class InvPlanetApp {
                                 <input type="checkbox" id="configNotifVentas" class="form-check-input" ${config.notificaciones?.ventas ? 'checked' : ''}>
                                 <label class="form-check-label">Notificaciones de Ventas</label>
                             </div>
+                            <div class="form-check">
+                                <input type="checkbox" id="configNotifWhatsApp" class="form-check-input" ${config.notificaciones?.whatsApp ? 'checked' : ''}>
+                                <label class="form-check-label">Enviar automáticamente a WhatsApp</label>
+                            </div>
                             <button type="button" class="btn btn-primary mt-3" onclick="window.app.guardarConfigNotificaciones()">
                                 Guardar Cambios
                             </button>
@@ -2672,11 +2967,17 @@ class InvPlanetApp {
     }
 
     guardarConfigNegocio() {
+        const whatsApp = document.getElementById('configWhatsApp')?.value;
+        if (whatsApp) {
+            this.numeroWhatsApp = whatsApp;
+        }
+        
         const config = {
             nombreNegocio: document.getElementById('configNombre')?.value,
             direccion: document.getElementById('configDireccion')?.value,
             telefono: document.getElementById('configTelefono')?.value,
-            email: document.getElementById('configEmail')?.value
+            email: document.getElementById('configEmail')?.value,
+            whatsApp: whatsApp || this.numeroWhatsApp
         };
         storage.updateConfig?.(config);
         this.cargarNombreNegocio();
@@ -2719,7 +3020,8 @@ class InvPlanetApp {
         const config = {
             notificaciones: {
                 stockBajo: document.getElementById('configNotifStockBajo')?.checked || false,
-                ventas: document.getElementById('configNotifVentas')?.checked || false
+                ventas: document.getElementById('configNotifVentas')?.checked || false,
+                whatsApp: document.getElementById('configNotifWhatsApp')?.checked || false
             }
         };
         storage.updateConfig?.(config);
@@ -2886,7 +3188,9 @@ window.eliminarCategoria = (id) => app.eliminarCategoria(id);
 window.verDetalleVenta = (id) => app.verDetalleVenta(id);
 window.imprimirFactura = (id) => app.imprimirFactura(id);
 window.enviarFacturaEmail = (id) => app.enviarFacturaEmail(id);
+window.enviarWhatsApp = (id) => app.enviarWhatsApp(id);
 window.anularVenta = (id) => app.anularVenta(id);
+window.seleccionarTipoEntrega = (tipo) => app.seleccionarTipoEntrega(tipo);
 
 window.editarGasto = (id) => app.mostrarModalEditarGasto(id);
 window.eliminarGasto = (id) => app.eliminarGasto(id);
@@ -2919,4 +3223,4 @@ window.finalizarVenta = () => app.finalizarVenta();
 // VERIFICACIÓN FINAL
 // ============================================
 
-console.log('%c✅ InvPlanet App v9.0 - COMPLETA CON EDICIÓN Y FACTURACIÓN', 'background: #27ae60; color: white; padding: 10px 15px; border-radius: 5px; font-size: 14px; font-weight: bold;');
+console.log('%c✅ InvPlanet App v11.0 - CON WHATSAPP, DOMICILIOS Y NOTAS', 'background: #25D366; color: white; padding: 10px 15px; border-radius: 5px; font-size: 14px; font-weight: bold;');
