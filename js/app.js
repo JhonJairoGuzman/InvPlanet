@@ -1,10 +1,11 @@
-﻿// js/app.js - VERSIÓN DEFINITIVA - CON IMPUESTO 0%, LECTOR DE BARRA Y VALOR DOMICILIO
+﻿// js/app.js - VERSIÓN DEFINITIVA - CON MODIFICACIÓN DE VENTAS
 // ============================================
 
 class InvPlanetApp {
     constructor() {
         this.currentView = 'dashboard';
         this.carritoVenta = [];
+        this.carritoModificacion = [];
         this.currentProducto = null;
         this.currentCategoria = null;
         this.currentVenta = null;
@@ -16,8 +17,9 @@ class InvPlanetApp {
         this.numeroWhatsApp = '+573243898130'; // Número fijo para órdenes
         this.scanTimeout = null;
         this.barcodeBuffer = '';
+        this.ventaEnModificacion = null; // Venta que se está modificando
         
-        console.log('%c🔥 InvPlanet App v12.0 - CON IMPUESTO 0%, LECTOR BARRA Y VALOR DOMICILIO', 'background: #25D366; color: white; padding: 5px 10px; border-radius: 5px;');
+        console.log('%c🔥 InvPlanet App v13.0 - CON MODIFICACIÓN DE VENTAS', 'background: #25D366; color: white; padding: 5px 10px; border-radius: 5px;');
         this.verificarStorage();
         this.cargarNombreNegocio();
         this.inicializarLectorBarra();
@@ -86,7 +88,11 @@ class InvPlanetApp {
         );
         
         if (producto) {
-            this.agregarAlCarrito(producto.id);
+            if (this.ventaEnModificacion) {
+                this.agregarAlCarritoModificacion(producto.id);
+            } else {
+                this.agregarAlCarrito(producto.id);
+            }
             this.mostrarMensaje(`✅ Producto encontrado: ${producto.nombre}`, 'success');
         } else {
             this.mostrarMensaje(`❌ Producto no encontrado: ${codigo}`, 'error');
@@ -1139,7 +1145,7 @@ class InvPlanetApp {
     }
 
     // ============================================
-    // VENTAS CON WHATSAPP, DOMICILIOS Y NOTAS
+    // VENTAS CON MODIFICACIÓN
     // ============================================
 
     loadVentasView() {
@@ -1179,6 +1185,7 @@ class InvPlanetApp {
                             <option value="">Todos los estados</option>
                             <option value="completada">Completadas</option>
                             <option value="anulada">Anuladas</option>
+                            <option value="modificada">Modificadas</option>
                         </select>
                     </div>
                     <div class="filter-group">
@@ -1213,15 +1220,13 @@ class InvPlanetApp {
         document.getElementById('filterFechaVenta')?.addEventListener('change', () => this.filtrarVentas());
     }
 
-    mostrarAyudaLectorBarra() {
-        this.mostrarMensaje('📱 Escanea un código de barras con el lector', 'info');
-    }
-
     renderResumenVentas(ventas) {
         const completadas = ventas.filter(v => v.estado === 'completada');
         const anuladas = ventas.filter(v => v.estado === 'anulada');
+        const modificadas = ventas.filter(v => v.estado === 'modificada');
         const totalCompletadas = completadas.reduce((sum, v) => sum + (v.total || 0), 0);
         const totalAnuladas = anuladas.reduce((sum, v) => sum + (v.total || 0), 0);
+        const totalModificadas = modificadas.reduce((sum, v) => sum + (v.total || 0), 0);
         
         const hoy = new Date().toDateString();
         const ventasHoy = completadas.filter(v => new Date(v.fecha).toDateString() === hoy);
@@ -1243,6 +1248,13 @@ class InvPlanetApp {
                 <div>
                     <h4>${anuladas.length}</h4>
                     <p>Ventas Anuladas</p>
+                </div>
+            </div>
+            <div class="resumen-card">
+                <i class="fas fa-edit"></i>
+                <div>
+                    <h4>${modificadas.length}</h4>
+                    <p>Ventas Modificadas</p>
                 </div>
             </div>
             <div class="resumen-card">
@@ -1305,6 +1317,15 @@ class InvPlanetApp {
             const tipoIcono = v.tipoEntrega === 'domicilio' ? '🛵' : '🍽️';
             const tipoTexto = v.tipoEntrega === 'domicilio' ? 'Domicilio' : 'Mesa ' + (v.mesa || '');
             
+            let badgeClass = 'badge-success';
+            let estadoTexto = v.estado || 'completada';
+            
+            if (v.estado === 'anulada') {
+                badgeClass = 'badge-danger';
+            } else if (v.estado === 'modificada') {
+                badgeClass = 'badge-warning';
+            }
+            
             html += `
                 <tr>
                     <td>${v.numero || 'N/A'}</td>
@@ -1313,11 +1334,16 @@ class InvPlanetApp {
                     <td><span title="${v.tipoEntrega === 'domicilio' ? v.direccion : ''}">${tipoIcono} ${tipoTexto}</span></td>
                     <td>${v.productos?.length || 0}</td>
                     <td>$${v.total || 0}</td>
-                    <td><span class="badge ${v.estado === 'anulada' ? 'badge-danger' : 'badge-success'}">${v.estado || 'completada'}</span></td>
+                    <td><span class="badge ${badgeClass}">${estadoTexto}</span></td>
                     <td>
                         <button class="btn btn-sm btn-info" onclick="window.app.verDetalleVenta('${v.id}')">
                             <i class="fas fa-eye"></i>
                         </button>
+                        ${v.estado !== 'anulada' && v.estado !== 'modificada' ? `
+                        <button class="btn btn-sm btn-warning" onclick="window.app.modificarVenta('${v.id}')">
+                            <i class="fas fa-edit"></i> Modificar
+                        </button>
+                        ` : ''}
                         <button class="btn btn-sm btn-success" onclick="window.app.enviarWhatsApp('${v.id}')">
                             <i class="fab fa-whatsapp"></i>
                         </button>
@@ -1364,6 +1390,501 @@ class InvPlanetApp {
         }
         
         document.getElementById('tablaVentas').innerHTML = this.renderTablaVentas(ventas);
+    }
+
+    // ============================================
+    // MODIFICAR VENTA
+    // ============================================
+
+    modificarVenta(id) {
+        const ventaOriginal = storage.getVenta?.(id);
+        if (!ventaOriginal) {
+            this.mostrarMensaje('❌ Venta no encontrada', 'error');
+            return;
+        }
+        
+        if (ventaOriginal.estado === 'anulada') {
+            this.mostrarMensaje('❌ No se puede modificar una venta anulada', 'error');
+            return;
+        }
+        
+        this.ventaEnModificacion = ventaOriginal;
+        
+        // Crear carrito de modificación basado en la venta original
+        this.carritoModificacion = ventaOriginal.productos.map(p => ({
+            productoId: p.productoId,
+            nombre: p.nombre,
+            codigo: p.codigo,
+            precioUnitario: p.precioUnitario,
+            cantidad: p.cantidad,
+            subtotal: p.subtotal,
+            stockDisponible: storage.getProducto(p.productoId)?.unidades || 0,
+            nota: p.nota || '',
+            adiciones: p.adiciones || []
+        }));
+        
+        this.mostrarModalModificarVenta();
+    }
+
+    mostrarModalModificarVenta() {
+        console.log('✏️ Abriendo modal de modificación de venta...');
+        
+        const inventario = storage.getInventario();
+        const productosDisponibles = inventario.filter(p => p.activo === true && p.unidades > 0);
+        
+        const venta = this.ventaEnModificacion;
+        const config = storage.getConfig?.() || {};
+        const impuesto = config.impuesto || 0;
+        
+        let productosHTML = this.renderProductosModificacion(productosDisponibles);
+        
+        const modalHTML = `
+            <div class="modal-overlay active" id="modalModificarVenta">
+                <div class="modal-content" style="max-width: 1400px; width: 95%; height: 95vh;">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-edit" style="color: #f39c12;"></i> Modificar Venta: ${venta.numero}</h3>
+                        <button class="close-modal" onclick="window.app.cancelarModificacion()">&times;</button>
+                    </div>
+                    <div class="modal-body" style="height: calc(95vh - 80px); padding: 25px; overflow-y: auto;">
+                        <div style="display: flex; gap: 30px; height: 100%;">
+                            
+                            <!-- COLUMNA IZQUIERDA - PRODUCTOS -->
+                            <div style="flex: 1.5; display: flex; flex-direction: column; height: 100%; border-right: 2px solid #ecf0f1; padding-right: 25px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                                    <h4 style="margin:0;">Agregar Productos</h4>
+                                    <span class="badge badge-primary" style="font-size: 1.1em; padding: 8px 20px;">
+                                        ${productosDisponibles.length}
+                                    </span>
+                                </div>
+                                
+                                <div style="margin-bottom: 15px;">
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="fas fa-barcode"></i></span>
+                                        <input type="text" class="form-control" id="codigoBarrasModificacion" placeholder="Escanear código de barras...">
+                                        <button class="btn btn-info" onclick="window.app.buscarPorCodigoBarrasModificacion()">Buscar</button>
+                                    </div>
+                                </div>
+                                
+                                <div id="productosModificacionList" style="flex: 1; overflow-y: auto; padding-right: 10px;">
+                                    ${productosHTML}
+                                </div>
+                            </div>
+                            
+                            <!-- COLUMNA DERECHA - CARRITO DE MODIFICACIÓN -->
+                            <div style="flex: 1.5; display: flex; flex-direction: column; height: 100%;">
+                                
+                                <!-- DATOS DE LA VENTA ORIGINAL -->
+                                <div style="background: #f8f9fa; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
+                                    <h5 style="margin:0 0 10px 0;">Datos de la Venta Original</h5>
+                                    <p><strong>Cliente:</strong> ${venta.cliente}</p>
+                                    <p><strong>Tipo:</strong> ${venta.tipoEntrega === 'domicilio' ? 'Domicilio' : 'Mesa ' + (venta.mesa || '')}</p>
+                                    ${venta.tipoEntrega === 'domicilio' ? `
+                                    <p><strong>Dirección:</strong> ${venta.direccion}</p>
+                                    <p><strong>Teléfono:</strong> ${venta.telefono}</p>
+                                    ` : ''}
+                                </div>
+                                
+                                <!-- CARRITO DE MODIFICACIÓN -->
+                                <div style="flex: 1; display: flex; flex-direction: column; min-height: 300px;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                                        <h4 style="margin:0;">Productos en la Venta</h4>
+                                        <span class="badge badge-warning" id="carritoModificacionCount" style="font-size: 1.1em; padding: 8px 20px;">${this.carritoModificacion.length}</span>
+                                    </div>
+                                    
+                                    <div id="carritoModificacionItems" style="flex: 1; overflow-y: auto; background: #f8fafc; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+                                        ${this.renderCarritoModificacion()}
+                                    </div>
+                                    
+                                    <div style="background: linear-gradient(135deg, #2c3e50, #34495e); color: white; padding: 25px; border-radius: 16px; margin-bottom: 20px;">
+                                        <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
+                                            <span>Subtotal:</span>
+                                            <span style="font-weight: bold;" id="subtotalModificacion">$${this.calcularSubtotalModificacion().toLocaleString()}</span>
+                                        </div>
+                                        ${impuesto > 0 ? `
+                                        <div style="display: flex; justify-content: space-between; margin-bottom: 15px; opacity: 0.9;">
+                                            <span>Impuesto (${impuesto}%):</span>
+                                            <span id="impuestoModificacion">$${this.calcularImpuestoModificacion().toLocaleString()}</span>
+                                        </div>
+                                        ` : ''}
+                                        <div style="display: flex; justify-content: space-between; margin-bottom: 15px; opacity: 0.9;">
+                                            <span>Domicilio:</span>
+                                            <span id="domicilioModificacion">$${(venta.valorDomicilio || 0).toLocaleString()}</span>
+                                        </div>
+                                        <div style="display: flex; justify-content: space-between; font-size: 1.5em; font-weight: bold; border-top: 2px solid rgba(255,255,255,0.2); padding-top: 20px;">
+                                            <span>TOTAL:</span>
+                                            <span id="totalModificacion">$${this.calcularTotalModificacion().toLocaleString()}</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div style="display: flex; gap: 15px;">
+                                        <button class="btn btn-secondary" style="flex: 1;" onclick="window.app.cancelarModificacion()">
+                                            Cancelar
+                                        </button>
+                                        <button class="btn btn-warning" style="flex: 2;" onclick="window.app.guardarModificacionVenta()">
+                                            <i class="fas fa-save"></i> Guardar Cambios
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('modalContainer').innerHTML = modalHTML;
+        this.modalOpen = true;
+        
+        setTimeout(() => {
+            document.getElementById('codigoBarrasModificacion')?.focus();
+        }, 500);
+    }
+
+    renderProductosModificacion(productos) {
+        if (productos.length === 0) {
+            return '<p class="text-center">No hay productos disponibles</p>';
+        }
+        
+        let html = '<div style="display: flex; flex-direction: column; gap: 15px;">';
+        
+        productos.forEach((producto, index) => {
+            let stockColor = '#27ae60';
+            let stockText = `${producto.unidades} disponibles`;
+            
+            if (producto.unidades <= 5) {
+                stockColor = '#e74c3c';
+                stockText = `¡ÚLTIMAS ${producto.unidades}!`;
+            } else if (producto.unidades <= 10) {
+                stockColor = '#f39c12';
+                stockText = `${producto.unidades} unidades (bajo stock)`;
+            }
+            
+            html += `
+                <div style="background: white; border: 2px solid #f39c12; border-radius: 12px; padding: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <h4 style="margin:0;">${producto.nombre}</h4>
+                            <small>Código: ${producto.codigo} | Stock: ${producto.unidades}</small>
+                        </div>
+                        <div style="text-align: right;">
+                            <div style="font-size: 1.3em; color: #f39c12;">$${producto.precioVenta}</div>
+                            <button class="btn btn-sm btn-warning" onclick="window.app.agregarAlCarritoModificacion('${producto.id}')">
+                                Agregar a Modificación
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        html += '</div>';
+        return html;
+    }
+
+    renderCarritoModificacion() {
+        if (this.carritoModificacion.length === 0) {
+            return `
+                <div class="text-center py-5">
+                    <i class="fas fa-shopping-cart fa-4x mb-3" style="color: #dcdde1;"></i>
+                    <h5 style="color: #7f8c8d;">No hay productos en la venta</h5>
+                </div>
+            `;
+        }
+        
+        let html = '';
+        
+        this.carritoModificacion.forEach((item, i) => {
+            let adicionesHTML = '';
+            if (item.adiciones && item.adiciones.length > 0) {
+                adicionesHTML = `<div style="font-size: 0.85em; color: #e67e22; margin-top: 5px;">
+                    <i class="fas fa-plus-circle"></i> Adiciones: ${item.adiciones.join(', ')}
+                </div>`;
+            }
+            
+            let notaHTML = '';
+            if (item.nota) {
+                notaHTML = `<div style="font-size: 0.85em; color: #3498db; margin-top: 5px;">
+                    <i class="fas fa-sticky-note"></i> Nota: ${item.nota}
+                </div>`;
+            }
+            
+            html += `
+                <div style="background: white; border-radius: 10px; padding: 15px; margin-bottom: 10px; border: 2px solid #f39c12;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                        <div style="flex: 2;">
+                            <strong style="font-size: 1.1em;">${item.nombre}</strong><br>
+                            <small style="color: #7f8c8d;">$${item.precioUnitario} c/u</small>
+                            ${notaHTML}
+                            ${adicionesHTML}
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 15px;">
+                            <button class="btn btn-sm btn-outline-secondary" 
+                                    onclick="window.app.disminuirCantidadModificacion(${i})"
+                                    style="width: 35px; height: 35px; border-radius: 8px;"
+                                    ${item.cantidad <= 1 ? 'disabled' : ''}>
+                                <i class="fas fa-minus"></i>
+                            </button>
+                            <span style="font-weight: bold; min-width: 30px; text-align: center; font-size: 1.2em;">${item.cantidad}</span>
+                            <button class="btn btn-sm btn-outline-primary" 
+                                    onclick="window.app.aumentarCantidadModificacion(${i})"
+                                    style="width: 35px; height: 35px; border-radius: 8px;"
+                                    ${item.cantidad >= item.stockDisponible ? 'disabled' : ''}>
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
+                        <div style="text-align: right; min-width: 100px;">
+                            <strong style="font-size: 1.2em; color: #f39c12;">$${item.subtotal}</strong>
+                            <button class="btn btn-sm btn-link text-danger" 
+                                    onclick="window.app.eliminarDelCarritoModificacion(${i})"
+                                    style="margin-left: 10px;">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        return html;
+    }
+
+    calcularSubtotalModificacion() {
+        return this.carritoModificacion.reduce((sum, item) => sum + item.subtotal, 0);
+    }
+
+    calcularImpuestoModificacion() {
+        const config = storage.getConfig?.() || {};
+        const impuestoPorcentaje = (config.impuesto || 0) / 100;
+        return this.calcularSubtotalModificacion() * impuestoPorcentaje;
+    }
+
+    calcularTotalModificacion() {
+        const subtotal = this.calcularSubtotalModificacion();
+        const impuesto = this.calcularImpuestoModificacion();
+        const valorDomicilio = this.ventaEnModificacion?.valorDomicilio || 0;
+        return subtotal + impuesto + valorDomicilio;
+    }
+
+    actualizarCarritoModificacion() {
+        const carritoItems = document.getElementById('carritoModificacionItems');
+        const carritoCount = document.getElementById('carritoModificacionCount');
+        const subtotalEl = document.getElementById('subtotalModificacion');
+        const impuestoEl = document.getElementById('impuestoModificacion');
+        const totalEl = document.getElementById('totalModificacion');
+        
+        if (!carritoItems) return;
+        
+        if (carritoCount) {
+            carritoCount.textContent = this.carritoModificacion.length;
+        }
+        
+        carritoItems.innerHTML = this.renderCarritoModificacion();
+        
+        const subtotal = this.calcularSubtotalModificacion();
+        const impuesto = this.calcularImpuestoModificacion();
+        const total = this.calcularTotalModificacion();
+        
+        if (subtotalEl) subtotalEl.textContent = `$${subtotal.toLocaleString()}`;
+        if (impuestoEl) impuestoEl.textContent = `$${impuesto.toLocaleString()}`;
+        if (totalEl) totalEl.textContent = `$${total.toLocaleString()}`;
+    }
+
+    agregarAlCarritoModificacion(productoId) {
+        const producto = storage.getProducto(productoId);
+        if (!producto) {
+            this.mostrarMensaje('❌ Producto no encontrado', 'error');
+            return;
+        }
+        
+        if (producto.unidades <= 0) {
+            this.mostrarMensaje('❌ Producto agotado', 'error');
+            return;
+        }
+        
+        // Preguntar si quiere agregar nota o adiciones
+        const nota = prompt(`¿Nota para ${producto.nombre}? (Ej: Sin cebolla, bien asado, etc)`, '');
+        const adiciones = prompt(`¿Adiciones para ${producto.nombre}? (Ej: Queso extra, tocineta, etc - separado por comas)`, '');
+        
+        const existe = this.carritoModificacion.findIndex(i => i.productoId === productoId);
+        
+        if (existe !== -1) {
+            if (this.carritoModificacion[existe].cantidad >= producto.unidades) {
+                this.mostrarMensaje('⚠️ Stock máximo alcanzado', 'warning');
+                return;
+            }
+            this.carritoModificacion[existe].cantidad++;
+            this.carritoModificacion[existe].subtotal = this.carritoModificacion[existe].cantidad * this.carritoModificacion[existe].precioUnitario;
+            if (nota) this.carritoModificacion[existe].nota = nota;
+            if (adiciones) this.carritoModificacion[existe].adiciones = adiciones.split(',').map(a => a.trim());
+            this.mostrarMensaje(`✓ +1 ${producto.nombre} a la modificación`, 'success');
+        } else {
+            this.carritoModificacion.push({
+                productoId: producto.id,
+                nombre: producto.nombre,
+                codigo: producto.codigo,
+                precioUnitario: producto.precioVenta,
+                cantidad: 1,
+                subtotal: producto.precioVenta,
+                stockDisponible: producto.unidades,
+                nota: nota || '',
+                adiciones: adiciones ? adiciones.split(',').map(a => a.trim()) : []
+            });
+            this.mostrarMensaje(`✓ ${producto.nombre} agregado a la modificación`, 'success');
+        }
+        
+        this.actualizarCarritoModificacion();
+    }
+
+    aumentarCantidadModificacion(index) {
+        if (this.carritoModificacion[index].cantidad < this.carritoModificacion[index].stockDisponible) {
+            this.carritoModificacion[index].cantidad++;
+            this.carritoModificacion[index].subtotal = this.carritoModificacion[index].cantidad * this.carritoModificacion[index].precioUnitario;
+            this.actualizarCarritoModificacion();
+        }
+    }
+
+    disminuirCantidadModificacion(index) {
+        if (this.carritoModificacion[index].cantidad > 1) {
+            this.carritoModificacion[index].cantidad--;
+            this.carritoModificacion[index].subtotal = this.carritoModificacion[index].cantidad * this.carritoModificacion[index].precioUnitario;
+            this.actualizarCarritoModificacion();
+        }
+    }
+
+    eliminarDelCarritoModificacion(index) {
+        const item = this.carritoModificacion[index];
+        this.carritoModificacion.splice(index, 1);
+        this.actualizarCarritoModificacion();
+        this.mostrarMensaje(`🗑️ ${item.nombre} eliminado de la modificación`, 'info');
+    }
+
+    buscarPorCodigoBarrasModificacion() {
+        const codigo = document.getElementById('codigoBarrasModificacion')?.value;
+        if (codigo) {
+            this.procesarCodigoBarras(codigo);
+            document.getElementById('codigoBarrasModificacion').value = '';
+        }
+    }
+
+    cancelarModificacion() {
+        if (confirm('¿Cancelar la modificación? Los cambios no se guardarán.')) {
+            this.ventaEnModificacion = null;
+            this.carritoModificacion = [];
+            this.cerrarModal('modalModificarVenta');
+        }
+    }
+
+    guardarModificacionVenta() {
+        if (!confirm('¿Guardar los cambios en la venta?')) {
+            return;
+        }
+        
+        const ventaOriginal = this.ventaEnModificacion;
+        const config = storage.getConfig?.() || {};
+        const impuestoPorcentaje = (config.impuesto || 0) / 100;
+        
+        const subtotal = this.calcularSubtotalModificacion();
+        const impuesto = subtotal * impuestoPorcentaje;
+        const total = subtotal + impuesto + (ventaOriginal.valorDomicilio || 0);
+        
+        // Calcular diferencia de stock
+        const productosOriginales = ventaOriginal.productos || [];
+        const productosNuevos = this.carritoModificacion;
+        
+        // Crear mapa de cantidades originales
+        const cantidadesOriginales = {};
+        productosOriginales.forEach(p => {
+            cantidadesOriginales[p.productoId] = p.cantidad;
+        });
+        
+        // Actualizar stock según cambios
+        productosNuevos.forEach(item => {
+            const producto = storage.getProducto(item.productoId);
+            if (producto) {
+                const cantidadOriginal = cantidadesOriginales[item.productoId] || 0;
+                const diferencia = item.cantidad - cantidadOriginal;
+                
+                if (diferencia > 0) {
+                    // Se agregaron más productos
+                    if (producto.unidades < diferencia) {
+                        this.mostrarMensaje(`❌ Stock insuficiente para ${item.nombre}`, 'error');
+                        return;
+                    }
+                    producto.unidades -= diferencia;
+                } else if (diferencia < 0) {
+                    // Se quitaron productos
+                    producto.unidades += Math.abs(diferencia);
+                }
+                
+                storage.updateProducto(item.productoId, { unidades: producto.unidades });
+            }
+        });
+        
+        // Productos que fueron eliminados completamente
+        productosOriginales.forEach(p => {
+            const existeEnNuevo = productosNuevos.find(n => n.productoId === p.productoId);
+            if (!existeEnNuevo) {
+                const producto = storage.getProducto(p.productoId);
+                if (producto) {
+                    producto.unidades += p.cantidad;
+                    storage.updateProducto(p.productoId, { unidades: producto.unidades });
+                }
+            }
+        });
+        
+        // Actualizar la venta
+        const ventaModificada = {
+            ...ventaOriginal,
+            productos: this.carritoModificacion.map(item => ({
+                productoId: item.productoId,
+                nombre: item.nombre,
+                codigo: item.codigo,
+                cantidad: item.cantidad,
+                precioUnitario: item.precioUnitario,
+                subtotal: item.subtotal,
+                nota: item.nota || '',
+                adiciones: item.adiciones || []
+            })),
+            subtotal: subtotal,
+            impuesto: impuesto,
+            total: total,
+            estado: 'modificada',
+            fechaModificacion: new Date().toISOString(),
+            modificacionDe: ventaOriginal.id
+        };
+        
+        // Crear nueva venta con los cambios (para mantener historial)
+        const nuevaVenta = {
+            ...ventaModificada,
+            id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+            numero: `${ventaOriginal.numero}-MOD`,
+            fecha: new Date().toISOString()
+        };
+        
+        // Guardar la venta original como modificada
+        storage.updateVenta?.(ventaOriginal.id, { 
+            estado: 'modificada',
+            modificadaPor: nuevaVenta.id 
+        });
+        
+        // Guardar la nueva venta modificada
+        const ventas = storage.getVentas?.() || [];
+        ventas.push(nuevaVenta);
+        storage.saveVentas?.(ventas);
+        
+        this.mostrarMensaje('✅ Venta modificada exitosamente', 'success');
+        
+        // Preguntar si enviar por WhatsApp
+        if (confirm('¿Enviar orden modificada por WhatsApp?')) {
+            this.enviarWhatsApp(nuevaVenta.id);
+        }
+        
+        setTimeout(() => {
+            this.ventaEnModificacion = null;
+            this.carritoModificacion = [];
+            this.cerrarModal('modalModificarVenta');
+            this.loadVentasView();
+        }, 1500);
     }
 
     // ============================================
@@ -1460,6 +1981,10 @@ class InvPlanetApp {
         mensaje += `\n💵 *TOTAL:* $${venta.total.toLocaleString()}`;
         mensaje += `\n💳 *Método de pago:* ${venta.metodoPago}`;
         
+        if (venta.estado === 'modificada') {
+            mensaje += `\n\n⚠️ *ESTA ORDEN HA SIDO MODIFICADA*`;
+        }
+        
         mensaje += `\n\n✅ *Gracias por su compra!*`;
         
         // Codificar mensaje para URL
@@ -1473,7 +1998,7 @@ class InvPlanetApp {
     }
 
     // ============================================
-    // MODAL NUEVA VENTA CON DOMICILIO/MESA Y NOTAS
+    // MODAL NUEVA VENTA
     // ============================================
 
     mostrarModalNuevaVenta() {
@@ -1694,7 +2219,6 @@ class InvPlanetApp {
         document.getElementById('modalContainer').innerHTML = modalHTML;
         this.modalOpen = true;
         
-        // Enfocar el input de código de barras
         setTimeout(() => {
             document.getElementById('codigoBarrasInput')?.focus();
         }, 500);
@@ -1734,7 +2258,7 @@ class InvPlanetApp {
     }
 
     // ============================================
-    // MÉTODOS DEL CARRITO CON NOTAS Y ADICIONES
+    // MÉTODOS DEL CARRITO
     // ============================================
 
     agregarAlCarrito(productoId) {
@@ -2080,8 +2604,9 @@ class InvPlanetApp {
                             ${entregaInfo}
                             <p><strong>Email:</strong> ${venta.email || 'No registrado'}</p>
                             <p><strong>Método de Pago:</strong> ${venta.metodoPago}</p>
-                            <p><strong>Estado:</strong> <span class="badge ${venta.estado === 'anulada' ? 'badge-danger' : 'badge-success'}">${venta.estado}</span></p>
+                            <p><strong>Estado:</strong> <span class="badge ${venta.estado === 'anulada' ? 'badge-danger' : venta.estado === 'modificada' ? 'badge-warning' : 'badge-success'}">${venta.estado}</span></p>
                             ${venta.notaGeneral ? `<p><strong>Nota General:</strong> ${venta.notaGeneral}</p>` : ''}
+                            ${venta.modificacionDe ? `<p><small>Modificación de: ${venta.modificacionDe}</small></p>` : ''}
                         </div>
                         
                         <table class="table">
@@ -2690,16 +3215,18 @@ class InvPlanetApp {
         const gastos = storage.getGastos?.() || [];
         const inventario = storage.getInventario();
         
-        const ventasPorMes = this.agruparPorMes(ventas.filter(v => v.estado === 'completada'), 'total');
+        const ventasCompletadas = ventas.filter(v => v.estado === 'completada');
+        const ventasModificadas = ventas.filter(v => v.estado === 'modificada');
+        const ventasPorMes = this.agruparPorMes([...ventasCompletadas, ...ventasModificadas], 'total');
         const gastosPorMes = this.agruparPorMes(gastos, 'monto');
-        const productosMasVendidos = this.obtenerProductosMasVendidos(ventas.filter(v => v.estado === 'completada'));
+        const productosMasVendidos = this.obtenerProductosMasVendidos([...ventasCompletadas, ...ventasModificadas]);
         
-        const totalVentas = ventas.filter(v => v.estado === 'completada').reduce((s, v) => s + (v.total || 0), 0);
+        const totalVentas = [...ventasCompletadas, ...ventasModificadas].reduce((s, v) => s + (v.total || 0), 0);
         const totalGastos = gastos.reduce((s, g) => s + (g.monto || 0), 0);
         const utilidad = totalVentas - totalGastos;
         
-        const domicilios = ventas.filter(v => v.tipoEntrega === 'domicilio' && v.estado === 'completada').length;
-        const mesas = ventas.filter(v => v.tipoEntrega === 'mesa' && v.estado === 'completada').length;
+        const domicilios = ventas.filter(v => v.tipoEntrega === 'domicilio' && (v.estado === 'completada' || v.estado === 'modificada')).length;
+        const mesas = ventas.filter(v => v.tipoEntrega === 'mesa' && (v.estado === 'completada' || v.estado === 'modificada')).length;
         
         const contentArea = document.getElementById('mainContent');
         contentArea.innerHTML = `
@@ -3292,6 +3819,9 @@ window.mostrarModalNuevoGasto = () => app.mostrarModalNuevoGasto();
 window.mostrarModalEditarGasto = (id) => app.mostrarModalEditarGasto(id);
 window.mostrarAyudaLectorBarra = () => app.mostrarAyudaLectorBarra();
 window.buscarPorCodigoBarras = () => app.buscarPorCodigoBarras();
+window.modificarVenta = (id) => app.modificarVenta(id);
+window.cancelarModificacion = () => app.cancelarModificacion();
+window.buscarPorCodigoBarrasModificacion = () => app.buscarPorCodigoBarrasModificacion();
 
 window.cerrarModal = (id) => app.cerrarModal(id);
 
@@ -3311,6 +3841,13 @@ window.enviarFacturaEmail = (id) => app.enviarFacturaEmail(id);
 window.enviarWhatsApp = (id) => app.enviarWhatsApp(id);
 window.anularVenta = (id) => app.anularVenta(id);
 window.seleccionarTipoEntrega = (tipo) => app.seleccionarTipoEntrega(tipo);
+
+// Funciones para modificación de ventas
+window.agregarAlCarritoModificacion = (id) => app.agregarAlCarritoModificacion(id);
+window.aumentarCantidadModificacion = (i) => app.aumentarCantidadModificacion(i);
+window.disminuirCantidadModificacion = (i) => app.disminuirCantidadModificacion(i);
+window.eliminarDelCarritoModificacion = (i) => app.eliminarDelCarritoModificacion(i);
+window.guardarModificacionVenta = () => app.guardarModificacionVenta();
 
 window.editarGasto = (id) => app.mostrarModalEditarGasto(id);
 window.eliminarGasto = (id) => app.eliminarGasto(id);
@@ -3343,4 +3880,4 @@ window.finalizarVenta = () => app.finalizarVenta();
 // VERIFICACIÓN FINAL
 // ============================================
 
-console.log('%c✅ InvPlanet App v12.0 - CON IMPUESTO 0%, LECTOR BARRA Y VALOR DOMICILIO', 'background: #25D366; color: white; padding: 10px 15px; border-radius: 5px; font-size: 14px; font-weight: bold;');
+console.log('%c✅ InvPlanet App v13.0 - CON MODIFICACIÓN DE VENTAS', 'background: #f39c12; color: white; padding: 10px 15px; border-radius: 5px; font-size: 14px; font-weight: bold;');
