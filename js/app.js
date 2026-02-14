@@ -1,4 +1,4 @@
-﻿// js/app.js - VERSIÓN DEFINITIVA - CON WHATSAPP, DOMICILIOS Y NOTAS
+﻿// js/app.js - VERSIÓN DEFINITIVA - CON IMPUESTO 0%, LECTOR DE BARRA Y VALOR DOMICILIO
 // ============================================
 
 class InvPlanetApp {
@@ -14,10 +14,13 @@ class InvPlanetApp {
         this.ventasRealizadas = [];
         this.gastosRegistrados = [];
         this.numeroWhatsApp = '+573243898130'; // Número fijo para órdenes
+        this.scanTimeout = null;
+        this.barcodeBuffer = '';
         
-        console.log('%c🔥 InvPlanet App v11.0 - CON WHATSAPP, DOMICILIOS Y NOTAS', 'background: #25D366; color: white; padding: 5px 10px; border-radius: 5px;');
+        console.log('%c🔥 InvPlanet App v12.0 - CON IMPUESTO 0%, LECTOR BARRA Y VALOR DOMICILIO', 'background: #25D366; color: white; padding: 5px 10px; border-radius: 5px;');
         this.verificarStorage();
         this.cargarNombreNegocio();
+        this.inicializarLectorBarra();
     }
 
     verificarStorage() {
@@ -43,6 +46,50 @@ class InvPlanetApp {
         const negocioNombre = document.getElementById('businessName');
         if (negocioNombre) {
             negocioNombre.textContent = nombreNegocio;
+        }
+    }
+
+    // ============================================
+    // LECTOR DE CÓDIGO DE BARRAS
+    // ============================================
+
+    inicializarLectorBarra() {
+        document.addEventListener('keydown', (e) => {
+            // Ignorar si hay un modal abierto o si no estamos en ventas
+            if (!this.modalOpen || this.currentView !== 'ventas') return;
+            
+            // Acumular caracteres
+            if (e.key.length === 1) {
+                this.barcodeBuffer += e.key;
+                
+                // Resetear el timeout anterior
+                if (this.scanTimeout) {
+                    clearTimeout(this.scanTimeout);
+                }
+                
+                // Establecer un nuevo timeout para procesar el código
+                this.scanTimeout = setTimeout(() => {
+                    this.procesarCodigoBarras(this.barcodeBuffer);
+                    this.barcodeBuffer = '';
+                }, 100);
+            }
+        });
+    }
+
+    procesarCodigoBarras(codigo) {
+        console.log(`🔍 Código de barras detectado: ${codigo}`);
+        
+        // Buscar producto por código
+        const inventario = storage.getInventario();
+        const producto = inventario.find(p => 
+            p.codigo === codigo && p.activo === true && p.unidades > 0
+        );
+        
+        if (producto) {
+            this.agregarAlCarrito(producto.id);
+            this.mostrarMensaje(`✅ Producto encontrado: ${producto.nombre}`, 'success');
+        } else {
+            this.mostrarMensaje(`❌ Producto no encontrado: ${codigo}`, 'error');
         }
     }
 
@@ -1109,6 +1156,9 @@ class InvPlanetApp {
                         <button class="btn btn-success" onclick="window.app.mostrarModalNuevaVenta()">
                             <i class="fas fa-plus"></i> Nueva Venta
                         </button>
+                        <button class="btn btn-info" onclick="window.app.mostrarAyudaLectorBarra()">
+                            <i class="fas fa-barcode"></i> Usar Lector
+                        </button>
                         <button class="btn btn-primary" onclick="window.app.exportarVentas()">
                             <i class="fas fa-file-export"></i> Exportar
                         </button>
@@ -1161,6 +1211,10 @@ class InvPlanetApp {
         document.getElementById('searchVenta')?.addEventListener('keyup', () => this.buscarVentas());
         document.getElementById('filterEstadoVenta')?.addEventListener('change', () => this.filtrarVentas());
         document.getElementById('filterFechaVenta')?.addEventListener('change', () => this.filtrarVentas());
+    }
+
+    mostrarAyudaLectorBarra() {
+        this.mostrarMensaje('📱 Escanea un código de barras con el lector', 'info');
     }
 
     renderResumenVentas(ventas) {
@@ -1371,6 +1425,7 @@ class InvPlanetApp {
             mensaje += `📍 *Dirección:* ${venta.direccion || 'No especificada'}\n`;
             mensaje += `📌 *Referencia:* ${venta.referencia || 'No especificada'}\n`;
             mensaje += `📞 *Teléfono:* ${venta.telefono || 'No especificado'}\n`;
+            mensaje += `💰 *Valor Domicilio:* $${(venta.valorDomicilio || 0).toLocaleString()}\n`;
         } else {
             mensaje += `🍽️ *Tipo:* Mesa\n`;
             mensaje += `🪑 *Mesa:* ${venta.mesa || 'No especificada'}\n`;
@@ -1393,7 +1448,15 @@ class InvPlanetApp {
         }
         
         mensaje += `\n💰 *Subtotal:* $${venta.subtotal.toLocaleString()}`;
-        mensaje += `\n🧾 *Impuesto:* $${venta.impuesto.toLocaleString()}`;
+        
+        if (venta.impuesto > 0) {
+            mensaje += `\n🧾 *Impuesto:* $${venta.impuesto.toLocaleString()}`;
+        }
+        
+        if (venta.valorDomicilio > 0) {
+            mensaje += `\n🛵 *Domicilio:* $${venta.valorDomicilio.toLocaleString()}`;
+        }
+        
         mensaje += `\n💵 *TOTAL:* $${venta.total.toLocaleString()}`;
         mensaje += `\n💳 *Método de pago:* ${venta.metodoPago}`;
         
@@ -1472,7 +1535,7 @@ class InvPlanetApp {
         }
         
         const config = storage.getConfig?.() || {};
-        const impuesto = config.impuesto || 19;
+        const impuesto = config.impuesto || 0;
         
         const modalHTML = `
             <div class="modal-overlay active" id="modalNuevaVenta">
@@ -1491,6 +1554,14 @@ class InvPlanetApp {
                                     <span class="badge badge-primary" style="font-size: 1.1em; padding: 8px 20px;">
                                         ${productosDisponibles.length}
                                     </span>
+                                </div>
+                                
+                                <div style="margin-bottom: 15px;">
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="fas fa-barcode"></i></span>
+                                        <input type="text" class="form-control" id="codigoBarrasInput" placeholder="Escanear código de barras...">
+                                        <button class="btn btn-info" onclick="window.app.buscarPorCodigoBarras()">Buscar</button>
+                                    </div>
                                 </div>
                                 
                                 <div id="productosDisponiblesList" style="flex: 1; overflow-y: auto; padding-right: 10px;">
@@ -1546,6 +1617,11 @@ class InvPlanetApp {
                                             <label>Teléfono *</label>
                                             <input type="tel" id="domicilioTelefono" class="form-control" placeholder="Número de contacto">
                                         </div>
+                                        <div class="form-group">
+                                            <label>Valor del Domicilio ($)</label>
+                                            <input type="number" id="valorDomicilio" class="form-control" value="0" min="0" step="100">
+                                            <small class="text-muted">Puede ser 0 si es gratis</small>
+                                        </div>
                                     </div>
                                 </div>
                                 
@@ -1574,9 +1650,15 @@ class InvPlanetApp {
                                             <span>Subtotal:</span>
                                             <span style="font-weight: bold;" id="subtotalCarrito">$0</span>
                                         </div>
+                                        ${impuesto > 0 ? `
                                         <div style="display: flex; justify-content: space-between; margin-bottom: 15px; opacity: 0.9;">
                                             <span>Impuesto (${impuesto}%):</span>
                                             <span id="impuestoCarrito">$0</span>
+                                        </div>
+                                        ` : ''}
+                                        <div style="display: flex; justify-content: space-between; margin-bottom: 15px; opacity: 0.9;">
+                                            <span>Domicilio:</span>
+                                            <span id="domicilioCarrito">$0</span>
                                         </div>
                                         <div style="display: flex; justify-content: space-between; font-size: 1.5em; font-weight: bold; border-top: 2px solid rgba(255,255,255,0.2); padding-top: 20px;">
                                             <span>TOTAL:</span>
@@ -1611,6 +1693,19 @@ class InvPlanetApp {
         
         document.getElementById('modalContainer').innerHTML = modalHTML;
         this.modalOpen = true;
+        
+        // Enfocar el input de código de barras
+        setTimeout(() => {
+            document.getElementById('codigoBarrasInput')?.focus();
+        }, 500);
+    }
+
+    buscarPorCodigoBarras() {
+        const codigo = document.getElementById('codigoBarrasInput')?.value;
+        if (codigo) {
+            this.procesarCodigoBarras(codigo);
+            document.getElementById('codigoBarrasInput').value = '';
+        }
     }
 
     seleccionarTipoEntrega(tipo) {
@@ -1634,6 +1729,8 @@ class InvPlanetApp {
             labelDomicilio.style.borderColor = '#27ae60';
             labelDomicilio.style.backgroundColor = '#f0fff0';
         }
+        
+        this.actualizarCarrito();
     }
 
     // ============================================
@@ -1691,6 +1788,7 @@ class InvPlanetApp {
         const carritoCount = document.getElementById('carritoItemsCount');
         const subtotalEl = document.getElementById('subtotalCarrito');
         const impuestoEl = document.getElementById('impuestoCarrito');
+        const domicilioEl = document.getElementById('domicilioCarrito');
         const totalEl = document.getElementById('totalCarrito');
         
         if (!carritoItems) return;
@@ -1708,6 +1806,7 @@ class InvPlanetApp {
             `;
             if (subtotalEl) subtotalEl.textContent = '$0';
             if (impuestoEl) impuestoEl.textContent = '$0';
+            if (domicilioEl) domicilioEl.textContent = '$0';
             if (totalEl) totalEl.textContent = '$0';
             return;
         }
@@ -1772,12 +1871,21 @@ class InvPlanetApp {
         carritoItems.innerHTML = html;
         
         const config = storage.getConfig?.() || {};
-        const impuestoPorcentaje = (config.impuesto || 19) / 100;
+        const impuestoPorcentaje = (config.impuesto || 0) / 100;
         const impuesto = subtotal * impuestoPorcentaje;
-        const total = subtotal + impuesto;
+        
+        // Obtener valor del domicilio
+        let valorDomicilio = 0;
+        const tipoEntrega = document.querySelector('input[name="tipoEntrega"]:checked')?.value;
+        if (tipoEntrega === 'domicilio') {
+            valorDomicilio = parseFloat(document.getElementById('valorDomicilio')?.value) || 0;
+        }
+        
+        const total = subtotal + impuesto + valorDomicilio;
         
         if (subtotalEl) subtotalEl.textContent = `$${subtotal.toLocaleString()}`;
         if (impuestoEl) impuestoEl.textContent = `$${impuesto.toLocaleString()}`;
+        if (domicilioEl) domicilioEl.textContent = `$${valorDomicilio.toLocaleString()}`;
         if (totalEl) totalEl.textContent = `$${total.toLocaleString()}`;
     }
 
@@ -1819,10 +1927,10 @@ class InvPlanetApp {
         }
         
         // Determinar tipo de entrega
-        const tipoMesa = document.querySelector('input[name="tipoEntrega"]:checked')?.value || 'mesa';
+        const tipoEntrega = document.querySelector('input[name="tipoEntrega"]:checked')?.value || 'mesa';
         
         // Validar campos según tipo
-        if (tipoMesa === 'domicilio') {
+        if (tipoEntrega === 'domicilio') {
             const nombre = document.getElementById('domicilioNombre')?.value;
             const direccion = document.getElementById('domicilioDireccion')?.value;
             const telefono = document.getElementById('domicilioTelefono')?.value;
@@ -1838,19 +1946,20 @@ class InvPlanetApp {
         }
         
         const config = storage.getConfig?.() || {};
-        const impuestoPorcentaje = (config.impuesto || 19) / 100;
+        const impuestoPorcentaje = (config.impuesto || 0) / 100;
         
         const clienteEmail = document.getElementById('clienteEmail')?.value || '';
         const metodoPago = document.getElementById('metodoPago')?.value || 'efectivo';
         const notaGeneral = document.getElementById('notaGeneral')?.value || '';
+        const valorDomicilio = tipoEntrega === 'domicilio' ? (parseFloat(document.getElementById('valorDomicilio')?.value) || 0) : 0;
         
         const subtotal = this.carritoVenta.reduce((sum, item) => sum + item.subtotal, 0);
         const impuesto = subtotal * impuestoPorcentaje;
-        const total = subtotal + impuesto;
+        const total = subtotal + impuesto + valorDomicilio;
         
         // Preparar datos de entrega
         let datosEntrega = {};
-        if (tipoMesa === 'mesa') {
+        if (tipoEntrega === 'mesa') {
             datosEntrega = {
                 tipoEntrega: 'mesa',
                 mesa: document.getElementById('mesaNumero')?.value || 'No especificada'
@@ -1861,7 +1970,8 @@ class InvPlanetApp {
                 cliente: document.getElementById('domicilioNombre')?.value,
                 direccion: document.getElementById('domicilioDireccion')?.value,
                 referencia: document.getElementById('domicilioReferencia')?.value || '',
-                telefono: document.getElementById('domicilioTelefono')?.value
+                telefono: document.getElementById('domicilioTelefono')?.value,
+                valorDomicilio: valorDomicilio
             };
         }
         
@@ -1869,7 +1979,7 @@ class InvPlanetApp {
             id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
             numero: `FAC-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}${String(storage.getVentas?.().length + 1).padStart(5, '0')}`,
             fecha: new Date().toISOString(),
-            cliente: tipoMesa === 'mesa' ? 'Mesa ' + (document.getElementById('mesaNumero')?.value || '') : document.getElementById('domicilioNombre')?.value,
+            cliente: tipoEntrega === 'mesa' ? 'Mesa ' + (document.getElementById('mesaNumero')?.value || '') : document.getElementById('domicilioNombre')?.value,
             ...datosEntrega,
             email: clienteEmail,
             productos: this.carritoVenta.map(item => ({
@@ -1885,6 +1995,7 @@ class InvPlanetApp {
             notaGeneral: notaGeneral,
             subtotal: subtotal,
             impuesto: impuesto,
+            valorDomicilio: valorDomicilio,
             total: total,
             metodoPago: metodoPago,
             estado: 'completada'
@@ -1942,6 +2053,7 @@ class InvPlanetApp {
                 <p><strong>Dirección:</strong> ${venta.direccion}</p>
                 <p><strong>Referencia:</strong> ${venta.referencia || 'N/A'}</p>
                 <p><strong>Teléfono:</strong> ${venta.telefono}</p>
+                <p><strong>Valor Domicilio:</strong> $${(venta.valorDomicilio || 0).toLocaleString()}</p>
             `;
         } else {
             entregaInfo = `
@@ -2002,7 +2114,8 @@ class InvPlanetApp {
                         
                         <div style="margin-top: 20px; text-align: right;">
                             <p><strong>Subtotal:</strong> $${venta.subtotal.toLocaleString()}</p>
-                            <p><strong>Impuesto (19%):</strong> $${venta.impuesto.toLocaleString()}</p>
+                            ${venta.impuesto > 0 ? `<p><strong>Impuesto (${config.impuesto || 0}%):</strong> $${venta.impuesto.toLocaleString()}</p>` : ''}
+                            ${venta.valorDomicilio > 0 ? `<p><strong>Valor Domicilio:</strong> $${venta.valorDomicilio.toLocaleString()}</p>` : ''}
                             <h3><strong>TOTAL:</strong> $${venta.total.toLocaleString()}</h3>
                         </div>
                         
@@ -2039,6 +2152,7 @@ class InvPlanetApp {
         const direccion = config.direccion || '';
         const telefono = config.telefono || '';
         const email = config.email || '';
+        const impuestoPorcentaje = config.impuesto || 0;
         
         let entregaInfo = '';
         if (venta.tipoEntrega === 'domicilio') {
@@ -2047,6 +2161,7 @@ class InvPlanetApp {
                 <p><strong>Dirección:</strong> ${venta.direccion}</p>
                 <p><strong>Referencia:</strong> ${venta.referencia || 'N/A'}</p>
                 <p><strong>Teléfono:</strong> ${venta.telefono}</p>
+                <p><strong>Valor Domicilio:</strong> $${(venta.valorDomicilio || 0).toLocaleString()}</p>
             `;
         } else {
             entregaInfo = `
@@ -2129,7 +2244,8 @@ class InvPlanetApp {
                 
                 <div class="totales">
                     <p><strong>Subtotal:</strong> $${venta.subtotal.toLocaleString()}</p>
-                    <p><strong>Impuesto (19%):</strong> $${venta.impuesto.toLocaleString()}</p>
+                    ${venta.impuesto > 0 ? `<p><strong>Impuesto (${impuestoPorcentaje}%):</strong> $${venta.impuesto.toLocaleString()}</p>` : ''}
+                    ${venta.valorDomicilio > 0 ? `<p><strong>Valor Domicilio:</strong> $${venta.valorDomicilio.toLocaleString()}</p>` : ''}
                     <h2><strong>TOTAL:</strong> $${venta.total.toLocaleString()}</h2>
                 </div>
                 
@@ -2741,6 +2857,7 @@ class InvPlanetApp {
                 Tipo: v.tipoEntrega === 'domicilio' ? 'Domicilio' : 'Mesa ' + (v.mesa || ''),
                 Direccion: v.direccion || '',
                 Telefono: v.telefono || '',
+                ValorDomicilio: v.valorDomicilio || 0,
                 Productos: v.productos?.length || 0,
                 Subtotal: v.subtotal,
                 Impuesto: v.impuesto,
@@ -2858,7 +2975,8 @@ class InvPlanetApp {
                             </div>
                             <div class="form-group">
                                 <label>Impuesto (%)</label>
-                                <input type="number" id="configImpuesto" class="form-control" value="${config.impuesto || 19}" min="0" max="100">
+                                <input type="number" id="configImpuesto" class="form-control" value="${config.impuesto || 0}" min="0" max="100" step="1">
+                                <small class="text-muted">Puede ser 0% si no aplica impuesto</small>
                             </div>
                             <div class="form-group">
                                 <label>Stock Mínimo por Defecto</label>
@@ -2987,7 +3105,7 @@ class InvPlanetApp {
     guardarConfigFinanzas() {
         const config = {
             moneda: document.getElementById('configMoneda')?.value,
-            impuesto: parseInt(document.getElementById('configImpuesto')?.value) || 19,
+            impuesto: parseInt(document.getElementById('configImpuesto')?.value) || 0,
             stockMinimoDefault: parseInt(document.getElementById('configStockMinimo')?.value) || 10,
             margenGanancia: parseInt(document.getElementById('configMargen')?.value) || 30
         };
@@ -3172,6 +3290,8 @@ window.mostrarModalEditarCategoria = (id) => app.mostrarModalEditarCategoria(id)
 window.mostrarModalNuevaVenta = () => app.mostrarModalNuevaVenta();
 window.mostrarModalNuevoGasto = () => app.mostrarModalNuevoGasto();
 window.mostrarModalEditarGasto = (id) => app.mostrarModalEditarGasto(id);
+window.mostrarAyudaLectorBarra = () => app.mostrarAyudaLectorBarra();
+window.buscarPorCodigoBarras = () => app.buscarPorCodigoBarras();
 
 window.cerrarModal = (id) => app.cerrarModal(id);
 
@@ -3223,4 +3343,4 @@ window.finalizarVenta = () => app.finalizarVenta();
 // VERIFICACIÓN FINAL
 // ============================================
 
-console.log('%c✅ InvPlanet App v11.0 - CON WHATSAPP, DOMICILIOS Y NOTAS', 'background: #25D366; color: white; padding: 10px 15px; border-radius: 5px; font-size: 14px; font-weight: bold;');
+console.log('%c✅ InvPlanet App v12.0 - CON IMPUESTO 0%, LECTOR BARRA Y VALOR DOMICILIO', 'background: #25D366; color: white; padding: 10px 15px; border-radius: 5px; font-size: 14px; font-weight: bold;');
