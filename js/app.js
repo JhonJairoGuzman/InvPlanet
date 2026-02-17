@@ -1,4 +1,4 @@
-﻿// js/app.js - VERSIÓN DEFINITIVA - CON MODIFICACIÓN DE VENTAS
+﻿// js/app.js - VERSIÓN DEFINITIVA - CON STOCK EDITABLE EN PRODUCTOS
 // ============================================
 
 class InvPlanetApp {
@@ -19,7 +19,7 @@ class InvPlanetApp {
         this.barcodeBuffer = '';
         this.ventaEnModificacion = null; // Venta que se está modificando
         
-        console.log('%c🔥 InvPlanet App v13.0 - CON MODIFICACIÓN DE VENTAS', 'background: #25D366; color: white; padding: 5px 10px; border-radius: 5px;');
+        console.log('%c🔥 InvPlanet App v13.1 - CON STOCK EDITABLE', 'background: #27ae60; color: white; padding: 5px 10px; border-radius: 5px;');
         this.verificarStorage();
         this.cargarNombreNegocio();
         this.inicializarLectorBarra();
@@ -603,7 +603,7 @@ class InvPlanetApp {
     }
 
     // ============================================
-    // EDITAR PRODUCTO
+    // EDITAR PRODUCTO - VERSIÓN CORREGIDA CON STOCK EDITABLE
     // ============================================
 
     mostrarModalEditarProducto(id) {
@@ -649,8 +649,9 @@ class InvPlanetApp {
                             </div>
                             <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                                 <div class="form-group">
-                                    <label>Stock Actual</label>
-                                    <input type="number" id="editProductoUnidades" class="form-control" value="${producto.unidades}" min="0" readonly style="background: #f8f9fa;">
+                                    <label>Stock Actual *</label>
+                                    <input type="number" id="editProductoUnidades" class="form-control" value="${producto.unidades}" min="0" step="1">
+                                    <small class="text-muted">Ingresa la nueva cantidad en inventario</small>
                                 </div>
                                 <div class="form-group">
                                     <label>Stock Mínimo</label>
@@ -701,6 +702,7 @@ class InvPlanetApp {
         const id = document.getElementById('editProductoId')?.value;
         const codigo = document.getElementById('editProductoCodigo')?.value;
         const nombre = document.getElementById('editProductoNombre')?.value;
+        const unidades = document.getElementById('editProductoUnidades')?.value;
         const precio = document.getElementById('editProductoPrecio')?.value;
         
         if (!codigo || !nombre || !precio) {
@@ -721,6 +723,7 @@ class InvPlanetApp {
             codigo: codigo,
             nombre: nombre,
             categoriaId: document.getElementById('editProductoCategoria')?.value || null,
+            unidades: parseInt(unidades) || 0, // Ahora se guarda el nuevo stock
             stockMinimo: parseInt(document.getElementById('editProductoStockMinimo')?.value) || 5,
             costoUnitario: parseFloat(document.getElementById('editProductoCosto')?.value) || 0,
             precioVenta: parseFloat(precio),
@@ -734,7 +737,7 @@ class InvPlanetApp {
             const actualizado = storage.updateProducto(id, productoActualizado);
             
             if (actualizado) {
-                this.mostrarMensaje(`✅ Producto "${nombre}" actualizado`, 'success');
+                this.mostrarMensaje(`✅ Producto "${nombre}" actualizado. Nuevo stock: ${unidades}`, 'success');
                 this.cerrarModal('modalEditarProducto');
                 setTimeout(() => this.loadInventarioView(), 300);
             }
@@ -3880,4 +3883,4 @@ window.finalizarVenta = () => app.finalizarVenta();
 // VERIFICACIÓN FINAL
 // ============================================
 
-console.log('%c✅ InvPlanet App v13.0 - CON MODIFICACIÓN DE VENTAS', 'background: #f39c12; color: white; padding: 10px 15px; border-radius: 5px; font-size: 14px; font-weight: bold;');
+console.log('%c✅ InvPlanet App v13.1 - CON STOCK EDITABLE EN PRODUCTOS', 'background: #27ae60; color: white; padding: 10px 15px; border-radius: 5px; font-size: 14px; font-weight: bold;');
