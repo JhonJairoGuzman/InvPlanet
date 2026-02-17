@@ -1,4 +1,4 @@
-﻿// js/app.js - VERSIÓN DEFINITIVA - CON STOCK EDITABLE EN PRODUCTOS
+﻿// js/app.js - VERSIÓN DEFINITIVA - MEGA COMPLETA CON TODOS LOS MÓDULOS
 // ============================================
 
 class InvPlanetApp {
@@ -14,15 +14,35 @@ class InvPlanetApp {
         this.modalOpen = false;
         this.ventasRealizadas = [];
         this.gastosRegistrados = [];
-        this.numeroWhatsApp = '+573243898130'; // Número fijo para órdenes
+        this.numeroWhatsApp = '+573243898130';
         this.scanTimeout = null;
         this.barcodeBuffer = '';
-        this.ventaEnModificacion = null; // Venta que se está modificando
+        this.ventaEnModificacion = null;
+        this.usuarioActual = null;
+        this.turnoActual = null;
+        this.mesas = [];
+        this.clientes = [];
+        this.proveedores = [];
+        this.promociones = [];
+        this.comisiones = [];
+        this.apartados = [];
+        this.creditos = [];
+        this.presupuestos = [];
         
-        console.log('%c🔥 InvPlanet App v13.1 - CON STOCK EDITABLE', 'background: #27ae60; color: white; padding: 5px 10px; border-radius: 5px;');
+        console.log('%c🔥 InvPlanet App v14.0 - MEGA COMPLETA (TODOS LOS MÓDULOS)', 'background: #27ae60; color: white; padding: 5px 10px; border-radius: 5px;');
         this.verificarStorage();
         this.cargarNombreNegocio();
         this.inicializarLectorBarra();
+        this.cargarUsuarios();
+        this.cargarClientes();
+        this.cargarProveedores();
+        this.cargarPromociones();
+        this.cargarMesas();
+        this.cargarComisiones();
+        this.cargarApartados();
+        this.cargarCreditos();
+        this.cargarPresupuestos();
+        this.cargarTurnoActual();
     }
 
     verificarStorage() {
@@ -40,15 +60,2863 @@ class InvPlanetApp {
     cargarNombreNegocio() {
         const config = storage.getConfig?.() || {};
         const nombreNegocio = config.nombreNegocio || 'Mi Negocio';
-        
-        // Actualizar título de la página
         document.title = `${nombreNegocio} - InvPlanet`;
-        
-        // Actualizar elemento en el header si existe
         const negocioNombre = document.getElementById('businessName');
         if (negocioNombre) {
             negocioNombre.textContent = nombreNegocio;
         }
+    }
+
+    // ============================================
+    // USUARIOS Y PERMISOS
+    // ============================================
+
+    cargarUsuarios() {
+        const users = storage.getUsers?.() || [];
+        this.usuarios = users;
+        console.log(`👥 Usuarios cargados: ${users.length}`);
+    }
+
+    getUsuarioActual() {
+        return this.usuarioActual || JSON.parse(localStorage.getItem('invplanet_usuario_actual') || 'null');
+    }
+
+    setUsuarioActual(usuario) {
+        this.usuarioActual = usuario;
+        localStorage.setItem('invplanet_usuario_actual', JSON.stringify(usuario));
+    }
+
+    tienePermiso(permiso) {
+        const usuario = this.getUsuarioActual();
+        if (!usuario) return false;
+        if (usuario.role === 'admin') return true;
+        
+        const permisos = {
+            'admin': ['todo'],
+            'cajero': ['ventas', 'ver_inventario', 'ver_clientes'],
+            'cocina': ['ver_pedidos', 'actualizar_estado'],
+            'domiciliario': ['ver_domicilios', 'actualizar_estado'],
+            'mesero': ['ventas', 'ver_mesas', 'ver_clientes'],
+            'invitado': ['ver_inventario']
+        };
+        
+        return permisos[usuario.role]?.includes(permiso) || false;
+    }
+
+    mostrarModalUsuarios() {
+        const usuarios = this.usuarios;
+        const roles = ['admin', 'cajero', 'cocina', 'domiciliario', 'mesero', 'invitado'];
+        
+        let usuariosHTML = '';
+        usuarios.forEach(u => {
+            usuariosHTML += `
+                <tr>
+                    <td>${u.username}</td>
+                    <td>${u.nombre || ''}</td>
+                    <td><span class="badge badge-info">${u.role}</span></td>
+                    <td>
+                        <button class="btn btn-sm btn-primary" onclick="window.app.editarUsuario('${u.id}')">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="window.app.eliminarUsuario('${u.id}')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+        
+        const modalHTML = `
+            <div class="modal-overlay active" id="modalUsuarios">
+                <div class="modal-content" style="max-width: 800px;">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-users"></i> Gestión de Usuarios</h3>
+                        <button class="close-modal" onclick="window.app.cerrarModal('modalUsuarios')">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <button class="btn btn-primary mb-3" onclick="window.app.mostrarModalNuevoUsuario()">
+                            <i class="fas fa-plus"></i> Nuevo Usuario
+                        </button>
+                        
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Usuario</th>
+                                    <th>Nombre</th>
+                                    <th>Rol</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${usuariosHTML || '<tr><td colspan="4" class="text-center">No hay usuarios</td></tr>'}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('modalContainer').innerHTML = modalHTML;
+        this.modalOpen = true;
+    }
+
+    mostrarModalNuevoUsuario() {
+        const roles = ['admin', 'cajero', 'cocina', 'domiciliario', 'mesero', 'invitado'];
+        let rolesOptions = '';
+        roles.forEach(r => {
+            rolesOptions += `<option value="${r}">${r.charAt(0).toUpperCase() + r.slice(1)}</option>`;
+        });
+        
+        const modalHTML = `
+            <div class="modal-overlay active" id="modalNuevoUsuario">
+                <div class="modal-content" style="max-width: 500px;">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-user-plus"></i> Nuevo Usuario</h3>
+                        <button class="close-modal" onclick="window.app.cerrarModal('modalNuevoUsuario')">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="formNuevoUsuario" onsubmit="return false;">
+                            <div class="form-group">
+                                <label>Usuario *</label>
+                                <input type="text" id="usuarioUsername" class="form-control" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Contraseña *</label>
+                                <input type="password" id="usuarioPassword" class="form-control" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Nombre completo</label>
+                                <input type="text" id="usuarioNombre" class="form-control">
+                            </div>
+                            <div class="form-group">
+                                <label>Rol *</label>
+                                <select id="usuarioRol" class="form-control">
+                                    ${rolesOptions}
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Email</label>
+                                <input type="email" id="usuarioEmail" class="form-control">
+                            </div>
+                            <div class="form-group">
+                                <label>Teléfono</label>
+                                <input type="tel" id="usuarioTelefono" class="form-control">
+                            </div>
+                            <div class="form-actions">
+                                <button type="button" class="btn btn-secondary" onclick="window.app.cerrarModal('modalNuevoUsuario')">Cancelar</button>
+                                <button type="button" class="btn btn-primary" onclick="window.app.guardarNuevoUsuario()">Guardar</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('modalContainer').innerHTML = modalHTML;
+    }
+
+    guardarNuevoUsuario() {
+        const username = document.getElementById('usuarioUsername')?.value;
+        const password = document.getElementById('usuarioPassword')?.value;
+        const nombre = document.getElementById('usuarioNombre')?.value;
+        const rol = document.getElementById('usuarioRol')?.value;
+        const email = document.getElementById('usuarioEmail')?.value;
+        const telefono = document.getElementById('usuarioTelefono')?.value;
+        
+        if (!username || !password || !rol) {
+            this.mostrarMensaje('❌ Completa los campos obligatorios', 'error');
+            return;
+        }
+        
+        const usuarios = storage.getUsers?.() || [];
+        const existe = usuarios.find(u => u.username === username);
+        
+        if (existe) {
+            this.mostrarMensaje('❌ El usuario ya existe', 'error');
+            return;
+        }
+        
+        const nuevoUsuario = {
+            id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+            username: username,
+            password: btoa(password), // Encriptación básica
+            nombre: nombre,
+            role: rol,
+            email: email,
+            telefono: telefono,
+            activo: true,
+            fechaCreacion: new Date().toISOString()
+        };
+        
+        storage.addUser?.(nuevoUsuario);
+        this.cargarUsuarios();
+        this.mostrarMensaje('✅ Usuario creado', 'success');
+        this.cerrarModal('modalNuevoUsuario');
+        this.mostrarModalUsuarios();
+    }
+
+    editarUsuario(id) {
+        const usuario = storage.getUserById?.(id) || this.usuarios.find(u => u.id === id);
+        if (!usuario) return;
+        
+        const roles = ['admin', 'cajero', 'cocina', 'domiciliario', 'mesero', 'invitado'];
+        let rolesOptions = '';
+        roles.forEach(r => {
+            const selected = r === usuario.role ? 'selected' : '';
+            rolesOptions += `<option value="${r}" ${selected}>${r.charAt(0).toUpperCase() + r.slice(1)}</option>`;
+        });
+        
+        const modalHTML = `
+            <div class="modal-overlay active" id="modalEditarUsuario">
+                <div class="modal-content" style="max-width: 500px;">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-user-edit"></i> Editar Usuario</h3>
+                        <button class="close-modal" onclick="window.app.cerrarModal('modalEditarUsuario')">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="formEditarUsuario" onsubmit="return false;">
+                            <input type="hidden" id="editUsuarioId" value="${usuario.id}">
+                            <div class="form-group">
+                                <label>Usuario *</label>
+                                <input type="text" id="editUsuarioUsername" class="form-control" value="${usuario.username}" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Contraseña (dejar en blanco para no cambiar)</label>
+                                <input type="password" id="editUsuarioPassword" class="form-control">
+                            </div>
+                            <div class="form-group">
+                                <label>Nombre completo</label>
+                                <input type="text" id="editUsuarioNombre" class="form-control" value="${usuario.nombre || ''}">
+                            </div>
+                            <div class="form-group">
+                                <label>Rol *</label>
+                                <select id="editUsuarioRol" class="form-control">
+                                    ${rolesOptions}
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Email</label>
+                                <input type="email" id="editUsuarioEmail" class="form-control" value="${usuario.email || ''}">
+                            </div>
+                            <div class="form-group">
+                                <label>Teléfono</label>
+                                <input type="tel" id="editUsuarioTelefono" class="form-control" value="${usuario.telefono || ''}">
+                            </div>
+                            <div class="form-check mb-3">
+                                <input type="checkbox" id="editUsuarioActivo" class="form-check-input" ${usuario.activo ? 'checked' : ''}>
+                                <label class="form-check-label">Usuario Activo</label>
+                            </div>
+                            <div class="form-actions">
+                                <button type="button" class="btn btn-secondary" onclick="window.app.cerrarModal('modalEditarUsuario')">Cancelar</button>
+                                <button type="button" class="btn btn-primary" onclick="window.app.guardarEdicionUsuario()">Guardar Cambios</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('modalContainer').innerHTML = modalHTML;
+    }
+
+    guardarEdicionUsuario() {
+        const id = document.getElementById('editUsuarioId')?.value;
+        const username = document.getElementById('editUsuarioUsername')?.value;
+        const password = document.getElementById('editUsuarioPassword')?.value;
+        const nombre = document.getElementById('editUsuarioNombre')?.value;
+        const rol = document.getElementById('editUsuarioRol')?.value;
+        const email = document.getElementById('editUsuarioEmail')?.value;
+        const telefono = document.getElementById('editUsuarioTelefono')?.value;
+        const activo = document.getElementById('editUsuarioActivo')?.checked || false;
+        
+        if (!username || !rol) {
+            this.mostrarMensaje('❌ Completa los campos obligatorios', 'error');
+            return;
+        }
+        
+        const usuarios = storage.getUsers?.() || [];
+        const existe = usuarios.find(u => u.username === username && u.id !== id);
+        
+        if (existe) {
+            this.mostrarMensaje('❌ El nombre de usuario ya existe', 'error');
+            return;
+        }
+        
+        const updates = {
+            username: username,
+            nombre: nombre,
+            role: rol,
+            email: email,
+            telefono: telefono,
+            activo: activo
+        };
+        
+        if (password) {
+            updates.password = btoa(password);
+        }
+        
+        storage.updateUser?.(id, updates);
+        this.cargarUsuarios();
+        this.mostrarMensaje('✅ Usuario actualizado', 'success');
+        this.cerrarModal('modalEditarUsuario');
+        this.mostrarModalUsuarios();
+    }
+
+    eliminarUsuario(id) {
+        if (confirm('¿Eliminar este usuario?')) {
+            storage.deleteUser?.(id);
+            this.cargarUsuarios();
+            this.mostrarMensaje('✅ Usuario eliminado', 'success');
+            this.mostrarModalUsuarios();
+        }
+    }
+
+    // ============================================
+    // CLIENTES
+    // ============================================
+
+    cargarClientes() {
+        this.clientes = JSON.parse(localStorage.getItem('invplanet_clientes') || '[]');
+        console.log(`👤 Clientes cargados: ${this.clientes.length}`);
+    }
+
+    guardarClientes() {
+        localStorage.setItem('invplanet_clientes', JSON.stringify(this.clientes));
+    }
+
+    mostrarModalClientes() {
+        let clientesHTML = '';
+        this.clientes.forEach(c => {
+            clientesHTML += `
+                <tr>
+                    <td>${c.nombre}</td>
+                    <td>${c.telefono || ''}</td>
+                    <td>${c.email || ''}</td>
+                    <td>${c.direccion || ''}</td>
+                    <td>${c.puntos || 0}</td>
+                    <td>
+                        <button class="btn btn-sm btn-primary" onclick="window.app.editarCliente('${c.id}')">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-sm btn-info" onclick="window.app.verHistorialCliente('${c.id}')">
+                            <i class="fas fa-history"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+        
+        const modalHTML = `
+            <div class="modal-overlay active" id="modalClientes">
+                <div class="modal-content" style="max-width: 1000px;">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-users"></i> Clientes</h3>
+                        <button class="close-modal" onclick="window.app.cerrarModal('modalClientes')">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <button class="btn btn-primary mb-3" onclick="window.app.mostrarModalNuevoCliente()">
+                            <i class="fas fa-plus"></i> Nuevo Cliente
+                        </button>
+                        
+                        <div class="mb-3">
+                            <input type="text" class="form-control" id="buscarCliente" placeholder="Buscar cliente...">
+                        </div>
+                        
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Nombre</th>
+                                        <th>Teléfono</th>
+                                        <th>Email</th>
+                                        <th>Dirección</th>
+                                        <th>Puntos</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tablaClientes">
+                                    ${clientesHTML || '<tr><td colspan="6" class="text-center">No hay clientes</td></tr>'}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('modalContainer').innerHTML = modalHTML;
+        this.modalOpen = true;
+        
+        document.getElementById('buscarCliente')?.addEventListener('keyup', () => this.buscarClientes());
+    }
+
+    buscarClientes() {
+        const query = document.getElementById('buscarCliente')?.value.toLowerCase() || '';
+        const filtrados = this.clientes.filter(c => 
+            c.nombre?.toLowerCase().includes(query) || 
+            c.telefono?.toLowerCase().includes(query) ||
+            c.email?.toLowerCase().includes(query)
+        );
+        
+        let html = '';
+        filtrados.forEach(c => {
+            html += `
+                <tr>
+                    <td>${c.nombre}</td>
+                    <td>${c.telefono || ''}</td>
+                    <td>${c.email || ''}</td>
+                    <td>${c.direccion || ''}</td>
+                    <td>${c.puntos || 0}</td>
+                    <td>
+                        <button class="btn btn-sm btn-primary" onclick="window.app.editarCliente('${c.id}')">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-sm btn-info" onclick="window.app.verHistorialCliente('${c.id}')">
+                            <i class="fas fa-history"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+        
+        document.getElementById('tablaClientes').innerHTML = html || '<tr><td colspan="6" class="text-center">No hay resultados</td></tr>';
+    }
+
+    mostrarModalNuevoCliente() {
+        const modalHTML = `
+            <div class="modal-overlay active" id="modalNuevoCliente">
+                <div class="modal-content" style="max-width: 500px;">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-user-plus"></i> Nuevo Cliente</h3>
+                        <button class="close-modal" onclick="window.app.cerrarModal('modalNuevoCliente')">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="formNuevoCliente" onsubmit="return false;">
+                            <div class="form-group">
+                                <label>Nombre *</label>
+                                <input type="text" id="clienteNombre" class="form-control" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Teléfono</label>
+                                <input type="tel" id="clienteTelefono" class="form-control">
+                            </div>
+                            <div class="form-group">
+                                <label>Email</label>
+                                <input type="email" id="clienteEmail" class="form-control">
+                            </div>
+                            <div class="form-group">
+                                <label>Dirección</label>
+                                <input type="text" id="clienteDireccion" class="form-control">
+                            </div>
+                            <div class="form-group">
+                                <label>Fecha de nacimiento</label>
+                                <input type="date" id="clienteNacimiento" class="form-control">
+                            </div>
+                            <div class="form-group">
+                                <label>Puntos iniciales</label>
+                                <input type="number" id="clientePuntos" class="form-control" value="0" min="0">
+                            </div>
+                            <div class="form-group">
+                                <label>Notas</label>
+                                <textarea id="clienteNotas" class="form-control" rows="2"></textarea>
+                            </div>
+                            <div class="form-actions">
+                                <button type="button" class="btn btn-secondary" onclick="window.app.cerrarModal('modalNuevoCliente')">Cancelar</button>
+                                <button type="button" class="btn btn-primary" onclick="window.app.guardarNuevoCliente()">Guardar</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('modalContainer').innerHTML = modalHTML;
+    }
+
+    guardarNuevoCliente() {
+        const nombre = document.getElementById('clienteNombre')?.value;
+        
+        if (!nombre) {
+            this.mostrarMensaje('❌ El nombre es obligatorio', 'error');
+            return;
+        }
+        
+        const nuevoCliente = {
+            id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+            nombre: nombre,
+            telefono: document.getElementById('clienteTelefono')?.value || '',
+            email: document.getElementById('clienteEmail')?.value || '',
+            direccion: document.getElementById('clienteDireccion')?.value || '',
+            fechaNacimiento: document.getElementById('clienteNacimiento')?.value || '',
+            puntos: parseInt(document.getElementById('clientePuntos')?.value) || 0,
+            notas: document.getElementById('clienteNotas')?.value || '',
+            totalCompras: 0,
+            ultimaCompra: null,
+            fechaCreacion: new Date().toISOString()
+        };
+        
+        this.clientes.push(nuevoCliente);
+        this.guardarClientes();
+        this.mostrarMensaje('✅ Cliente guardado', 'success');
+        this.cerrarModal('modalNuevoCliente');
+        this.mostrarModalClientes();
+    }
+
+    editarCliente(id) {
+        const cliente = this.clientes.find(c => c.id === id);
+        if (!cliente) return;
+        
+        const modalHTML = `
+            <div class="modal-overlay active" id="modalEditarCliente">
+                <div class="modal-content" style="max-width: 500px;">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-user-edit"></i> Editar Cliente</h3>
+                        <button class="close-modal" onclick="window.app.cerrarModal('modalEditarCliente')">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="formEditarCliente" onsubmit="return false;">
+                            <input type="hidden" id="editClienteId" value="${cliente.id}">
+                            <div class="form-group">
+                                <label>Nombre *</label>
+                                <input type="text" id="editClienteNombre" class="form-control" value="${cliente.nombre}" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Teléfono</label>
+                                <input type="tel" id="editClienteTelefono" class="form-control" value="${cliente.telefono || ''}">
+                            </div>
+                            <div class="form-group">
+                                <label>Email</label>
+                                <input type="email" id="editClienteEmail" class="form-control" value="${cliente.email || ''}">
+                            </div>
+                            <div class="form-group">
+                                <label>Dirección</label>
+                                <input type="text" id="editClienteDireccion" class="form-control" value="${cliente.direccion || ''}">
+                            </div>
+                            <div class="form-group">
+                                <label>Fecha de nacimiento</label>
+                                <input type="date" id="editClienteNacimiento" class="form-control" value="${cliente.fechaNacimiento || ''}">
+                            </div>
+                            <div class="form-group">
+                                <label>Puntos</label>
+                                <input type="number" id="editClientePuntos" class="form-control" value="${cliente.puntos || 0}" min="0">
+                            </div>
+                            <div class="form-group">
+                                <label>Notas</label>
+                                <textarea id="editClienteNotas" class="form-control" rows="2">${cliente.notas || ''}</textarea>
+                            </div>
+                            <div class="form-actions">
+                                <button type="button" class="btn btn-secondary" onclick="window.app.cerrarModal('modalEditarCliente')">Cancelar</button>
+                                <button type="button" class="btn btn-primary" onclick="window.app.guardarEdicionCliente()">Guardar Cambios</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('modalContainer').innerHTML = modalHTML;
+    }
+
+    guardarEdicionCliente() {
+        const id = document.getElementById('editClienteId')?.value;
+        const nombre = document.getElementById('editClienteNombre')?.value;
+        
+        if (!nombre) {
+            this.mostrarMensaje('❌ El nombre es obligatorio', 'error');
+            return;
+        }
+        
+        const index = this.clientes.findIndex(c => c.id === id);
+        if (index !== -1) {
+            this.clientes[index] = {
+                ...this.clientes[index],
+                nombre: nombre,
+                telefono: document.getElementById('editClienteTelefono')?.value || '',
+                email: document.getElementById('editClienteEmail')?.value || '',
+                direccion: document.getElementById('editClienteDireccion')?.value || '',
+                fechaNacimiento: document.getElementById('editClienteNacimiento')?.value || '',
+                puntos: parseInt(document.getElementById('editClientePuntos')?.value) || 0,
+                notas: document.getElementById('editClienteNotas')?.value || '',
+                fechaActualizacion: new Date().toISOString()
+            };
+            
+            this.guardarClientes();
+            this.mostrarMensaje('✅ Cliente actualizado', 'success');
+            this.cerrarModal('modalEditarCliente');
+            this.mostrarModalClientes();
+        }
+    }
+
+    verHistorialCliente(id) {
+        const cliente = this.clientes.find(c => c.id === id);
+        if (!cliente) return;
+        
+        const ventas = storage.getVentas?.() || [];
+        const ventasCliente = ventas.filter(v => v.cliente === cliente.nombre || v.clienteId === id);
+        
+        let historialHTML = '';
+        ventasCliente.sort((a, b) => new Date(b.fecha) - new Date(a.fecha)).forEach(v => {
+            const fecha = new Date(v.fecha);
+            historialHTML += `
+                <tr>
+                    <td>${v.numero}</td>
+                    <td>${fecha.toLocaleDateString()}</td>
+                    <td>${v.productos?.length || 0}</td>
+                    <td>$${v.total.toLocaleString()}</td>
+                </tr>
+            `;
+        });
+        
+        const modalHTML = `
+            <div class="modal-overlay active" id="modalHistorialCliente">
+                <div class="modal-content" style="max-width: 800px;">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-history"></i> Historial de ${cliente.nombre}</h3>
+                        <button class="close-modal" onclick="window.app.cerrarModal('modalHistorialCliente')">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <p><strong>Total compras:</strong> ${ventasCliente.length}</p>
+                        <p><strong>Total gastado:</strong> $${ventasCliente.reduce((s, v) => s + v.total, 0).toLocaleString()}</p>
+                        <p><strong>Puntos actuales:</strong> ${cliente.puntos || 0}</p>
+                        
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Venta</th>
+                                    <th>Fecha</th>
+                                    <th>Productos</th>
+                                    <th>Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${historialHTML || '<tr><td colspan="4" class="text-center">No hay compras</td></tr>'}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('modalContainer').innerHTML = modalHTML;
+    }
+
+    // ============================================
+    // PROVEEDORES
+    // ============================================
+
+    cargarProveedores() {
+        this.proveedores = JSON.parse(localStorage.getItem('invplanet_proveedores') || '[]');
+        console.log(`📦 Proveedores cargados: ${this.proveedores.length}`);
+    }
+
+    guardarProveedores() {
+        localStorage.setItem('invplanet_proveedores', JSON.stringify(this.proveedores));
+    }
+
+    mostrarModalProveedores() {
+        let proveedoresHTML = '';
+        this.proveedores.forEach(p => {
+            proveedoresHTML += `
+                <tr>
+                    <td>${p.nombre}</td>
+                    <td>${p.contacto || ''}</td>
+                    <td>${p.telefono || ''}</td>
+                    <td>${p.email || ''}</td>
+                    <td>
+                        <button class="btn btn-sm btn-primary" onclick="window.app.editarProveedor('${p.id}')">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-sm btn-info" onclick="window.app.verProductosProveedor('${p.id}')">
+                            <i class="fas fa-boxes"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+        
+        const modalHTML = `
+            <div class="modal-overlay active" id="modalProveedores">
+                <div class="modal-content" style="max-width: 900px;">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-truck"></i> Proveedores</h3>
+                        <button class="close-modal" onclick="window.app.cerrarModal('modalProveedores')">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <button class="btn btn-primary mb-3" onclick="window.app.mostrarModalNuevoProveedor()">
+                            <i class="fas fa-plus"></i> Nuevo Proveedor
+                        </button>
+                        
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Nombre</th>
+                                        <th>Contacto</th>
+                                        <th>Teléfono</th>
+                                        <th>Email</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${proveedoresHTML || '<tr><td colspan="5" class="text-center">No hay proveedores</td></tr>'}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('modalContainer').innerHTML = modalHTML;
+    }
+
+    mostrarModalNuevoProveedor() {
+        const modalHTML = `
+            <div class="modal-overlay active" id="modalNuevoProveedor">
+                <div class="modal-content" style="max-width: 500px;">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-truck-plus"></i> Nuevo Proveedor</h3>
+                        <button class="close-modal" onclick="window.app.cerrarModal('modalNuevoProveedor')">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="formNuevoProveedor" onsubmit="return false;">
+                            <div class="form-group">
+                                <label>Nombre *</label>
+                                <input type="text" id="proveedorNombre" class="form-control" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Persona de contacto</label>
+                                <input type="text" id="proveedorContacto" class="form-control">
+                            </div>
+                            <div class="form-group">
+                                <label>Teléfono</label>
+                                <input type="tel" id="proveedorTelefono" class="form-control">
+                            </div>
+                            <div class="form-group">
+                                <label>Email</label>
+                                <input type="email" id="proveedorEmail" class="form-control">
+                            </div>
+                            <div class="form-group">
+                                <label>Dirección</label>
+                                <input type="text" id="proveedorDireccion" class="form-control">
+                            </div>
+                            <div class="form-group">
+                                <label>Notas</label>
+                                <textarea id="proveedorNotas" class="form-control" rows="2"></textarea>
+                            </div>
+                            <div class="form-actions">
+                                <button type="button" class="btn btn-secondary" onclick="window.app.cerrarModal('modalNuevoProveedor')">Cancelar</button>
+                                <button type="button" class="btn btn-primary" onclick="window.app.guardarNuevoProveedor()">Guardar</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('modalContainer').innerHTML = modalHTML;
+    }
+
+    guardarNuevoProveedor() {
+        const nombre = document.getElementById('proveedorNombre')?.value;
+        
+        if (!nombre) {
+            this.mostrarMensaje('❌ El nombre es obligatorio', 'error');
+            return;
+        }
+        
+        const nuevoProveedor = {
+            id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+            nombre: nombre,
+            contacto: document.getElementById('proveedorContacto')?.value || '',
+            telefono: document.getElementById('proveedorTelefono')?.value || '',
+            email: document.getElementById('proveedorEmail')?.value || '',
+            direccion: document.getElementById('proveedorDireccion')?.value || '',
+            notas: document.getElementById('proveedorNotas')?.value || '',
+            fechaCreacion: new Date().toISOString()
+        };
+        
+        this.proveedores.push(nuevoProveedor);
+        this.guardarProveedores();
+        this.mostrarMensaje('✅ Proveedor guardado', 'success');
+        this.cerrarModal('modalNuevoProveedor');
+        this.mostrarModalProveedores();
+    }
+
+    editarProveedor(id) {
+        const proveedor = this.proveedores.find(p => p.id === id);
+        if (!proveedor) return;
+        
+        const modalHTML = `
+            <div class="modal-overlay active" id="modalEditarProveedor">
+                <div class="modal-content" style="max-width: 500px;">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-truck-edit"></i> Editar Proveedor</h3>
+                        <button class="close-modal" onclick="window.app.cerrarModal('modalEditarProveedor')">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="formEditarProveedor" onsubmit="return false;">
+                            <input type="hidden" id="editProveedorId" value="${proveedor.id}">
+                            <div class="form-group">
+                                <label>Nombre *</label>
+                                <input type="text" id="editProveedorNombre" class="form-control" value="${proveedor.nombre}" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Persona de contacto</label>
+                                <input type="text" id="editProveedorContacto" class="form-control" value="${proveedor.contacto || ''}">
+                            </div>
+                            <div class="form-group">
+                                <label>Teléfono</label>
+                                <input type="tel" id="editProveedorTelefono" class="form-control" value="${proveedor.telefono || ''}">
+                            </div>
+                            <div class="form-group">
+                                <label>Email</label>
+                                <input type="email" id="editProveedorEmail" class="form-control" value="${proveedor.email || ''}">
+                            </div>
+                            <div class="form-group">
+                                <label>Dirección</label>
+                                <input type="text" id="editProveedorDireccion" class="form-control" value="${proveedor.direccion || ''}">
+                            </div>
+                            <div class="form-group">
+                                <label>Notas</label>
+                                <textarea id="editProveedorNotas" class="form-control" rows="2">${proveedor.notas || ''}</textarea>
+                            </div>
+                            <div class="form-actions">
+                                <button type="button" class="btn btn-secondary" onclick="window.app.cerrarModal('modalEditarProveedor')">Cancelar</button>
+                                <button type="button" class="btn btn-primary" onclick="window.app.guardarEdicionProveedor()">Guardar Cambios</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('modalContainer').innerHTML = modalHTML;
+    }
+
+    guardarEdicionProveedor() {
+        const id = document.getElementById('editProveedorId')?.value;
+        const nombre = document.getElementById('editProveedorNombre')?.value;
+        
+        if (!nombre) {
+            this.mostrarMensaje('❌ El nombre es obligatorio', 'error');
+            return;
+        }
+        
+        const index = this.proveedores.findIndex(p => p.id === id);
+        if (index !== -1) {
+            this.proveedores[index] = {
+                ...this.proveedores[index],
+                nombre: nombre,
+                contacto: document.getElementById('editProveedorContacto')?.value || '',
+                telefono: document.getElementById('editProveedorTelefono')?.value || '',
+                email: document.getElementById('editProveedorEmail')?.value || '',
+                direccion: document.getElementById('editProveedorDireccion')?.value || '',
+                notas: document.getElementById('editProveedorNotas')?.value || '',
+                fechaActualizacion: new Date().toISOString()
+            };
+            
+            this.guardarProveedores();
+            this.mostrarMensaje('✅ Proveedor actualizado', 'success');
+            this.cerrarModal('modalEditarProveedor');
+            this.mostrarModalProveedores();
+        }
+    }
+
+    verProductosProveedor(id) {
+        const proveedor = this.proveedores.find(p => p.id === id);
+        if (!proveedor) return;
+        
+        const inventario = storage.getInventario();
+        const productos = inventario.filter(p => p.proveedorId === id || p.proveedor === proveedor.nombre);
+        
+        let productosHTML = '';
+        productos.forEach(p => {
+            productosHTML += `
+                <tr>
+                    <td>${p.codigo}</td>
+                    <td>${p.nombre}</td>
+                    <td>${p.unidades}</td>
+                    <td>$${p.costoUnitario}</td>
+                </tr>
+            `;
+        });
+        
+        const modalHTML = `
+            <div class="modal-overlay active" id="modalProductosProveedor">
+                <div class="modal-content" style="max-width: 800px;">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-boxes"></i> Productos de ${proveedor.nombre}</h3>
+                        <button class="close-modal" onclick="window.app.cerrarModal('modalProductosProveedor')">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <p><strong>Total productos:</strong> ${productos.length}</p>
+                        
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Código</th>
+                                    <th>Producto</th>
+                                    <th>Stock</th>
+                                    <th>Costo</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${productosHTML || '<tr><td colspan="4" class="text-center">No hay productos de este proveedor</td></tr>'}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('modalContainer').innerHTML = modalHTML;
+    }
+
+    // ============================================
+    // PROMOCIONES Y DESCUENTOS
+    // ============================================
+
+    cargarPromociones() {
+        this.promociones = JSON.parse(localStorage.getItem('invplanet_promociones') || '[]');
+        console.log(`🎁 Promociones cargadas: ${this.promociones.length}`);
+    }
+
+    guardarPromociones() {
+        localStorage.setItem('invplanet_promociones', JSON.stringify(this.promociones));
+    }
+
+    mostrarModalPromociones() {
+        let promocionesHTML = '';
+        this.promociones.forEach(p => {
+            const fechaInicio = p.fechaInicio ? new Date(p.fechaInicio).toLocaleDateString() : '';
+            const fechaFin = p.fechaFin ? new Date(p.fechaFin).toLocaleDateString() : '';
+            const activa = p.activa ? 'Sí' : 'No';
+            
+            promocionesHTML += `
+                <tr>
+                    <td>${p.nombre}</td>
+                    <td>${p.tipo}</td>
+                    <td>${p.valor}</td>
+                    <td>${fechaInicio}</td>
+                    <td>${fechaFin}</td>
+                    <td>${activa}</td>
+                    <td>
+                        <button class="btn btn-sm btn-primary" onclick="window.app.editarPromocion('${p.id}')">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="window.app.eliminarPromocion('${p.id}')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+        
+        const modalHTML = `
+            <div class="modal-overlay active" id="modalPromociones">
+                <div class="modal-content" style="max-width: 1000px;">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-tags"></i> Promociones y Descuentos</h3>
+                        <button class="close-modal" onclick="window.app.cerrarModal('modalPromociones')">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <button class="btn btn-primary mb-3" onclick="window.app.mostrarModalNuevaPromocion()">
+                            <i class="fas fa-plus"></i> Nueva Promoción
+                        </button>
+                        
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Nombre</th>
+                                        <th>Tipo</th>
+                                        <th>Valor</th>
+                                        <th>Inicio</th>
+                                        <th>Fin</th>
+                                        <th>Activa</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${promocionesHTML || '<tr><td colspan="7" class="text-center">No hay promociones</td></tr>'}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('modalContainer').innerHTML = modalHTML;
+    }
+
+    mostrarModalNuevaPromocion() {
+        const modalHTML = `
+            <div class="modal-overlay active" id="modalNuevaPromocion">
+                <div class="modal-content" style="max-width: 600px;">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-tag-plus"></i> Nueva Promoción</h3>
+                        <button class="close-modal" onclick="window.app.cerrarModal('modalNuevaPromocion')">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="formNuevaPromocion" onsubmit="return false;">
+                            <div class="form-group">
+                                <label>Nombre *</label>
+                                <input type="text" id="promocionNombre" class="form-control" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Tipo de promoción</label>
+                                <select id="promocionTipo" class="form-control">
+                                    <option value="porcentaje">Porcentaje de descuento</option>
+                                    <option value="monto">Monto fijo de descuento</option>
+                                    <option value="2x1">2x1</option>
+                                    <option value="3x2">3x2</option>
+                                    <option value="combo">Combo especial</option>
+                                    <option value="volumen">Descuento por volumen</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Valor del descuento</label>
+                                <input type="text" id="promocionValor" class="form-control" placeholder="Ej: 20% o $5000">
+                                <small class="text-muted">Para 2x1 dejar vacío</small>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Aplicar a</label>
+                                <select id="promocionAplica" class="form-control">
+                                    <option value="todos">Todos los productos</option>
+                                    <option value="categoria">Categoría específica</option>
+                                    <option value="producto">Producto específico</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group" id="campoCategoria" style="display:none;">
+                                <label>Categoría</label>
+                                <select id="promocionCategoria" class="form-control">
+                                    ${this.generarOptionsCategorias()}
+                                </select>
+                            </div>
+                            
+                            <div class="form-group" id="campoProducto" style="display:none;">
+                                <label>Producto</label>
+                                <select id="promocionProducto" class="form-control">
+                                    ${this.generarOptionsProductos()}
+                                </select>
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Fecha inicio</label>
+                                    <input type="date" id="promocionFechaInicio" class="form-control">
+                                </div>
+                                <div class="form-group">
+                                    <label>Fecha fin</label>
+                                    <input type="date" id="promocionFechaFin" class="form-control">
+                                </div>
+                            </div>
+                            
+                            <div class="form-check mb-3">
+                                <input type="checkbox" id="promocionActiva" class="form-check-input" checked>
+                                <label class="form-check-label">Activa</label>
+                            </div>
+                            
+                            <div class="form-actions">
+                                <button type="button" class="btn btn-secondary" onclick="window.app.cerrarModal('modalNuevaPromocion')">Cancelar</button>
+                                <button type="button" class="btn btn-primary" onclick="window.app.guardarNuevaPromocion()">Guardar</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('modalContainer').innerHTML = modalHTML;
+        
+        document.getElementById('promocionAplica')?.addEventListener('change', (e) => {
+            const valor = e.target.value;
+            document.getElementById('campoCategoria').style.display = valor === 'categoria' ? 'block' : 'none';
+            document.getElementById('campoProducto').style.display = valor === 'producto' ? 'block' : 'none';
+        });
+    }
+
+    generarOptionsCategorias() {
+        const categorias = storage.getCategorias();
+        let options = '';
+        categorias.forEach(c => {
+            options += `<option value="${c.id}">${c.nombre}</option>`;
+        });
+        return options;
+    }
+
+    generarOptionsProductos() {
+        const productos = storage.getInventario();
+        let options = '';
+        productos.forEach(p => {
+            options += `<option value="${p.id}">${p.nombre}</option>`;
+        });
+        return options;
+    }
+
+    guardarNuevaPromocion() {
+        const nombre = document.getElementById('promocionNombre')?.value;
+        
+        if (!nombre) {
+            this.mostrarMensaje('❌ El nombre es obligatorio', 'error');
+            return;
+        }
+        
+        const nuevaPromocion = {
+            id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+            nombre: nombre,
+            tipo: document.getElementById('promocionTipo')?.value || 'porcentaje',
+            valor: document.getElementById('promocionValor')?.value || '',
+            aplica: document.getElementById('promocionAplica')?.value || 'todos',
+            categoriaId: document.getElementById('promocionCategoria')?.value || null,
+            productoId: document.getElementById('promocionProducto')?.value || null,
+            fechaInicio: document.getElementById('promocionFechaInicio')?.value || null,
+            fechaFin: document.getElementById('promocionFechaFin')?.value || null,
+            activa: document.getElementById('promocionActiva')?.checked || false,
+            fechaCreacion: new Date().toISOString()
+        };
+        
+        this.promociones.push(nuevaPromocion);
+        this.guardarPromociones();
+        this.mostrarMensaje('✅ Promoción creada', 'success');
+        this.cerrarModal('modalNuevaPromocion');
+        this.mostrarModalPromociones();
+    }
+
+    aplicarPromociones(precio, productoId, categoriaId, cantidad) {
+        let precioFinal = precio;
+        const ahora = new Date();
+        
+        for (const p of this.promociones) {
+            if (!p.activa) continue;
+            
+            if (p.fechaInicio && new Date(p.fechaInicio) > ahora) continue;
+            if (p.fechaFin && new Date(p.fechaFin) < ahora) continue;
+            
+            if (p.aplica === 'producto' && p.productoId !== productoId) continue;
+            if (p.aplica === 'categoria' && p.categoriaId !== categoriaId) continue;
+            
+            if (p.tipo === 'porcentaje') {
+                const descuento = parseFloat(p.valor) / 100;
+                precioFinal = precio * (1 - descuento);
+            } else if (p.tipo === 'monto') {
+                const descuento = parseFloat(p.valor);
+                precioFinal = precio - descuento;
+            } else if (p.tipo === '2x1' && cantidad >= 2) {
+                // Se aplica automáticamente en el carrito
+                return { promocion: p, aplica: true };
+            } else if (p.tipo === '3x2' && cantidad >= 3) {
+                return { promocion: p, aplica: true };
+            }
+        }
+        
+        return { precioFinal, promocion: null };
+    }
+
+    // ============================================
+    // KITS DE PRODUCTOS (COMBOS)
+    // ============================================
+
+    mostrarModalNuevoKit() {
+        const productos = storage.getInventario().filter(p => p.activo);
+        let productosOptions = '';
+        productos.forEach(p => {
+            productosOptions += `<option value="${p.id}">${p.nombre} - $${p.precioVenta}</option>`;
+        });
+        
+        const modalHTML = `
+            <div class="modal-overlay active" id="modalNuevoKit">
+                <div class="modal-content" style="max-width: 700px;">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-boxes"></i> Nuevo Kit / Combo</h3>
+                        <button class="close-modal" onclick="window.app.cerrarModal('modalNuevoKit')">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="formNuevoKit" onsubmit="return false;">
+                            <div class="form-group">
+                                <label>Nombre del Kit *</label>
+                                <input type="text" id="kitNombre" class="form-control" required placeholder="Ej: Combo Hamburguesa">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Precio del Kit</label>
+                                <input type="number" id="kitPrecio" class="form-control" min="0" step="100">
+                                <small class="text-muted">Dejar vacío para calcular automático</small>
+                            </div>
+                            
+                            <h5>Productos del Kit</h5>
+                            <div id="productosKit">
+                                <div class="row mb-2">
+                                    <div class="col-md-6">
+                                        <select class="form-control kit-producto" name="kitProducto[]">
+                                            ${productosOptions}
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <input type="number" class="form-control kit-cantidad" name="kitCantidad[]" value="1" min="1">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <button type="button" class="btn btn-danger btn-sm" onclick="this.parentElement.parentElement.remove()">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <button type="button" class="btn btn-info mb-3" onclick="window.app.agregarProductoKit()">
+                                <i class="fas fa-plus"></i> Agregar producto
+                            </button>
+                            
+                            <div class="form-group">
+                                <label>Descripción</label>
+                                <textarea id="kitDescripcion" class="form-control" rows="2"></textarea>
+                            </div>
+                            
+                            <div class="form-actions">
+                                <button type="button" class="btn btn-secondary" onclick="window.app.cerrarModal('modalNuevoKit')">Cancelar</button>
+                                <button type="button" class="btn btn-primary" onclick="window.app.guardarNuevoKit()">Guardar Kit</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('modalContainer').innerHTML = modalHTML;
+    }
+
+    agregarProductoKit() {
+        const productos = storage.getInventario().filter(p => p.activo);
+        let productosOptions = '';
+        productos.forEach(p => {
+            productosOptions += `<option value="${p.id}">${p.nombre} - $${p.precioVenta}</option>`;
+        });
+        
+        const div = document.createElement('div');
+        div.className = 'row mb-2';
+        div.innerHTML = `
+            <div class="col-md-6">
+                <select class="form-control kit-producto" name="kitProducto[]">
+                    ${productosOptions}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <input type="number" class="form-control kit-cantidad" name="kitCantidad[]" value="1" min="1">
+            </div>
+            <div class="col-md-3">
+                <button type="button" class="btn btn-danger btn-sm" onclick="this.parentElement.parentElement.remove()">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        `;
+        
+        document.getElementById('productosKit').appendChild(div);
+    }
+
+    guardarNuevoKit() {
+        const nombre = document.getElementById('kitNombre')?.value;
+        if (!nombre) {
+            this.mostrarMensaje('❌ El nombre es obligatorio', 'error');
+            return;
+        }
+        
+        const productosSelects = document.querySelectorAll('.kit-producto');
+        const cantidades = document.querySelectorAll('.kit-cantidad');
+        
+        if (productosSelects.length === 0) {
+            this.mostrarMensaje('❌ Agrega al menos un producto', 'error');
+            return;
+        }
+        
+        const componentes = [];
+        let sumaPrecios = 0;
+        
+        for (let i = 0; i < productosSelects.length; i++) {
+            const productoId = productosSelects[i].value;
+            const cantidad = parseInt(cantidades[i].value) || 1;
+            const producto = storage.getProducto(productoId);
+            
+            if (producto) {
+                componentes.push({
+                    productoId: productoId,
+                    nombre: producto.nombre,
+                    cantidad: cantidad,
+                    precioUnitario: producto.precioVenta
+                });
+                sumaPrecios += producto.precioVenta * cantidad;
+            }
+        }
+        
+        const precioKit = parseFloat(document.getElementById('kitPrecio')?.value) || sumaPrecios;
+        
+        const nuevoProducto = {
+            id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+            codigo: 'KIT' + Date.now().toString().slice(-6),
+            nombre: nombre,
+            categoriaId: null,
+            unidades: 9999,
+            stockMinimo: 1,
+            costoUnitario: sumaPrecios * 0.7,
+            precioVenta: precioKit,
+            proveedor: '',
+            descripcion: document.getElementById('kitDescripcion')?.value || '',
+            activo: true,
+            esKit: true,
+            componentes: componentes,
+            fechaCreacion: new Date().toISOString()
+        };
+        
+        storage.addProducto(nuevoProducto);
+        this.mostrarMensaje('✅ Kit creado exitosamente', 'success');
+        this.cerrarModal('modalNuevoKit');
+    }
+
+    // ============================================
+    // MESAS Y RESTAURANTE
+    // ============================================
+
+    cargarMesas() {
+        this.mesas = JSON.parse(localStorage.getItem('invplanet_mesas') || '[]');
+        if (this.mesas.length === 0) {
+            // Crear mesas por defecto
+            for (let i = 1; i <= 20; i++) {
+                this.mesas.push({
+                    id: `mesa${i}`,
+                    numero: i,
+                    capacidad: 4,
+                    estado: 'disponible',
+                    comensales: 0,
+                    pedidoActual: null
+                });
+            }
+            this.guardarMesas();
+        }
+        console.log(`🍽️ Mesas cargadas: ${this.mesas.length}`);
+    }
+
+    guardarMesas() {
+        localStorage.setItem('invplanet_mesas', JSON.stringify(this.mesas));
+    }
+
+    mostrarMapaMesas() {
+        let mesasHTML = '';
+        
+        this.mesas.sort((a, b) => a.numero - b.numero).forEach(m => {
+            let color = '#27ae60';
+            let texto = 'Disponible';
+            
+            if (m.estado === 'ocupada') {
+                color = '#e74c3c';
+                texto = `Ocupada (${m.comensales})`;
+            } else if (m.estado === 'reservada') {
+                color = '#f39c12';
+                texto = 'Reservada';
+            } else if (m.estado === 'pagando') {
+                color = '#3498db';
+                texto = 'Pagando';
+            }
+            
+            mesasHTML += `
+                <div class="mesa-card" style="border: 3px solid ${color}; border-radius: 15px; padding: 20px; margin: 10px; width: 150px; text-align: center; cursor: pointer;" onclick="window.app.abrirMesa('${m.id}')">
+                    <div style="font-size: 2em;">🍽️</div>
+                    <h4>Mesa ${m.numero}</h4>
+                    <p style="color: ${color}; font-weight: bold;">${texto}</p>
+                    <p>Capacidad: ${m.capacidad}</p>
+                </div>
+            `;
+        });
+        
+        const modalHTML = `
+            <div class="modal-overlay active" id="modalMapaMesas">
+                <div class="modal-content" style="max-width: 1200px;">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-utensils"></i> Mapa de Mesas</h3>
+                        <button class="close-modal" onclick="window.app.cerrarModal('modalMapaMesas')">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <button class="btn btn-info" onclick="window.app.configurarMesas()">
+                                <i class="fas fa-cog"></i> Configurar Mesas
+                            </button>
+                        </div>
+                        
+                        <div style="display: flex; flex-wrap: wrap; justify-content: center;">
+                            ${mesasHTML}
+                        </div>
+                        
+                        <div class="mt-3">
+                            <p><span style="background: #27ae60; color: white; padding: 5px 10px;">Disponible</span> 
+                            <span style="background: #e74c3c; color: white; padding: 5px 10px;">Ocupada</span>
+                            <span style="background: #f39c12; color: white; padding: 5px 10px;">Reservada</span>
+                            <span style="background: #3498db; color: white; padding: 5px 10px;">Pagando</span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('modalContainer').innerHTML = modalHTML;
+    }
+
+    abrirMesa(id) {
+        const mesa = this.mesas.find(m => m.id === id);
+        if (!mesa) return;
+        
+        if (mesa.estado === 'disponible') {
+            // Nueva venta para esta mesa
+            this.mostrarModalNuevaVentaConMesa(mesa);
+        } else if (mesa.estado === 'ocupada') {
+            // Ver pedido actual
+            this.verPedidoMesa(mesa);
+        }
+    }
+
+    mostrarModalNuevaVentaConMesa(mesa) {
+        const numComensales = prompt(`¿Cuántos comensales en mesa ${mesa.numero}?`, '2');
+        if (!numComensales) return;
+        
+        mesa.estado = 'ocupada';
+        mesa.comensales = parseInt(numComensales) || 2;
+        mesa.pedidoActual = {
+            id: Date.now().toString(),
+            productos: [],
+            total: 0,
+            horaApertura: new Date().toISOString()
+        };
+        
+        this.guardarMesas();
+        
+        // Abrir ventana de ventas para esta mesa
+        this.mostrarModalNuevaVenta();
+        document.getElementById('mesaNumero').value = `Mesa ${mesa.numero} (${mesa.comensales} pers)`;
+    }
+
+    verPedidoMesa(mesa) {
+        const ventas = storage.getVentas?.() || [];
+        const pedido = ventas.find(v => v.mesaId === mesa.id && v.estado === 'completada' && !v.pagado);
+        
+        if (!pedido) {
+            mesa.estado = 'disponible';
+            mesa.comensales = 0;
+            mesa.pedidoActual = null;
+            this.guardarMesas();
+            this.mostrarMensaje('Mesa liberada', 'info');
+            return;
+        }
+        
+        this.verDetalleVenta(pedido.id);
+    }
+
+    configurarMesas() {
+        let mesasHTML = '';
+        this.mesas.sort((a, b) => a.numero - b.numero).forEach(m => {
+            mesasHTML += `
+                <tr>
+                    <td>Mesa ${m.numero}</td>
+                    <td><input type="number" id="capacidad_${m.id}" value="${m.capacidad}" min="1" class="form-control" style="width: 80px;"></td>
+                    <td>
+                        <select id="estado_${m.id}" class="form-control">
+                            <option value="disponible" ${m.estado === 'disponible' ? 'selected' : ''}>Disponible</option>
+                            <option value="ocupada" ${m.estado === 'ocupada' ? 'selected' : ''}>Ocupada</option>
+                            <option value="reservada" ${m.estado === 'reservada' ? 'selected' : ''}>Reservada</option>
+                            <option value="pagando" ${m.estado === 'pagando' ? 'selected' : ''}>Pagando</option>
+                        </select>
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-danger" onclick="window.app.eliminarMesa('${m.id}')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+        
+        const modalHTML = `
+            <div class="modal-overlay active" id="modalConfigMesas">
+                <div class="modal-content" style="max-width: 600px;">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-cog"></i> Configurar Mesas</h3>
+                        <button class="close-modal" onclick="window.app.cerrarModal('modalConfigMesas')">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <button class="btn btn-primary mb-3" onclick="window.app.agregarMesa()">
+                            <i class="fas fa-plus"></i> Agregar Mesa
+                        </button>
+                        
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Mesa</th>
+                                    <th>Capacidad</th>
+                                    <th>Estado</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${mesasHTML}
+                            </tbody>
+                        </table>
+                        
+                        <button class="btn btn-success" onclick="window.app.guardarConfigMesas()">
+                            Guardar Cambios
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('modalContainer').innerHTML = modalHTML;
+    }
+
+    agregarMesa() {
+        const nuevoNumero = this.mesas.length + 1;
+        this.mesas.push({
+            id: `mesa${Date.now()}`,
+            numero: nuevoNumero,
+            capacidad: 4,
+            estado: 'disponible',
+            comensales: 0,
+            pedidoActual: null
+        });
+        this.configurarMesas();
+    }
+
+    eliminarMesa(id) {
+        this.mesas = this.mesas.filter(m => m.id !== id);
+        this.configurarMesas();
+    }
+
+    guardarConfigMesas() {
+        this.mesas.forEach(m => {
+            const capacidad = document.getElementById(`capacidad_${m.id}`)?.value;
+            const estado = document.getElementById(`estado_${m.id}`)?.value;
+            
+            if (capacidad) m.capacidad = parseInt(capacidad);
+            if (estado) m.estado = estado;
+        });
+        
+        this.guardarMesas();
+        this.mostrarMensaje('✅ Configuración guardada', 'success');
+        this.cerrarModal('modalConfigMesas');
+    }
+
+    // ============================================
+    // COMISIONES
+    // ============================================
+
+    cargarComisiones() {
+        this.comisiones = JSON.parse(localStorage.getItem('invplanet_comisiones') || '[]');
+        console.log(`💰 Comisiones cargadas: ${this.comisiones.length}`);
+    }
+
+    guardarComisiones() {
+        localStorage.setItem('invplanet_comisiones', JSON.stringify(this.comisiones));
+    }
+
+    mostrarModalComisiones() {
+        const usuarios = this.usuarios || [];
+        let usuariosOptions = '<option value="">Seleccionar usuario</option>';
+        usuarios.forEach(u => {
+            if (u.role !== 'admin') {
+                usuariosOptions += `<option value="${u.id}">${u.nombre || u.username}</option>`;
+            }
+        });
+        
+        let comisionesHTML = '';
+        this.comisiones.forEach(c => {
+            comisionesHTML += `
+                <tr>
+                    <td>${c.usuarioNombre}</td>
+                    <td>${c.tipo}</td>
+                    <td>${c.valor}${c.tipo === 'porcentaje' ? '%' : ''}</td>
+                    <td>${c.activa ? 'Sí' : 'No'}</td>
+                    <td>
+                        <button class="btn btn-sm btn-primary" onclick="window.app.editarComision('${c.id}')">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="window.app.eliminarComision('${c.id}')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+        
+        const modalHTML = `
+            <div class="modal-overlay active" id="modalComisiones">
+                <div class="modal-content" style="max-width: 800px;">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-hand-holding-usd"></i> Comisiones</h3>
+                        <button class="close-modal" onclick="window.app.cerrarModal('modalComisiones')">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <button class="btn btn-primary mb-3" onclick="window.app.mostrarModalNuevaComision()">
+                            <i class="fas fa-plus"></i> Nueva Comisión
+                        </button>
+                        
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Usuario</th>
+                                    <th>Tipo</th>
+                                    <th>Valor</th>
+                                    <th>Activa</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${comisionesHTML || '<tr><td colspan="5" class="text-center">No hay comisiones configuradas</td></tr>'}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('modalContainer').innerHTML = modalHTML;
+    }
+
+    mostrarModalNuevaComision() {
+        const usuarios = this.usuarios || [];
+        let usuariosOptions = '<option value="">Seleccionar usuario</option>';
+        usuarios.forEach(u => {
+            if (u.role !== 'admin') {
+                usuariosOptions += `<option value="${u.id}">${u.nombre || u.username}</option>`;
+            }
+        });
+        
+        const modalHTML = `
+            <div class="modal-overlay active" id="modalNuevaComision">
+                <div class="modal-content" style="max-width: 500px;">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-percent"></i> Nueva Comisión</h3>
+                        <button class="close-modal" onclick="window.app.cerrarModal('modalNuevaComision')">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="formNuevaComision" onsubmit="return false;">
+                            <div class="form-group">
+                                <label>Usuario *</label>
+                                <select id="comisionUsuarioId" class="form-control">
+                                    ${usuariosOptions}
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Tipo</label>
+                                <select id="comisionTipo" class="form-control">
+                                    <option value="porcentaje">Porcentaje sobre venta</option>
+                                    <option value="fijo">Monto fijo por venta</option>
+                                    <option value="producto">Por producto específico</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Valor</label>
+                                <input type="number" id="comisionValor" class="form-control" min="0" step="0.01" required>
+                                <small class="text-muted">Si es porcentaje, ingresa % (ej: 10 para 10%)</small>
+                            </div>
+                            
+                            <div class="form-group" id="campoProductoComision" style="display:none;">
+                                <label>Producto</label>
+                                <select id="comisionProductoId" class="form-control">
+                                    ${this.generarOptionsProductos()}
+                                </select>
+                            </div>
+                            
+                            <div class="form-check mb-3">
+                                <input type="checkbox" id="comisionActiva" class="form-check-input" checked>
+                                <label class="form-check-label">Activa</label>
+                            </div>
+                            
+                            <div class="form-actions">
+                                <button type="button" class="btn btn-secondary" onclick="window.app.cerrarModal('modalNuevaComision')">Cancelar</button>
+                                <button type="button" class="btn btn-primary" onclick="window.app.guardarNuevaComision()">Guardar</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('modalContainer').innerHTML = modalHTML;
+        
+        document.getElementById('comisionTipo')?.addEventListener('change', (e) => {
+            document.getElementById('campoProductoComision').style.display = e.target.value === 'producto' ? 'block' : 'none';
+        });
+    }
+
+    guardarNuevaComision() {
+        const usuarioId = document.getElementById('comisionUsuarioId')?.value;
+        const tipo = document.getElementById('comisionTipo')?.value;
+        const valor = document.getElementById('comisionValor')?.value;
+        
+        if (!usuarioId || !tipo || !valor) {
+            this.mostrarMensaje('❌ Completa todos los campos', 'error');
+            return;
+        }
+        
+        const usuario = this.usuarios.find(u => u.id === usuarioId);
+        
+        const nuevaComision = {
+            id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+            usuarioId: usuarioId,
+            usuarioNombre: usuario?.nombre || usuario?.username || '',
+            tipo: tipo,
+            valor: parseFloat(valor),
+            productoId: document.getElementById('comisionProductoId')?.value || null,
+            activa: document.getElementById('comisionActiva')?.checked || false,
+            fechaCreacion: new Date().toISOString()
+        };
+        
+        this.comisiones.push(nuevaComision);
+        this.guardarComisiones();
+        this.mostrarMensaje('✅ Comisión guardada', 'success');
+        this.cerrarModal('modalNuevaComision');
+        this.mostrarModalComisiones();
+    }
+
+    calcularComision(venta, usuarioId) {
+        let totalComision = 0;
+        
+        for (const c of this.comisiones) {
+            if (!c.activa) continue;
+            if (c.usuarioId !== usuarioId) continue;
+            
+            if (c.tipo === 'porcentaje') {
+                totalComision += venta.total * (c.valor / 100);
+            } else if (c.tipo === 'fijo') {
+                totalComision += c.valor;
+            } else if (c.tipo === 'producto' && c.productoId) {
+                const producto = venta.productos.find(p => p.productoId === c.productoId);
+                if (producto) {
+                    totalComision += c.valor * producto.cantidad;
+                }
+            }
+        }
+        
+        return totalComision;
+    }
+
+    // ============================================
+    // APARTADOS
+    // ============================================
+
+    cargarApartados() {
+        this.apartados = JSON.parse(localStorage.getItem('invplanet_apartados') || '[]');
+        console.log(`📦 Apartados cargados: ${this.apartados.length}`);
+    }
+
+    guardarApartados() {
+        localStorage.setItem('invplanet_apartados', JSON.stringify(this.apartados));
+    }
+
+    mostrarModalApartados() {
+        let apartadosHTML = '';
+        this.apartados.sort((a, b) => new Date(a.fechaLimite) - new Date(b.fechaLimite)).forEach(a => {
+            const fechaLimite = new Date(a.fechaLimite).toLocaleDateString();
+            const hoy = new Date();
+            const fechaLimiteObj = new Date(a.fechaLimite);
+            const diasRestantes = Math.ceil((fechaLimiteObj - hoy) / (1000 * 60 * 60 * 24));
+            
+            let badgeClass = 'badge-success';
+            if (diasRestantes < 0) {
+                badgeClass = 'badge-danger';
+            } else if (diasRestantes < 3) {
+                badgeClass = 'badge-warning';
+            }
+            
+            apartadosHTML += `
+                <tr>
+                    <td>${a.cliente}</td>
+                    <td>${a.productos.map(p => p.nombre).join(', ')}</td>
+                    <td>$${a.total.toLocaleString()}</td>
+                    <td>$${a.seña.toLocaleString()}</td>
+                    <td>$${(a.total - a.seña).toLocaleString()}</td>
+                    <td>${fechaLimite}</td>
+                    <td><span class="badge ${badgeClass}">${diasRestantes < 0 ? 'Vencido' : diasRestantes + ' días'}</span></td>
+                    <td>
+                        <button class="btn btn-sm btn-success" onclick="window.app.cobrarApartado('${a.id}')">
+                            <i class="fas fa-cash-register"></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="window.app.cancelarApartado('${a.id}')">
+                            <i class="fas fa-ban"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+        
+        const modalHTML = `
+            <div class="modal-overlay active" id="modalApartados">
+                <div class="modal-content" style="max-width: 1200px;">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-box-open"></i> Apartados</h3>
+                        <button class="close-modal" onclick="window.app.cerrarModal('modalApartados')">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <button class="btn btn-primary mb-3" onclick="window.app.mostrarModalNuevoApartado()">
+                            <i class="fas fa-plus"></i> Nuevo Apartado
+                        </button>
+                        
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Cliente</th>
+                                        <th>Productos</th>
+                                        <th>Total</th>
+                                        <th>Seña</th>
+                                        <th>Saldo</th>
+                                        <th>Fecha límite</th>
+                                        <th>Estado</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${apartadosHTML || '<tr><td colspan="8" class="text-center">No hay apartados</td></tr>'}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('modalContainer').innerHTML = modalHTML;
+    }
+
+    mostrarModalNuevoApartado() {
+        const productos = storage.getInventario().filter(p => p.activo && p.unidades > 0);
+        let productosOptions = '';
+        productos.forEach(p => {
+            productosOptions += `<option value="${p.id}">${p.nombre} - $${p.precioVenta} (Stock: ${p.unidades})</option>`;
+        });
+        
+        const modalHTML = `
+            <div class="modal-overlay active" id="modalNuevoApartado">
+                <div class="modal-content" style="max-width: 700px;">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-box-open"></i> Nuevo Apartado</h3>
+                        <button class="close-modal" onclick="window.app.cerrarModal('modalNuevoApartado')">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="formNuevoApartado" onsubmit="return false;">
+                            <div class="form-group">
+                                <label>Cliente *</label>
+                                <select id="apartadoClienteId" class="form-control">
+                                    <option value="">Seleccionar cliente</option>
+                                    ${this.clientes.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('')}
+                                    <option value="nuevo">-- Crear nuevo cliente --</option>
+                                </select>
+                            </div>
+                            
+                            <div id="camposNuevoCliente" style="display:none;">
+                                <div class="form-group">
+                                    <label>Nombre del cliente</label>
+                                    <input type="text" id="apartadoNuevoCliente" class="form-control">
+                                </div>
+                                <div class="form-group">
+                                    <label>Teléfono</label>
+                                    <input type="tel" id="apartadoTelefono" class="form-control">
+                                </div>
+                            </div>
+                            
+                            <h5>Productos a apartar</h5>
+                            <div id="productosApartado">
+                                <div class="row mb-2">
+                                    <div class="col-md-6">
+                                        <select class="form-control apartado-producto" name="apartadoProducto[]">
+                                            ${productosOptions}
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <input type="number" class="form-control apartado-cantidad" name="apartadoCantidad[]" value="1" min="1">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <button type="button" class="btn btn-danger btn-sm" onclick="this.parentElement.parentElement.remove()">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <button type="button" class="btn btn-info mb-3" onclick="window.app.agregarProductoApartado()">
+                                <i class="fas fa-plus"></i> Agregar producto
+                            </button>
+                            
+                            <div class="form-group">
+                                <label>Seña ($) *</label>
+                                <input type="number" id="apartadoSena" class="form-control" min="0" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Fecha límite</label>
+                                <input type="date" id="apartadoFechaLimite" class="form-control" value="${this.sumarDias(new Date(), 30).toISOString().split('T')[0]}">
+                            </div>
+                            
+                            <div class="form-actions">
+                                <button type="button" class="btn btn-secondary" onclick="window.app.cerrarModal('modalNuevoApartado')">Cancelar</button>
+                                <button type="button" class="btn btn-primary" onclick="window.app.guardarNuevoApartado()">Guardar Apartado</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('modalContainer').innerHTML = modalHTML;
+        
+        document.getElementById('apartadoClienteId')?.addEventListener('change', (e) => {
+            document.getElementById('camposNuevoCliente').style.display = e.target.value === 'nuevo' ? 'block' : 'none';
+        });
+    }
+
+    sumarDias(fecha, dias) {
+        const result = new Date(fecha);
+        result.setDate(result.getDate() + dias);
+        return result;
+    }
+
+    agregarProductoApartado() {
+        const productos = storage.getInventario().filter(p => p.activo && p.unidades > 0);
+        let productosOptions = '';
+        productos.forEach(p => {
+            productosOptions += `<option value="${p.id}">${p.nombre} - $${p.precioVenta} (Stock: ${p.unidades})</option>`;
+        });
+        
+        const div = document.createElement('div');
+        div.className = 'row mb-2';
+        div.innerHTML = `
+            <div class="col-md-6">
+                <select class="form-control apartado-producto" name="apartadoProducto[]">
+                    ${productosOptions}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <input type="number" class="form-control apartado-cantidad" name="apartadoCantidad[]" value="1" min="1">
+            </div>
+            <div class="col-md-3">
+                <button type="button" class="btn btn-danger btn-sm" onclick="this.parentElement.parentElement.remove()">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        `;
+        
+        document.getElementById('productosApartado').appendChild(div);
+    }
+
+    guardarNuevoApartado() {
+        let clienteId = document.getElementById('apartadoClienteId')?.value;
+        let clienteNombre = '';
+        
+        if (clienteId === 'nuevo') {
+            const nombre = document.getElementById('apartadoNuevoCliente')?.value;
+            if (!nombre) {
+                this.mostrarMensaje('❌ Ingresa el nombre del cliente', 'error');
+                return;
+            }
+            
+            const nuevoCliente = {
+                id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+                nombre: nombre,
+                telefono: document.getElementById('apartadoTelefono')?.value || '',
+                puntos: 0,
+                fechaCreacion: new Date().toISOString()
+            };
+            
+            this.clientes.push(nuevoCliente);
+            this.guardarClientes();
+            clienteId = nuevoCliente.id;
+            clienteNombre = nombre;
+        } else {
+            const cliente = this.clientes.find(c => c.id === clienteId);
+            clienteNombre = cliente ? cliente.nombre : '';
+        }
+        
+        const productosSelects = document.querySelectorAll('.apartado-producto');
+        const cantidades = document.querySelectorAll('.apartado-cantidad');
+        
+        if (productosSelects.length === 0) {
+            this.mostrarMensaje('❌ Agrega al menos un producto', 'error');
+            return;
+        }
+        
+        const productos = [];
+        let total = 0;
+        
+        for (let i = 0; i < productosSelects.length; i++) {
+            const productoId = productosSelects[i].value;
+            const cantidad = parseInt(cantidades[i].value) || 1;
+            const producto = storage.getProducto(productoId);
+            
+            if (producto) {
+                if (producto.unidades < cantidad) {
+                    this.mostrarMensaje(`❌ Stock insuficiente para ${producto.nombre}`, 'error');
+                    return;
+                }
+                
+                productos.push({
+                    productoId: productoId,
+                    nombre: producto.nombre,
+                    cantidad: cantidad,
+                    precioUnitario: producto.precioVenta,
+                    subtotal: producto.precioVenta * cantidad
+                });
+                
+                total += producto.precioVenta * cantidad;
+                
+                // Reservar stock
+                producto.unidades -= cantidad;
+                storage.updateProducto(productoId, { unidades: producto.unidades });
+            }
+        }
+        
+        const sena = parseFloat(document.getElementById('apartadoSena')?.value) || 0;
+        const fechaLimite = document.getElementById('apartadoFechaLimite')?.value;
+        
+        const nuevoApartado = {
+            id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+            clienteId: clienteId,
+            cliente: clienteNombre,
+            productos: productos,
+            total: total,
+            sena: sena,
+            saldo: total - sena,
+            fecha: new Date().toISOString(),
+            fechaLimite: fechaLimite,
+            estado: 'activo',
+            pagado: false
+        };
+        
+        this.apartados.push(nuevoApartado);
+        this.guardarApartados();
+        this.mostrarMensaje('✅ Apartado guardado', 'success');
+        this.cerrarModal('modalNuevoApartado');
+        this.mostrarModalApartados();
+    }
+
+    cobrarApartado(id) {
+        const apartado = this.apartados.find(a => a.id === id);
+        if (!apartado) return;
+        
+        if (apartado.pagado) {
+            this.mostrarMensaje('⚠️ Este apartado ya fue pagado', 'warning');
+            return;
+        }
+        
+        // Crear venta con los productos del apartado
+        const venta = {
+            id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+            numero: `FAC-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}${String(storage.getVentas?.().length + 1).padStart(5, '0')}`,
+            fecha: new Date().toISOString(),
+            cliente: apartado.cliente,
+            productos: apartado.productos,
+            subtotal: apartado.saldo,
+            impuesto: 0,
+            total: apartado.saldo,
+            metodoPago: 'efectivo',
+            estado: 'completada',
+            apartadoId: apartado.id
+        };
+        
+        const ventas = storage.getVentas?.() || [];
+        ventas.push(venta);
+        storage.saveVentas?.(ventas);
+        
+        apartado.pagado = true;
+        apartado.fechaPago = new Date().toISOString();
+        this.guardarApartados();
+        
+        this.mostrarMensaje('✅ Apartado cobrado exitosamente', 'success');
+        this.mostrarModalApartados();
+    }
+
+    cancelarApartado(id) {
+        const apartado = this.apartados.find(a => a.id === id);
+        if (!apartado) return;
+        
+        if (apartado.pagado) {
+            this.mostrarMensaje('⚠️ No se puede cancelar un apartado pagado', 'error');
+            return;
+        }
+        
+        if (!confirm('¿Cancelar el apartado? Se devolverá el stock a inventario.')) {
+            return;
+        }
+        
+        // Devolver stock
+        apartado.productos.forEach(p => {
+            const producto = storage.getProducto(p.productoId);
+            if (producto) {
+                producto.unidades += p.cantidad;
+                storage.updateProducto(p.productoId, { unidades: producto.unidades });
+            }
+        });
+        
+        apartado.estado = 'cancelado';
+        this.guardarApartados();
+        
+        this.mostrarMensaje('✅ Apartado cancelado', 'success');
+        this.mostrarModalApartados();
+    }
+
+    // ============================================
+    // CRÉDITO
+    // ============================================
+
+    cargarCreditos() {
+        this.creditos = JSON.parse(localStorage.getItem('invplanet_creditos') || '[]');
+        console.log(`💳 Créditos cargados: ${this.creditos.length}`);
+    }
+
+    guardarCreditos() {
+        localStorage.setItem('invplanet_creditos', JSON.stringify(this.creditos));
+    }
+
+    mostrarModalCreditos() {
+        let creditosHTML = '';
+        this.creditos.sort((a, b) => new Date(a.fechaLimite) - new Date(b.fechaLimite)).forEach(c => {
+            const fechaLimite = new Date(c.fechaLimite).toLocaleDateString();
+            const hoy = new Date();
+            const fechaLimiteObj = new Date(c.fechaLimite);
+            const diasRestantes = Math.ceil((fechaLimiteObj - hoy) / (1000 * 60 * 60 * 24));
+            
+            let badgeClass = 'badge-success';
+            if (diasRestantes < 0) {
+                badgeClass = 'badge-danger';
+            } else if (diasRestantes < 5) {
+                badgeClass = 'badge-warning';
+            }
+            
+            creditosHTML += `
+                <tr>
+                    <td>${c.cliente}</td>
+                    <td>${c.numeroVenta}</td>
+                    <td>$${c.total.toLocaleString()}</td>
+                    <td>$${c.abonado.toLocaleString()}</td>
+                    <td>$${c.saldo.toLocaleString()}</td>
+                    <td>${fechaLimite}</td>
+                    <td><span class="badge ${badgeClass}">${diasRestantes < 0 ? 'Vencido' : diasRestantes + ' días'}</span></td>
+                    <td>
+                        <button class="btn btn-sm btn-success" onclick="window.app.abonarCredito('${c.id}')">
+                            <i class="fas fa-money-bill"></i> Abonar
+                        </button>
+                        <button class="btn btn-sm btn-info" onclick="window.app.verDetalleCredito('${c.id}')">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+        
+        const modalHTML = `
+            <div class="modal-overlay active" id="modalCreditos">
+                <div class="modal-content" style="max-width: 1200px;">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-credit-card"></i> Créditos</h3>
+                        <button class="close-modal" onclick="window.app.cerrarModal('modalCreditos')">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Cliente</th>
+                                        <th>Venta</th>
+                                        <th>Total</th>
+                                        <th>Abonado</th>
+                                        <th>Saldo</th>
+                                        <th>Fecha límite</th>
+                                        <th>Estado</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${creditosHTML || '<tr><td colspan="8" class="text-center">No hay créditos</td></tr>'}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('modalContainer').innerHTML = modalHTML;
+    }
+
+    crearCredito(venta, clienteId, plazoDias = 30) {
+        const fechaLimite = new Date();
+        fechaLimite.setDate(fechaLimite.getDate() + plazoDias);
+        
+        const credito = {
+            id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+            ventaId: venta.id,
+            numeroVenta: venta.numero,
+            clienteId: clienteId,
+            cliente: venta.cliente,
+            total: venta.total,
+            abonado: 0,
+            saldo: venta.total,
+            fecha: new Date().toISOString(),
+            fechaLimite: fechaLimite.toISOString(),
+            pagos: [],
+            estado: 'activo'
+        };
+        
+        this.creditos.push(credito);
+        this.guardarCreditos();
+        
+        return credito;
+    }
+
+    abonarCredito(id) {
+        const credito = this.creditos.find(c => c.id === id);
+        if (!credito) return;
+        
+        if (credito.saldo <= 0) {
+            this.mostrarMensaje('⚠️ Este crédito ya está pagado', 'warning');
+            return;
+        }
+        
+        const monto = prompt(`Monto a abonar (Saldo: $${credito.saldo.toLocaleString()})`, credito.saldo);
+        if (!monto) return;
+        
+        const montoNum = parseFloat(monto);
+        if (montoNum <= 0 || montoNum > credito.saldo) {
+            this.mostrarMensaje('❌ Monto inválido', 'error');
+            return;
+        }
+        
+        const pago = {
+            id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+            monto: montoNum,
+            fecha: new Date().toISOString(),
+            metodo: 'efectivo'
+        };
+        
+        credito.pagos.push(pago);
+        credito.abonado += montoNum;
+        credito.saldo -= montoNum;
+        
+        if (credito.saldo <= 0) {
+            credito.estado = 'pagado';
+            credito.fechaPago = new Date().toISOString();
+        }
+        
+        this.guardarCreditos();
+        this.mostrarMensaje(`✅ Abono de $${montoNum.toLocaleString()} registrado`, 'success');
+        this.mostrarModalCreditos();
+    }
+
+    verDetalleCredito(id) {
+        const credito = this.creditos.find(c => c.id === id);
+        if (!credito) return;
+        
+        let pagosHTML = '';
+        credito.pagos.forEach(p => {
+            const fecha = new Date(p.fecha);
+            pagosHTML += `
+                <tr>
+                    <td>${fecha.toLocaleDateString()}</td>
+                    <td>$${p.monto.toLocaleString()}</td>
+                </tr>
+            `;
+        });
+        
+        const modalHTML = `
+            <div class="modal-overlay active" id="modalDetalleCredito">
+                <div class="modal-content" style="max-width: 600px;">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-file-invoice"></i> Detalle del Crédito</h3>
+                        <button class="close-modal" onclick="window.app.cerrarModal('modalDetalleCredito')">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <p><strong>Venta:</strong> ${credito.numeroVenta}</p>
+                        <p><strong>Cliente:</strong> ${credito.cliente}</p>
+                        <p><strong>Total:</strong> $${credito.total.toLocaleString()}</p>
+                        <p><strong>Abonado:</strong> $${credito.abonado.toLocaleString()}</p>
+                        <p><strong>Saldo:</strong> $${credito.saldo.toLocaleString()}</p>
+                        <p><strong>Fecha límite:</strong> ${new Date(credito.fechaLimite).toLocaleDateString()}</p>
+                        
+                        <h5>Historial de pagos</h5>
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Monto</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${pagosHTML || '<tr><td colspan="2" class="text-center">No hay pagos</td></tr>'}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('modalContainer').innerHTML = modalHTML;
+    }
+
+    // ============================================
+    // TURNOS
+    // ============================================
+
+    cargarTurnoActual() {
+        this.turnoActual = JSON.parse(localStorage.getItem('invplanet_turno_actual') || 'null');
+        console.log(`🕒 Turno actual: ${this.turnoActual ? 'Abierto' : 'Cerrado'}`);
+    }
+
+    guardarTurnoActual() {
+        if (this.turnoActual) {
+            localStorage.setItem('invplanet_turno_actual', JSON.stringify(this.turnoActual));
+        } else {
+            localStorage.removeItem('invplanet_turno_actual');
+        }
+    }
+
+    mostrarModalTurnos() {
+        const usuario = this.getUsuarioActual();
+        if (!usuario) {
+            this.mostrarMensaje('❌ Debes iniciar sesión', 'error');
+            return;
+        }
+        
+        const turnos = JSON.parse(localStorage.getItem('invplanet_turnos') || '[]');
+        let turnosHTML = '';
+        turnos.reverse().slice(0, 10).forEach(t => {
+            const fechaApertura = new Date(t.fechaApertura).toLocaleString();
+            const fechaCierre = t.fechaCierre ? new Date(t.fechaCierre).toLocaleString() : 'Abierto';
+            
+            turnosHTML += `
+                <tr>
+                    <td>${t.usuario}</td>
+                    <td>${fechaApertura}</td>
+                    <td>${fechaCierre}</td>
+                    <td>$${t.totalVentas.toLocaleString()}</td>
+                    <td>$${t.totalGastos.toLocaleString()}</td>
+                    <td>$${(t.totalVentas - t.totalGastos).toLocaleString()}</td>
+                    <td><span class="badge ${t.activo ? 'badge-success' : 'badge-secondary'}">${t.activo ? 'Activo' : 'Cerrado'}</span></td>
+                </tr>
+            `;
+        });
+        
+        const modalHTML = `
+            <div class="modal-overlay active" id="modalTurnos">
+                <div class="modal-content" style="max-width: 1000px;">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-clock"></i> Turnos</h3>
+                        <button class="close-modal" onclick="window.app.cerrarModal('modalTurnos')">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            ${this.turnoActual ? `
+                                <button class="btn btn-danger" onclick="window.app.cerrarTurno()">
+                                    <i class="fas fa-power-off"></i> Cerrar Turno Actual
+                                </button>
+                            ` : `
+                                <button class="btn btn-success" onclick="window.app.abrirTurno()">
+                                    <i class="fas fa-play"></i> Abrir Turno
+                                </button>
+                            `}
+                        </div>
+                        
+                        <h5>Últimos turnos</h5>
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Usuario</th>
+                                        <th>Apertura</th>
+                                        <th>Cierre</th>
+                                        <th>Ventas</th>
+                                        <th>Gastos</th>
+                                        <th>Utilidad</th>
+                                        <th>Estado</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${turnosHTML || '<tr><td colspan="7" class="text-center">No hay turnos registrados</td></tr>'}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('modalContainer').innerHTML = modalHTML;
+    }
+
+    abrirTurno() {
+        const usuario = this.getUsuarioActual();
+        if (!usuario) {
+            this.mostrarMensaje('❌ Debes iniciar sesión', 'error');
+            return;
+        }
+        
+        if (this.turnoActual) {
+            this.mostrarMensaje('⚠️ Ya hay un turno abierto', 'warning');
+            return;
+        }
+        
+        const efectivoInicial = prompt('Efectivo inicial en caja:', '0');
+        if (efectivoInicial === null) return;
+        
+        this.turnoActual = {
+            id: Date.now().toString(),
+            usuarioId: usuario.id,
+            usuario: usuario.nombre || usuario.username,
+            fechaApertura: new Date().toISOString(),
+            efectivoInicial: parseFloat(efectivoInicial) || 0,
+            ventas: [],
+            gastos: [],
+            totalVentas: 0,
+            totalGastos: 0,
+            activo: true
+        };
+        
+        this.guardarTurnoActual();
+        
+        const turnos = JSON.parse(localStorage.getItem('invplanet_turnos') || '[]');
+        turnos.push(this.turnoActual);
+        localStorage.setItem('invplanet_turnos', JSON.stringify(turnos));
+        
+        this.mostrarMensaje('✅ Turno abierto', 'success');
+        this.mostrarModalTurnos();
+    }
+
+    cerrarTurno() {
+        if (!this.turnoActual) {
+            this.mostrarMensaje('❌ No hay turno abierto', 'error');
+            return;
+        }
+        
+        const efectivoFinal = prompt('Efectivo final en caja:', this.turnoActual.efectivoInicial + this.turnoActual.totalVentas - this.turnoActual.totalGastos);
+        if (efectivoFinal === null) return;
+        
+        this.turnoActual.fechaCierre = new Date().toISOString();
+        this.turnoActual.efectivoFinal = parseFloat(efectivoFinal) || 0;
+        this.turnoActual.activo = false;
+        
+        // Actualizar en el array de turnos
+        const turnos = JSON.parse(localStorage.getItem('invplanet_turnos') || '[]');
+        const index = turnos.findIndex(t => t.id === this.turnoActual.id);
+        if (index !== -1) {
+            turnos[index] = this.turnoActual;
+            localStorage.setItem('invplanet_turnos', JSON.stringify(turnos));
+        }
+        
+        this.turnoActual = null;
+        this.guardarTurnoActual();
+        
+        this.mostrarMensaje('✅ Turno cerrado', 'success');
+        this.mostrarModalTurnos();
+    }
+
+    // ============================================
+    // PRESUPUESTOS
+    // ============================================
+
+    cargarPresupuestos() {
+        this.presupuestos = JSON.parse(localStorage.getItem('invplanet_presupuestos') || '[]');
+        console.log(`📋 Presupuestos cargados: ${this.presupuestos.length}`);
+    }
+
+    guardarPresupuestos() {
+        localStorage.setItem('invplanet_presupuestos', JSON.stringify(this.presupuestos));
+    }
+
+    mostrarModalPresupuestos() {
+        let presupuestosHTML = '';
+        this.presupuestos.sort((a, b) => new Date(b.fecha) - new Date(a.fecha)).forEach(p => {
+            const fecha = new Date(p.fecha).toLocaleDateString();
+            const vencimiento = p.fechaVencimiento ? new Date(p.fechaVencimiento).toLocaleDateString() : '';
+            
+            presupuestosHTML += `
+                <tr>
+                    <td>${p.numero}</td>
+                    <td>${fecha}</td>
+                    <td>${p.cliente}</td>
+                    <td>${p.productos.length}</td>
+                    <td>$${p.total.toLocaleString()}</td>
+                    <td>${vencimiento}</td>
+                    <td>
+                        <button class="btn btn-sm btn-success" onclick="window.app.convertirPresupuestoAVenta('${p.id}')">
+                            <i class="fas fa-cash-register"></i> Vender
+                        </button>
+                        <button class="btn btn-sm btn-info" onclick="window.app.verPresupuesto('${p.id}')">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="btn btn-sm btn-primary" onclick="window.app.imprimirPresupuesto('${p.id}')">
+                            <i class="fas fa-print"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+        
+        const modalHTML = `
+            <div class="modal-overlay active" id="modalPresupuestos">
+                <div class="modal-content" style="max-width: 1000px;">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-file-signature"></i> Presupuestos</h3>
+                        <button class="close-modal" onclick="window.app.cerrarModal('modalPresupuestos')">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <button class="btn btn-primary mb-3" onclick="window.app.mostrarModalNuevoPresupuesto()">
+                            <i class="fas fa-plus"></i> Nuevo Presupuesto
+                        </button>
+                        
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Número</th>
+                                        <th>Fecha</th>
+                                        <th>Cliente</th>
+                                        <th>Productos</th>
+                                        <th>Total</th>
+                                        <th>Vencimiento</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${presupuestosHTML || '<tr><td colspan="7" class="text-center">No hay presupuestos</td></tr>'}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('modalContainer').innerHTML = modalHTML;
+    }
+
+    mostrarModalNuevoPresupuesto() {
+        const productos = storage.getInventario().filter(p => p.activo);
+        let productosOptions = '';
+        productos.forEach(p => {
+            productosOptions += `<option value="${p.id}">${p.nombre} - $${p.precioVenta} (Stock: ${p.unidades})</option>`;
+        });
+        
+        const modalHTML = `
+            <div class="modal-overlay active" id="modalNuevoPresupuesto">
+                <div class="modal-content" style="max-width: 800px;">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-file-signature"></i> Nuevo Presupuesto</h3>
+                        <button class="close-modal" onclick="window.app.cerrarModal('modalNuevoPresupuesto')">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="formNuevoPresupuesto" onsubmit="return false;">
+                            <div class="form-group">
+                                <label>Cliente</label>
+                                <input type="text" id="presupuestoCliente" class="form-control" value="Cliente">
+                            </div>
+                            
+                            <h5>Productos</h5>
+                            <div id="productosPresupuesto">
+                                <div class="row mb-2">
+                                    <div class="col-md-6">
+                                        <select class="form-control presupuesto-producto" name="presupuestoProducto[]">
+                                            ${productosOptions}
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <input type="number" class="form-control presupuesto-cantidad" name="presupuestoCantidad[]" value="1" min="1">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <button type="button" class="btn btn-danger btn-sm" onclick="this.parentElement.parentElement.remove()">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <button type="button" class="btn btn-info mb-3" onclick="window.app.agregarProductoPresupuesto()">
+                                <i class="fas fa-plus"></i> Agregar producto
+                            </button>
+                            
+                            <div class="form-group">
+                                <label>Fecha de vencimiento</label>
+                                <input type="date" id="presupuestoVencimiento" class="form-control" value="${this.sumarDias(new Date(), 15).toISOString().split('T')[0]}">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Notas</label>
+                                <textarea id="presupuestoNotas" class="form-control" rows="2"></textarea>
+                            </div>
+                            
+                            <div class="form-actions">
+                                <button type="button" class="btn btn-secondary" onclick="window.app.cerrarModal('modalNuevoPresupuesto')">Cancelar</button>
+                                <button type="button" class="btn btn-primary" onclick="window.app.guardarNuevoPresupuesto()">Guardar Presupuesto</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('modalContainer').innerHTML = modalHTML;
+    }
+
+    agregarProductoPresupuesto() {
+        const productos = storage.getInventario().filter(p => p.activo);
+        let productosOptions = '';
+        productos.forEach(p => {
+            productosOptions += `<option value="${p.id}">${p.nombre} - $${p.precioVenta} (Stock: ${p.unidades})</option>`;
+        });
+        
+        const div = document.createElement('div');
+        div.className = 'row mb-2';
+        div.innerHTML = `
+            <div class="col-md-6">
+                <select class="form-control presupuesto-producto" name="presupuestoProducto[]">
+                    ${productosOptions}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <input type="number" class="form-control presupuesto-cantidad" name="presupuestoCantidad[]" value="1" min="1">
+            </div>
+            <div class="col-md-3">
+                <button type="button" class="btn btn-danger btn-sm" onclick="this.parentElement.parentElement.remove()">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        `;
+        
+        document.getElementById('productosPresupuesto').appendChild(div);
+    }
+
+    guardarNuevoPresupuesto() {
+        const cliente = document.getElementById('presupuestoCliente')?.value || 'Cliente';
+        
+        const productosSelects = document.querySelectorAll('.presupuesto-producto');
+        const cantidades = document.querySelectorAll('.presupuesto-cantidad');
+        
+        if (productosSelects.length === 0) {
+            this.mostrarMensaje('❌ Agrega al menos un producto', 'error');
+            return;
+        }
+        
+        const productos = [];
+        let total = 0;
+        
+        for (let i = 0; i < productosSelects.length; i++) {
+            const productoId = productosSelects[i].value;
+            const cantidad = parseInt(cantidades[i].value) || 1;
+            const producto = storage.getProducto(productoId);
+            
+            if (producto) {
+                productos.push({
+                    productoId: productoId,
+                    nombre: producto.nombre,
+                    cantidad: cantidad,
+                    precioUnitario: producto.precioVenta,
+                    subtotal: producto.precioVenta * cantidad
+                });
+                
+                total += producto.precioVenta * cantidad;
+            }
+        }
+        
+        const presupuesto = {
+            id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+            numero: `PRE-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}${String(this.presupuestos.length + 1).padStart(4, '0')}`,
+            fecha: new Date().toISOString(),
+            cliente: cliente,
+            productos: productos,
+            total: total,
+            fechaVencimiento: document.getElementById('presupuestoVencimiento')?.value || null,
+            notas: document.getElementById('presupuestoNotas')?.value || '',
+            convertido: false
+        };
+        
+        this.presupuestos.push(presupuesto);
+        this.guardarPresupuestos();
+        
+        this.mostrarMensaje('✅ Presupuesto guardado', 'success');
+        this.cerrarModal('modalNuevoPresupuesto');
+        this.mostrarModalPresupuestos();
+    }
+
+    convertirPresupuestoAVenta(id) {
+        const presupuesto = this.presupuestos.find(p => p.id === id);
+        if (!presupuesto) return;
+        
+        if (presupuesto.convertido) {
+            this.mostrarMensaje('⚠️ Este presupuesto ya fue convertido', 'warning');
+            return;
+        }
+        
+        // Verificar stock
+        for (const p of presupuesto.productos) {
+            const producto = storage.getProducto(p.productoId);
+            if (!producto || producto.unidades < p.cantidad) {
+                this.mostrarMensaje(`❌ Stock insuficiente para ${p.nombre}`, 'error');
+                return;
+            }
+        }
+        
+        // Crear venta
+        this.carritoVenta = presupuesto.productos.map(p => ({
+            productoId: p.productoId,
+            nombre: p.nombre,
+            codigo: storage.getProducto(p.productoId)?.codigo || '',
+            precioUnitario: p.precioUnitario,
+            cantidad: p.cantidad,
+            subtotal: p.subtotal,
+            stockDisponible: storage.getProducto(p.productoId)?.unidades || 0
+        }));
+        
+        presupuesto.convertido = true;
+        presupuesto.fechaConversion = new Date().toISOString();
+        this.guardarPresupuestos();
+        
+        this.mostrarModalNuevaVenta();
+    }
+
+    verPresupuesto(id) {
+        const presupuesto = this.presupuestos.find(p => p.id === id);
+        if (!presupuesto) return;
+        
+        const fecha = new Date(presupuesto.fecha);
+        
+        let productosHTML = '';
+        presupuesto.productos.forEach(p => {
+            productosHTML += `
+                <tr>
+                    <td>${p.nombre}</td>
+                    <td>${p.cantidad}</td>
+                    <td>$${p.precioUnitario}</td>
+                    <td>$${p.subtotal}</td>
+                </tr>
+            `;
+        });
+        
+        const modalHTML = `
+            <div class="modal-overlay active" id="modalVerPresupuesto">
+                <div class="modal-content" style="max-width: 800px;">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-file-signature"></i> Presupuesto ${presupuesto.numero}</h3>
+                        <button class="close-modal" onclick="window.app.cerrarModal('modalVerPresupuesto')">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <p><strong>Fecha:</strong> ${fecha.toLocaleDateString()}</p>
+                        <p><strong>Cliente:</strong> ${presupuesto.cliente}</p>
+                        
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Producto</th>
+                                    <th>Cantidad</th>
+                                    <th>Precio Unit.</th>
+                                    <th>Subtotal</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${productosHTML}
+                            </tbody>
+                        </table>
+                        
+                        <h3 class="text-right">Total: $${presupuesto.total.toLocaleString()}</h3>
+                        
+                        ${presupuesto.notas ? `<p><strong>Notas:</strong> ${presupuesto.notas}</p>` : ''}
+                        
+                        <button class="btn btn-success" onclick="window.app.convertirPresupuestoAVenta('${presupuesto.id}')">
+                            Convertir a Venta
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('modalContainer').innerHTML = modalHTML;
+    }
+
+    imprimirPresupuesto(id) {
+        const presupuesto = this.presupuestos.find(p => p.id === id);
+        if (!presupuesto) return;
+        
+        const fecha = new Date(presupuesto.fecha);
+        const config = storage.getConfig?.() || {};
+        const nombreNegocio = config.nombreNegocio || 'Mi Negocio';
+        
+        let productosHTML = '';
+        presupuesto.productos.forEach(p => {
+            productosHTML += `
+                <tr>
+                    <td>${p.nombre}</td>
+                    <td>${p.cantidad}</td>
+                    <td>$${p.precioUnitario}</td>
+                    <td>$${p.subtotal}</td>
+                </tr>
+            `;
+        });
+        
+        const facturaHTML = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Presupuesto ${presupuesto.numero}</title>
+                <style>
+                    body { font-family: Arial, sans-serif; margin: 40px; }
+                    .header { text-align: center; margin-bottom: 30px; }
+                    .empresa { font-size: 24px; font-weight: bold; color: #27ae60; }
+                    table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+                    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                    th { background-color: #f2f2f2; }
+                    .totales { text-align: right; }
+                    .footer { margin-top: 40px; text-align: center; font-size: 12px; color: #666; }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <div class="empresa">${nombreNegocio}</div>
+                    <h2>PRESUPUESTO</h2>
+                    <p>${presupuesto.numero}</p>
+                </div>
+                
+                <p><strong>Fecha:</strong> ${fecha.toLocaleDateString()}</p>
+                <p><strong>Cliente:</strong> ${presupuesto.cliente}</p>
+                
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Producto</th>
+                            <th>Cantidad</th>
+                            <th>Precio Unit.</th>
+                            <th>Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${productosHTML}
+                    </tbody>
+                </table>
+                
+                <div class="totales">
+                    <h3>TOTAL: $${presupuesto.total.toLocaleString()}</h3>
+                </div>
+                
+                ${presupuesto.notas ? `<p><strong>Notas:</strong> ${presupuesto.notas}</p>` : ''}
+                
+                <div class="footer">
+                    <p>Presupuesto válido hasta: ${new Date(presupuesto.fechaVencimiento).toLocaleDateString()}</p>
+                </div>
+            </body>
+            </html>
+        `;
+        
+        const ventana = window.open('', '_blank');
+        ventana.document.write(facturaHTML);
+        ventana.document.close();
     }
 
     // ============================================
@@ -57,19 +2925,15 @@ class InvPlanetApp {
 
     inicializarLectorBarra() {
         document.addEventListener('keydown', (e) => {
-            // Ignorar si hay un modal abierto o si no estamos en ventas
             if (!this.modalOpen || this.currentView !== 'ventas') return;
             
-            // Acumular caracteres
             if (e.key.length === 1) {
                 this.barcodeBuffer += e.key;
                 
-                // Resetear el timeout anterior
                 if (this.scanTimeout) {
                     clearTimeout(this.scanTimeout);
                 }
                 
-                // Establecer un nuevo timeout para procesar el código
                 this.scanTimeout = setTimeout(() => {
                     this.procesarCodigoBarras(this.barcodeBuffer);
                     this.barcodeBuffer = '';
@@ -81,7 +2945,6 @@ class InvPlanetApp {
     procesarCodigoBarras(codigo) {
         console.log(`🔍 Código de barras detectado: ${codigo}`);
         
-        // Buscar producto por código
         const inventario = storage.getInventario();
         const producto = inventario.find(p => 
             p.codigo === codigo && p.activo === true && p.unidades > 0
@@ -426,7 +3289,7 @@ class InvPlanetApp {
     }
 
     // ============================================
-    // INVENTARIO CON EDICIÓN
+    // INVENTARIO (MANTENER EL CÓDIGO EXISTENTE)
     // ============================================
 
     loadInventarioView() {
@@ -448,6 +3311,9 @@ class InvPlanetApp {
                     <div class="action-buttons">
                         <button class="btn btn-primary" onclick="window.app.mostrarModalNuevoProducto()">
                             <i class="fas fa-plus"></i> Nuevo Producto
+                        </button>
+                        <button class="btn btn-info" onclick="window.app.mostrarModalNuevoKit()">
+                            <i class="fas fa-boxes"></i> Nuevo Kit
                         </button>
                         <button class="btn btn-success" onclick="window.app.exportarInventario()">
                             <i class="fas fa-file-export"></i> Exportar
@@ -488,6 +3354,7 @@ class InvPlanetApp {
                                 <th>Stock</th>
                                 <th>Precio Venta</th>
                                 <th>Costo</th>
+                                <th>Tipo</th>
                                 <th>Estado</th>
                                 <th>Acciones</th>
                             </tr>
@@ -513,7 +3380,7 @@ class InvPlanetApp {
         if (productos.length === 0) {
             return `
                 <tr>
-                    <td colspan="8" class="text-center">
+                    <td colspan="9" class="text-center">
                         <i class="fas fa-boxes fa-3x mb-3" style="color: #ddd;"></i>
                         <h4>No hay productos registrados</h4>
                         <p>¡Comienza agregando tu primer producto!</p>
@@ -538,6 +3405,8 @@ class InvPlanetApp {
                               estado === 'Bajo' ? 'badge-warning' : 
                               estado === 'Inactivo' ? 'badge-secondary' : 'badge-success';
             
+            const tipo = p.esKit ? '🎁 Kit' : '📦 Producto';
+            
             html += `
                 <tr>
                     <td>${p.codigo || 'N/A'}</td>
@@ -546,14 +3415,17 @@ class InvPlanetApp {
                     <td>${p.unidades}</td>
                     <td>$${p.precioVenta || 0}</td>
                     <td>$${p.costoUnitario || 0}</td>
+                    <td>${tipo}</td>
                     <td><span class="badge ${badgeClass}">${estado}</span></td>
                     <td>
                         <button class="btn btn-sm btn-primary" onclick="window.app.mostrarModalEditarProducto('${p.id}')">
                             <i class="fas fa-edit"></i>
                         </button>
-                        <button class="btn btn-sm btn-info" onclick="window.app.verMovimientos('${p.id}')">
-                            <i class="fas fa-history"></i>
+                        ${p.esKit ? `
+                        <button class="btn btn-sm btn-info" onclick="window.app.verComponentesKit('${p.id}')">
+                            <i class="fas fa-boxes"></i>
                         </button>
+                        ` : ''}
                         <button class="btn btn-sm btn-danger" onclick="window.app.eliminarProducto('${p.id}')">
                             <i class="fas fa-trash"></i>
                         </button>
@@ -603,7 +3475,7 @@ class InvPlanetApp {
     }
 
     // ============================================
-    // EDITAR PRODUCTO - VERSIÓN CORREGIDA CON STOCK EDITABLE
+    // EDITAR PRODUCTO
     // ============================================
 
     mostrarModalEditarProducto(id) {
@@ -622,6 +3494,13 @@ class InvPlanetApp {
                 options += `<option value="${c.id}" ${selected}>${c.nombre}</option>`;
             });
         }
+        
+        const proveedores = this.proveedores || [];
+        let proveedoresOptions = '<option value="">Seleccionar proveedor</option>';
+        proveedores.forEach(p => {
+            const selected = p.id === producto.proveedorId ? 'selected' : '';
+            proveedoresOptions += `<option value="${p.id}" ${selected}>${p.nombre}</option>`;
+        });
         
         const modalHTML = `
             <div class="modal-overlay active" id="modalEditarProducto">
@@ -647,6 +3526,12 @@ class InvPlanetApp {
                                     ${options}
                                 </select>
                             </div>
+                            <div class="form-group">
+                                <label>Proveedor</label>
+                                <select id="editProductoProveedor" class="form-control">
+                                    ${proveedoresOptions}
+                                </select>
+                            </div>
                             <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                                 <div class="form-group">
                                     <label>Stock Actual *</label>
@@ -669,12 +3554,16 @@ class InvPlanetApp {
                                 </div>
                             </div>
                             <div class="form-group">
-                                <label>Proveedor</label>
-                                <input type="text" id="editProductoProveedor" class="form-control" value="${producto.proveedor || ''}">
+                                <label>Ubicación en almacén</label>
+                                <input type="text" id="editProductoUbicacion" class="form-control" value="${producto.ubicacion || ''}" placeholder="Ej: Estante A, fila 3">
                             </div>
                             <div class="form-group">
                                 <label>Descripción</label>
                                 <textarea id="editProductoDescripcion" class="form-control" rows="2">${producto.descripcion || ''}</textarea>
+                            </div>
+                            <div class="form-group">
+                                <label>Fecha de vencimiento</label>
+                                <input type="date" id="editProductoVencimiento" class="form-control" value="${producto.fechaVencimiento || ''}">
                             </div>
                             <div class="form-check mb-3">
                                 <input type="checkbox" id="editProductoActivo" class="form-check-input" ${producto.activo ? 'checked' : ''}>
@@ -710,7 +3599,6 @@ class InvPlanetApp {
             return;
         }
         
-        // Verificar si ya existe otro producto con el mismo código
         const inventario = storage.getInventario();
         const existe = inventario.find(p => p.codigo === codigo && p.id !== id);
         
@@ -723,12 +3611,14 @@ class InvPlanetApp {
             codigo: codigo,
             nombre: nombre,
             categoriaId: document.getElementById('editProductoCategoria')?.value || null,
-            unidades: parseInt(unidades) || 0, // Ahora se guarda el nuevo stock
+            proveedorId: document.getElementById('editProductoProveedor')?.value || null,
+            unidades: parseInt(unidades) || 0,
             stockMinimo: parseInt(document.getElementById('editProductoStockMinimo')?.value) || 5,
             costoUnitario: parseFloat(document.getElementById('editProductoCosto')?.value) || 0,
             precioVenta: parseFloat(precio),
-            proveedor: document.getElementById('editProductoProveedor')?.value || '',
+            ubicacion: document.getElementById('editProductoUbicacion')?.value || '',
             descripcion: document.getElementById('editProductoDescripcion')?.value || '',
+            fechaVencimiento: document.getElementById('editProductoVencimiento')?.value || null,
             activo: document.getElementById('editProductoActivo')?.checked || false,
             fechaActualizacion: new Date().toISOString()
         };
@@ -747,6 +3637,53 @@ class InvPlanetApp {
         }
     }
 
+    verComponentesKit(id) {
+        const producto = storage.getProducto(id);
+        if (!producto || !producto.esKit) return;
+        
+        let componentesHTML = '';
+        producto.componentes.forEach(c => {
+            componentesHTML += `
+                <tr>
+                    <td>${c.nombre}</td>
+                    <td>${c.cantidad}</td>
+                    <td>$${c.precioUnitario}</td>
+                    <td>$${c.precioUnitario * c.cantidad}</td>
+                </tr>
+            `;
+        });
+        
+        const modalHTML = `
+            <div class="modal-overlay active" id="modalComponentesKit">
+                <div class="modal-content" style="max-width: 600px;">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-boxes"></i> Componentes del Kit: ${producto.nombre}</h3>
+                        <button class="close-modal" onclick="window.app.cerrarModal('modalComponentesKit')">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Producto</th>
+                                    <th>Cantidad</th>
+                                    <th>Precio Unit.</th>
+                                    <th>Subtotal</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${componentesHTML}
+                            </tbody>
+                        </table>
+                        <p><strong>Precio del Kit:</strong> $${producto.precioVenta}</p>
+                        <p><strong>Ahorro:</strong> $${producto.componentes.reduce((s, c) => s + (c.precioUnitario * c.cantidad), 0) - producto.precioVenta}</p>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('modalContainer').innerHTML = modalHTML;
+    }
+
     // ============================================
     // PRODUCTOS - CRUD
     // ============================================
@@ -762,6 +3699,12 @@ class InvPlanetApp {
                 options += `<option value="${c.id}">${c.nombre}</option>`;
             });
         }
+        
+        const proveedores = this.proveedores || [];
+        let proveedoresOptions = '<option value="">Seleccionar proveedor</option>';
+        proveedores.forEach(p => {
+            proveedoresOptions += `<option value="${p.id}">${p.nombre}</option>`;
+        });
         
         const modalHTML = `
             <div class="modal-overlay active" id="modalNuevoProducto">
@@ -786,6 +3729,12 @@ class InvPlanetApp {
                                     ${options}
                                 </select>
                             </div>
+                            <div class="form-group">
+                                <label>Proveedor</label>
+                                <select id="productoProveedor" class="form-control">
+                                    ${proveedoresOptions}
+                                </select>
+                            </div>
                             <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                                 <div class="form-group">
                                     <label>Stock Inicial</label>
@@ -807,12 +3756,16 @@ class InvPlanetApp {
                                 </div>
                             </div>
                             <div class="form-group">
-                                <label>Proveedor</label>
-                                <input type="text" id="productoProveedor" class="form-control" placeholder="Ej: Distribuidora XYZ">
+                                <label>Ubicación en almacén</label>
+                                <input type="text" id="productoUbicacion" class="form-control" placeholder="Ej: Estante A, fila 3">
                             </div>
                             <div class="form-group">
                                 <label>Descripción</label>
                                 <textarea id="productoDescripcion" class="form-control" rows="2" placeholder="Descripción..."></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label>Fecha de vencimiento (opcional)</label>
+                                <input type="date" id="productoVencimiento" class="form-control">
                             </div>
                             <div class="form-actions" style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
                                 <button type="button" class="btn btn-secondary" onclick="window.app.cerrarModal('modalNuevoProducto')">
@@ -857,12 +3810,14 @@ class InvPlanetApp {
             codigo: codigo,
             nombre: nombre,
             categoriaId: document.getElementById('productoCategoria')?.value || null,
+            proveedorId: document.getElementById('productoProveedor')?.value || null,
             unidades: parseInt(document.getElementById('productoUnidades')?.value) || 0,
             stockMinimo: parseInt(document.getElementById('productoStockMinimo')?.value) || 5,
             costoUnitario: parseFloat(document.getElementById('productoCosto')?.value) || 0,
             precioVenta: parseFloat(precio),
-            proveedor: document.getElementById('productoProveedor')?.value || '',
+            ubicacion: document.getElementById('productoUbicacion')?.value || '',
             descripcion: document.getElementById('productoDescripcion')?.value || '',
+            fechaVencimiento: document.getElementById('productoVencimiento')?.value || null,
             activo: true,
             fechaCreacion: new Date().toISOString()
         };
@@ -1148,7 +4103,7 @@ class InvPlanetApp {
     }
 
     // ============================================
-    // VENTAS CON MODIFICACIÓN
+    // VENTAS CON MODIFICACIÓN (MANTENER CÓDIGO EXISTENTE)
     // ============================================
 
     loadVentasView() {
@@ -1396,7 +4351,7 @@ class InvPlanetApp {
     }
 
     // ============================================
-    // MODIFICAR VENTA
+    // MODIFICAR VENTA (MANTENER CÓDIGO EXISTENTE)
     // ============================================
 
     modificarVenta(id) {
@@ -2276,6 +5231,15 @@ class InvPlanetApp {
             return;
         }
         
+        // Verificar si hay promociones activas para este producto
+        const promocion = this.aplicarPromociones(producto.precioVenta, producto.id, producto.categoriaId, 1);
+        let precioFinal = producto.precioVenta;
+        
+        if (promocion.promocion && promocion.promocion.tipo === 'porcentaje') {
+            precioFinal = promocion.precioFinal;
+            this.mostrarMensaje(`🎁 Promoción aplicada: ${promocion.promocion.nombre}`, 'info');
+        }
+        
         // Preguntar si quiere agregar nota o adiciones
         const nota = prompt(`¿Nota para ${producto.nombre}? (Ej: Sin cebolla, bien asado, etc)`, '');
         const adiciones = prompt(`¿Adiciones para ${producto.nombre}? (Ej: Queso extra, tocineta, etc - separado por comas)`, '');
@@ -2297,9 +5261,9 @@ class InvPlanetApp {
                 productoId: producto.id,
                 nombre: producto.nombre,
                 codigo: producto.codigo,
-                precioUnitario: producto.precioVenta,
+                precioUnitario: precioFinal,
                 cantidad: 1,
-                subtotal: producto.precioVenta,
+                subtotal: precioFinal,
                 stockDisponible: producto.unidades,
                 nota: nota || '',
                 adiciones: adiciones ? adiciones.split(',').map(a => a.trim()) : []
@@ -2541,6 +5505,21 @@ class InvPlanetApp {
         const ventas = storage.getVentas?.() || [];
         ventas.push(venta);
         storage.saveVentas?.(ventas);
+        
+        // Si hay turno abierto, agregar venta al turno
+        if (this.turnoActual) {
+            this.turnoActual.ventas.push(venta.id);
+            this.turnoActual.totalVentas += venta.total;
+            this.guardarTurnoActual();
+            
+            // Actualizar en el array de turnos
+            const turnos = JSON.parse(localStorage.getItem('invplanet_turnos') || '[]');
+            const index = turnos.findIndex(t => t.id === this.turnoActual.id);
+            if (index !== -1) {
+                turnos[index] = this.turnoActual;
+                localStorage.setItem('invplanet_turnos', JSON.stringify(turnos));
+            }
+        }
         
         this.mostrarMensaje('✅ Venta realizada exitosamente', 'success');
         
@@ -2818,7 +5797,7 @@ class InvPlanetApp {
     }
 
     // ============================================
-    // GASTOS
+    // GASTOS (MANTENER CÓDIGO EXISTENTE)
     // ============================================
 
     loadGastosView() {
@@ -3210,7 +6189,7 @@ class InvPlanetApp {
     }
 
     // ============================================
-    // REPORTES
+    // REPORTES (MANTENER CÓDIGO EXISTENTE)
     // ============================================
 
     loadReportesView() {
@@ -3442,7 +6421,7 @@ class InvPlanetApp {
     }
 
     // ============================================
-    // CONFIGURACIÓN
+    // CONFIGURACIÓN (MANTENER CÓDIGO EXISTENTE)
     // ============================================
 
     loadConfiguracionView() {
@@ -3815,6 +6794,7 @@ window.cargarVista = cargarVista;
 
 window.mostrarModalNuevoProducto = () => app.mostrarModalNuevoProducto();
 window.mostrarModalEditarProducto = (id) => app.mostrarModalEditarProducto(id);
+window.mostrarModalNuevoKit = () => app.mostrarModalNuevoKit();
 window.mostrarModalNuevaCategoria = () => app.mostrarModalNuevaCategoria();
 window.mostrarModalEditarCategoria = (id) => app.mostrarModalEditarCategoria(id);
 window.mostrarModalNuevaVenta = () => app.mostrarModalNuevaVenta();
@@ -3826,14 +6806,47 @@ window.modificarVenta = (id) => app.modificarVenta(id);
 window.cancelarModificacion = () => app.cancelarModificacion();
 window.buscarPorCodigoBarrasModificacion = () => app.buscarPorCodigoBarrasModificacion();
 
+// Usuarios
+window.mostrarModalUsuarios = () => app.mostrarModalUsuarios();
+
+// Clientes
+window.mostrarModalClientes = () => app.mostrarModalClientes();
+
+// Proveedores
+window.mostrarModalProveedores = () => app.mostrarModalProveedores();
+
+// Promociones
+window.mostrarModalPromociones = () => app.mostrarModalPromociones();
+
+// Mesas
+window.mostrarMapaMesas = () => app.mostrarMapaMesas();
+
+// Comisiones
+window.mostrarModalComisiones = () => app.mostrarModalComisiones();
+
+// Apartados
+window.mostrarModalApartados = () => app.mostrarModalApartados();
+
+// Créditos
+window.mostrarModalCreditos = () => app.mostrarModalCreditos();
+
+// Turnos
+window.mostrarModalTurnos = () => app.mostrarModalTurnos();
+
+// Presupuestos
+window.mostrarModalPresupuestos = () => app.mostrarModalPresupuestos();
+
 window.cerrarModal = (id) => app.cerrarModal(id);
 
 window.editarProducto = (id) => app.mostrarModalEditarProducto(id);
 window.eliminarProducto = (id) => app.eliminarProducto(id);
 window.guardarNuevoProducto = () => app.guardarNuevoProducto();
 window.guardarEdicionProducto = () => app.guardarEdicionProducto();
+window.agregarProductoKit = () => app.agregarProductoKit();
+window.guardarNuevoKit = () => app.guardarNuevoKit();
 window.agregarStock = (id) => app.mostrarMensaje('Función en desarrollo', 'info');
 window.verMovimientos = (id) => app.verMovimientos(id);
+window.verComponentesKit = (id) => app.verComponentesKit(id);
 
 window.editarCategoria = (id) => app.mostrarModalEditarCategoria(id);
 window.eliminarCategoria = (id) => app.eliminarCategoria(id);
@@ -3856,6 +6869,56 @@ window.editarGasto = (id) => app.mostrarModalEditarGasto(id);
 window.eliminarGasto = (id) => app.eliminarGasto(id);
 window.guardarNuevoGasto = () => app.guardarNuevoGasto();
 window.guardarEdicionGasto = () => app.guardarEdicionGasto();
+
+// Clientes
+window.editarCliente = (id) => app.editarCliente(id);
+window.guardarNuevoCliente = () => app.guardarNuevoCliente();
+window.guardarEdicionCliente = () => app.guardarEdicionCliente();
+window.verHistorialCliente = (id) => app.verHistorialCliente(id);
+
+// Proveedores
+window.editarProveedor = (id) => app.editarProveedor(id);
+window.guardarNuevoProveedor = () => app.guardarNuevoProveedor();
+window.guardarEdicionProveedor = () => app.guardarEdicionProveedor();
+window.verProductosProveedor = (id) => app.verProductosProveedor(id);
+
+// Promociones
+window.editarPromocion = (id) => app.editarPromocion(id);
+window.eliminarPromocion = (id) => app.eliminarPromocion(id);
+window.guardarNuevaPromocion = () => app.guardarNuevaPromocion();
+
+// Mesas
+window.abrirMesa = (id) => app.abrirMesa(id);
+window.configurarMesas = () => app.configurarMesas();
+window.agregarMesa = () => app.agregarMesa();
+window.eliminarMesa = (id) => app.eliminarMesa(id);
+window.guardarConfigMesas = () => app.guardarConfigMesas();
+
+// Comisiones
+window.editarComision = (id) => app.editarComision(id);
+window.eliminarComision = (id) => app.eliminarComision(id);
+window.guardarNuevaComision = () => app.guardarNuevaComision();
+
+// Apartados
+window.agregarProductoApartado = () => app.agregarProductoApartado();
+window.guardarNuevoApartado = () => app.guardarNuevoApartado();
+window.cobrarApartado = (id) => app.cobrarApartado(id);
+window.cancelarApartado = (id) => app.cancelarApartado(id);
+
+// Créditos
+window.abonarCredito = (id) => app.abonarCredito(id);
+window.verDetalleCredito = (id) => app.verDetalleCredito(id);
+
+// Turnos
+window.abrirTurno = () => app.abrirTurno();
+window.cerrarTurno = () => app.cerrarTurno();
+
+// Presupuestos
+window.agregarProductoPresupuesto = () => app.agregarProductoPresupuesto();
+window.guardarNuevoPresupuesto = () => app.guardarNuevoPresupuesto();
+window.convertirPresupuestoAVenta = (id) => app.convertirPresupuestoAVenta(id);
+window.verPresupuesto = (id) => app.verPresupuesto(id);
+window.imprimirPresupuesto = (id) => app.imprimirPresupuesto(id);
 
 window.exportarReporteVentas = () => app.exportarReporteVentas();
 window.exportarReporteGastos = () => app.exportarReporteGastos();
@@ -3883,4 +6946,5 @@ window.finalizarVenta = () => app.finalizarVenta();
 // VERIFICACIÓN FINAL
 // ============================================
 
-console.log('%c✅ InvPlanet App v13.1 - CON STOCK EDITABLE EN PRODUCTOS', 'background: #27ae60; color: white; padding: 10px 15px; border-radius: 5px; font-size: 14px; font-weight: bold;');
+console.log('%c✅ InvPlanet App v14.0 - MEGA COMPLETA (TODOS LOS MÓDULOS)', 'background: #27ae60; color: white; padding: 10px 15px; border-radius: 5px; font-size: 14px; font-weight: bold;');
+console.log('📦 Módulos incluidos: Usuarios, Clientes, Proveedores, Promociones, Kits, Mesas, Comisiones, Apartados, Créditos, Turnos, Presupuestos');

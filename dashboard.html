@@ -10,7 +10,7 @@
     <link rel="icon" href="assets/favicon.ico" type="image/x-icon">
     <style>
         /* ============================================
-           ESTILOS MEJORADOS PARA CATEGORÍAS AMPLIADAS
+           ESTILOS MEJORADOS PARA TODOS LOS MÓDULOS
            ============================================ */
         
         /* Variables globales */
@@ -211,413 +211,107 @@
         }
 
         /* ============================================
-           ESTILOS PARA CATEGORÍAS AMPLIADAS
+           NUEVOS ESTILOS PARA MÓDULOS ADICIONALES
            ============================================ */
 
-        .categorias-view {
-            padding: 20px;
+        /* Menú expandido */
+        .nav-menu {
+            list-style: none;
+            padding: 0;
+            margin: 0;
         }
 
-        .categorias-stats {
-            margin-bottom: 30px;
+        .nav-item {
+            margin-bottom: 5px;
         }
 
-        .stats-mini-cards {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 15px;
-        }
-
-        .mini-card {
-            background: linear-gradient(135deg, white, var(--light));
-            border-radius: var(--radius-sm);
-            padding: 15px;
+        .nav-link {
             display: flex;
             align-items: center;
-            gap: 12px;
-            box-shadow: var(--shadow);
-            border-left: 4px solid var(--primary);
+            padding: 12px 20px;
+            color: var(--dark);
+            text-decoration: none;
+            border-radius: var(--radius-sm);
             transition: all 0.3s ease;
+            gap: 12px;
         }
 
-        .mini-card:hover {
-            transform: translateX(5px);
-            box-shadow: var(--shadow-lg);
+        .nav-link i {
+            width: 20px;
+            text-align: center;
+            font-size: 1.1rem;
         }
 
-        .mini-card i {
-            font-size: 24px;
+        .nav-link:hover {
+            background: var(--light);
             color: var(--primary);
         }
 
-        .mini-card span {
-            font-weight: 600;
-            color: var(--dark);
-            font-size: 0.9rem;
+        .nav-link.active {
+            background: var(--primary);
+            color: white;
         }
 
-        /* Grupos de categorías */
-        .categorias-groups {
-            margin-bottom: 40px;
+        .nav-link.active i {
+            color: white;
         }
 
-        .groups-title {
-            color: var(--dark);
-            font-size: 1.3rem;
-            margin-bottom: 20px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
+        .nav-divider {
+            height: 1px;
+            background: var(--light);
+            margin: 15px 0;
         }
 
-        .groups-grid {
+        .nav-section-title {
+            padding: 10px 20px;
+            color: var(--gray);
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Tarjetas de módulos */
+        .modules-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 20px;
+            margin-top: 20px;
         }
 
-        .categoria-group {
+        .module-card {
             background: white;
             border-radius: var(--radius);
             padding: 20px;
             box-shadow: var(--shadow);
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
             border: 1px solid rgba(0,0,0,0.05);
         }
 
-        .group-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid var(--light);
-        }
-
-        .group-header h4 {
-            margin: 0;
-            color: var(--dark);
-            font-size: 1.1rem;
-            font-weight: 600;
-        }
-
-        .group-icons {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-
-        .group-icon {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 5px;
-            padding: 8px;
-            border-radius: var(--radius-sm);
-            background: var(--light);
-            min-width: 60px;
-            transition: all 0.3s ease;
-        }
-
-        .group-icon:hover {
-            transform: scale(1.1);
-            background: white;
-            box-shadow: var(--shadow);
-        }
-
-        .group-icon i {
-            font-size: 20px;
-        }
-
-        .group-icon small {
-            font-size: 0.7rem;
-            color: var(--gray);
-        }
-
-        .group-icon.more {
-            background: var(--primary);
-            color: white;
-            font-weight: bold;
-            justify-content: center;
-        }
-
-        /* Grid de categorías */
-        .categorias-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-            gap: 25px;
-            margin-top: 20px;
-        }
-
-        .categoria-card {
-            background: white;
-            border-radius: var(--radius);
-            padding: 25px;
-            box-shadow: var(--shadow);
-            transition: all 0.3s ease;
-            border-left-width: 4px;
-            border-left-style: solid;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .categoria-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            right: 0;
-            width: 100px;
-            height: 100px;
-            background: linear-gradient(135deg, transparent 50%, rgba(0,0,0,0.02) 50%);
-            border-radius: 0 0 0 100px;
-        }
-
-        .categoria-card:hover {
+        .module-card:hover {
             transform: translateY(-5px);
             box-shadow: var(--shadow-lg);
         }
 
-        .categoria-header {
-            display: flex;
-            align-items: center;
-            gap: 20px;
-            margin-bottom: 20px;
+        .module-card i {
+            font-size: 2.5rem;
+            color: var(--primary);
+            margin-bottom: 15px;
         }
 
-        .categoria-icon {
-            width: 60px;
-            height: 60px;
-            border-radius: var(--radius);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 28px;
-            transition: all 0.3s ease;
-        }
-
-        .categoria-card:hover .categoria-icon {
-            transform: scale(1.1) rotate(5deg);
-        }
-
-        .categoria-info {
-            flex: 1;
-        }
-
-        .categoria-info h3 {
-            margin: 0 0 5px 0;
-            font-size: 1.2rem;
-            color: var(--dark);
-            font-weight: 700;
-        }
-
-        .categoria-info p {
+        .module-card h4 {
             margin: 0 0 10px 0;
-            color: var(--gray);
-            font-size: 0.9rem;
-            line-height: 1.4;
-        }
-
-        .categoria-actions {
-            display: flex;
-            gap: 10px;
-            justify-content: flex-end;
-            margin-top: 20px;
-            padding-top: 15px;
-            border-top: 1px solid var(--light);
-        }
-
-        .categoria-search {
-            margin-bottom: 30px;
-        }
-
-        .search-container {
-            position: relative;
-            max-width: 500px;
-        }
-
-        .search-input {
-            width: 100%;
-            padding: 15px 15px 15px 45px;
-            border: 2px solid var(--light);
-            border-radius: 50px;
-            font-size: 1rem;
-            transition: all 0.3s ease;
-        }
-
-        .search-input:focus {
-            border-color: var(--primary);
-            outline: none;
-            box-shadow: 0 0 0 3px rgba(52,152,219,0.1);
-        }
-
-        .search-icon {
-            position: absolute;
-            left: 15px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: var(--gray);
-            font-size: 1.1rem;
-        }
-
-        /* ============================================
-           ESTILOS PARA REPORTES POR CATEGORÍAS
-           ============================================ */
-
-        .categorias-reporte {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-            gap: 25px;
-            margin-top: 30px;
-        }
-
-        .categoria-reporte-card {
-            background: white;
-            border-radius: var(--radius);
-            padding: 20px;
-            box-shadow: var(--shadow);
-            border-left-width: 4px;
-            border-left-style: solid;
-        }
-
-        .categoria-reporte-header {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            margin-bottom: 20px;
-            padding-bottom: 15px;
-            border-bottom: 1px solid var(--light);
-        }
-
-        .categoria-reporte-icon {
-            width: 50px;
-            height: 50px;
-            border-radius: var(--radius-sm);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-            background: var(--light);
-        }
-
-        .categoria-reporte-info {
-            flex: 1;
-        }
-
-        .categoria-reporte-info h4 {
-            margin: 0 0 5px 0;
-            font-size: 1.1rem;
             color: var(--dark);
         }
 
-        .categoria-reporte-total {
-            text-align: right;
-        }
-
-        .categoria-reporte-total strong {
-            font-size: 1.2rem;
-            color: var(--dark);
-            display: block;
-        }
-
-        .categoria-reporte-total small {
+        .module-card p {
+            margin: 0;
             color: var(--gray);
-            font-size: 0.8rem;
-        }
-
-        .categoria-reporte-productos {
-            max-height: 200px;
-            overflow-y: auto;
-        }
-
-        .table-small {
             font-size: 0.9rem;
         }
 
-        .table-small td, .table-small th {
-            padding: 8px;
-        }
-
-        /* ============================================
-           RESPONSIVE
-           ============================================ */
-
-        @media (max-width: 992px) {
-            .dashboard-sections {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        @media (max-width: 768px) {
-            .stats-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .categorias-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .groups-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .stats-mini-cards {
-                grid-template-columns: repeat(2, 1fr);
-            }
-            
-            .section-header {
-                flex-direction: column;
-                gap: 15px;
-            }
-            
-            .action-buttons {
-                width: 100%;
-            }
-            
-            .action-buttons .btn {
-                flex: 1;
-            }
-        }
-
-        @media (max-width: 576px) {
-            .stats-mini-cards {
-                grid-template-columns: 1fr;
-            }
-            
-            .categoria-header {
-                flex-direction: column;
-                text-align: center;
-            }
-            
-            .categoria-actions {
-                justify-content: center;
-            }
-        }
-
-        /* Animaciones */
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
-        @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .fade-in {
-            animation: fadeIn 0.5s ease;
-        }
-
-        .slide-in {
-            animation: slideIn 0.5s ease;
-        }
-
-        /* Badges mejorados */
+        /* Badges de estado */
         .badge {
             display: inline-block;
             padding: 5px 12px;
@@ -653,82 +347,134 @@
             color: white;
         }
 
-        /* Botones mejorados */
-        .btn {
-            padding: 12px 24px;
-            border-radius: 50px;
-            font-weight: 600;
+        .badge-purple {
+            background: #9b59b6;
+            color: white;
+        }
+
+        .badge-orange {
+            background: #e67e22;
+            color: white;
+        }
+
+        /* Botones de acción rápida */
+        .quick-actions {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            z-index: 1000;
+        }
+
+        .quick-actions-btn {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            border: none;
+            cursor: pointer;
+            box-shadow: var(--shadow-lg);
+            font-size: 24px;
             transition: all 0.3s ease;
         }
 
-        .btn-sm {
-            padding: 8px 16px;
-            font-size: 0.9rem;
+        .quick-actions-btn:hover {
+            transform: scale(1.1);
+            background: var(--primary-dark);
         }
 
-        .btn-primary {
-            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-            color: white;
-            border: none;
-        }
-
-        .btn-primary:hover {
-            background: linear-gradient(135deg, var(--primary-dark), var(--dark));
-            transform: translateY(-2px);
+        .quick-actions-menu {
+            position: absolute;
+            bottom: 70px;
+            right: 0;
+            background: white;
+            border-radius: var(--radius);
             box-shadow: var(--shadow-lg);
-        }
-
-        /* Tablas mejoradas */
-        .table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        .table th {
-            background: var(--light);
             padding: 15px;
-            font-weight: 600;
-            color: var(--dark);
-            border-bottom: 2px solid var(--primary);
+            min-width: 200px;
+            display: none;
         }
 
-        .table td {
-            padding: 12px 15px;
-            border-bottom: 1px solid var(--light);
+        .quick-actions-menu.show {
+            display: block;
         }
 
-        .table tr:hover {
-            background: rgba(52,152,219,0.05);
-        }
-
-        /* Mensajes flotantes mejorados */
-        .mensaje-flotante {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 10000;
-            padding: 15px 25px;
-            border-radius: 50px;
-            box-shadow: var(--shadow-lg);
+        .quick-actions-menu button {
             display: flex;
             align-items: center;
             gap: 12px;
-            animation: slideIn 0.3s ease;
+            width: 100%;
+            padding: 12px 15px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            border-radius: var(--radius-sm);
+            transition: background 0.3s;
         }
 
-        .mensaje-flotante.success {
-            background: linear-gradient(135deg, #27ae60, #2ecc71);
-            color: white;
+        .quick-actions-menu button:hover {
+            background: var(--light);
         }
 
-        .mensaje-flotante.error {
-            background: linear-gradient(135deg, #c0392b, #e74c3c);
-            color: white;
+        /* Responsive */
+        @media (max-width: 992px) {
+            .dashboard-sections {
+                grid-template-columns: 1fr;
+            }
         }
 
-        .mensaje-flotante.info {
-            background: linear-gradient(135deg, #2980b9, #3498db);
-            color: white;
+        @media (max-width: 768px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .modules-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .section-header {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            .action-buttons {
+                width: 100%;
+            }
+            
+            .action-buttons .btn {
+                flex: 1;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .modules-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Animaciones */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease;
+        }
+
+        .slide-in {
+            animation: slideIn 0.5s ease;
         }
 
         /* Tooltips */
@@ -784,12 +530,13 @@
     <!-- Main Content -->
     <div class="container">
         <div class="main-content">
-            <!-- Sidebar -->
+            <!-- Sidebar Mejorado con todos los módulos -->
             <nav class="sidebar">
                 <div class="sidebar-header">
-                    <h2><i class="fas fa-bars"></i> Menú</h2>
+                    <h2><i class="fas fa-bars"></i> Menú Principal</h2>
                 </div>
                 <ul class="nav-menu">
+                    <!-- Módulos principales -->
                     <li class="nav-item">
                         <a href="#" class="nav-link active" data-view="dashboard">
                             <i class="fas fa-tachometer-alt"></i>
@@ -820,12 +567,89 @@
                             <span>Reportes</span>
                         </a>
                     </li>
+                    
+                    <li class="nav-divider"></li>
+                    <li class="nav-section-title">Gestión</li>
+                    
+                    <!-- Nuevos módulos -->
+                    <li class="nav-item">
+                        <a href="#" class="nav-link" onclick="window.app.mostrarModalUsuarios()">
+                            <i class="fas fa-users"></i>
+                            <span>Usuarios</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#" class="nav-link" onclick="window.app.mostrarModalClientes()">
+                            <i class="fas fa-user-tie"></i>
+                            <span>Clientes</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#" class="nav-link" onclick="window.app.mostrarModalProveedores()">
+                            <i class="fas fa-truck"></i>
+                            <span>Proveedores</span>
+                        </a>
+                    </li>
+                    
+                    <li class="nav-divider"></li>
+                    <li class="nav-section-title">Operaciones</li>
+                    
+                    <li class="nav-item">
+                        <a href="#" class="nav-link" onclick="window.app.mostrarModalPromociones()">
+                            <i class="fas fa-tags"></i>
+                            <span>Promociones</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#" class="nav-link" onclick="window.app.mostrarMapaMesas()">
+                            <i class="fas fa-utensils"></i>
+                            <span>Mesas</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#" class="nav-link" onclick="window.app.mostrarModalComisiones()">
+                            <i class="fas fa-hand-holding-usd"></i>
+                            <span>Comisiones</span>
+                        </a>
+                    </li>
+                    
+                    <li class="nav-divider"></li>
+                    <li class="nav-section-title">Finanzas</li>
+                    
                     <li class="nav-item">
                         <a href="#" class="nav-link" data-view="gastos">
                             <i class="fas fa-money-bill-wave"></i>
                             <span>Gastos</span>
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a href="#" class="nav-link" onclick="window.app.mostrarModalApartados()">
+                            <i class="fas fa-box-open"></i>
+                            <span>Apartados</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#" class="nav-link" onclick="window.app.mostrarModalCreditos()">
+                            <i class="fas fa-credit-card"></i>
+                            <span>Créditos</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#" class="nav-link" onclick="window.app.mostrarModalTurnos()">
+                            <i class="fas fa-clock"></i>
+                            <span>Turnos</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#" class="nav-link" onclick="window.app.mostrarModalPresupuestos()">
+                            <i class="fas fa-file-signature"></i>
+                            <span>Presupuestos</span>
+                        </a>
+                    </li>
+                    
+                    <li class="nav-divider"></li>
+                    <li class="nav-section-title">Sistema</li>
+                    
                     <li class="nav-item">
                         <a href="#" class="nav-link" data-view="configuracion">
                             <i class="fas fa-cog"></i>
@@ -839,6 +663,9 @@
                         <p id="currentDate"></p>
                         <p id="currentTime"></p>
                     </div>
+                    <div class="turno-info" id="turnoInfo" style="margin-top: 10px; padding: 10px; background: var(--light); border-radius: var(--radius-sm); display: none;">
+                        <small><i class="fas fa-clock"></i> <span id="turnoEstado">Turno cerrado</span></small>
+                    </div>
                 </div>
             </nav>
 
@@ -848,10 +675,62 @@
                 <div class="welcome-message">
                     <h2>Bienvenido a InvPlanet</h2>
                     <p>Selecciona una opción del menú para comenzar</p>
+                    <div class="modules-grid">
+                        <div class="module-card" onclick="window.app.loadView('inventario')">
+                            <i class="fas fa-boxes"></i>
+                            <h4>Inventario</h4>
+                            <p>Gestiona tus productos</p>
+                        </div>
+                        <div class="module-card" onclick="window.app.loadView('ventas')">
+                            <i class="fas fa-cash-register"></i>
+                            <h4>Ventas</h4>
+                            <p>Registra nuevas ventas</p>
+                        </div>
+                        <div class="module-card" onclick="window.app.mostrarModalClientes()">
+                            <i class="fas fa-user-tie"></i>
+                            <h4>Clientes</h4>
+                            <p>Administra tus clientes</p>
+                        </div>
+                        <div class="module-card" onclick="window.app.mostrarMapaMesas()">
+                            <i class="fas fa-utensils"></i>
+                            <h4>Mesas</h4>
+                            <p>Gestiona el restaurante</p>
+                        </div>
+                    </div>
                     <div class="loading-spinner" style="margin-top: 20px;" id="initialLoading"></div>
                     <p style="margin-top: 20px;">Cargando aplicación...</p>
                 </div>
             </main>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="quick-actions">
+        <button class="quick-actions-btn" id="quickActionsBtn" onclick="document.getElementById('quickActionsMenu').classList.toggle('show')">
+            <i class="fas fa-plus"></i>
+        </button>
+        <div class="quick-actions-menu" id="quickActionsMenu">
+            <button onclick="window.app.mostrarModalNuevaVenta(); document.getElementById('quickActionsMenu').classList.remove('show')">
+                <i class="fas fa-cash-register"></i> Nueva Venta
+            </button>
+            <button onclick="window.app.mostrarModalNuevoProducto(); document.getElementById('quickActionsMenu').classList.remove('show')">
+                <i class="fas fa-box"></i> Nuevo Producto
+            </button>
+            <button onclick="window.app.mostrarModalNuevoGasto(); document.getElementById('quickActionsMenu').classList.remove('show')">
+                <i class="fas fa-money-bill"></i> Nuevo Gasto
+            </button>
+            <button onclick="window.app.mostrarModalNuevoCliente(); document.getElementById('quickActionsMenu').classList.remove('show')">
+                <i class="fas fa-user"></i> Nuevo Cliente
+            </button>
+            <button onclick="window.app.mostrarModalNuevoProveedor(); document.getElementById('quickActionsMenu').classList.remove('show')">
+                <i class="fas fa-truck"></i> Nuevo Proveedor
+            </button>
+            <button onclick="window.app.mostrarModalNuevaPromocion(); document.getElementById('quickActionsMenu').classList.remove('show')">
+                <i class="fas fa-tag"></i> Nueva Promoción
+            </button>
+            <button onclick="window.app.mostrarModalNuevoApartado(); document.getElementById('quickActionsMenu').classList.remove('show')">
+                <i class="fas fa-box-open"></i> Nuevo Apartado
+            </button>
         </div>
     </div>
 
@@ -1044,7 +923,7 @@
         }
         
         function configurarNavegacion() {
-            const navLinks = document.querySelectorAll('.nav-link');
+            const navLinks = document.querySelectorAll('.nav-link[data-view]');
             
             navLinks.forEach(link => {
                 link.addEventListener('click', function(e) {
@@ -1083,6 +962,18 @@
             }
         }
         
+        function actualizarInfoTurno() {
+            const turnoInfo = document.getElementById('turnoInfo');
+            const turnoEstado = document.getElementById('turnoEstado');
+            
+            if (window.app && window.app.turnoActual) {
+                turnoInfo.style.display = 'block';
+                turnoEstado.innerHTML = `<i class="fas fa-play"></i> Turno abierto - Efectivo: $${window.app.turnoActual.efectivoInicial || 0}`;
+            } else {
+                turnoInfo.style.display = 'none';
+            }
+        }
+        
         // ============================================
         // INICIALIZACIÓN PRINCIPAL
         // ============================================
@@ -1116,6 +1007,15 @@
             configurarNavegacion();
             configurarLogout();
             
+            // Cerrar menú de acciones rápidas al hacer clic fuera
+            document.addEventListener('click', function(e) {
+                const menu = document.getElementById('quickActionsMenu');
+                const btn = document.getElementById('quickActionsBtn');
+                if (!btn.contains(e.target) && !menu.contains(e.target)) {
+                    menu.classList.remove('show');
+                }
+            });
+            
             setTimeout(() => {
                 try {
                     if (window.app && window.app.initializeApp) {
@@ -1124,10 +1024,18 @@
                         
                         if (success) {
                             console.log('✓ App inicializada');
-                            window.app.loadView('dashboard');
+                            
+                            // Cargar vista por defecto si es necesario
+                            if (!window.app.currentView || window.app.currentView === 'dashboard') {
+                                window.app.loadView('dashboard');
+                            }
                             
                             const loadingElement = document.getElementById('initialLoading');
                             if (loadingElement) loadingElement.style.display = 'none';
+                            
+                            // Actualizar info del turno cada 5 segundos
+                            setInterval(actualizarInfoTurno, 5000);
+                            setTimeout(actualizarInfoTurno, 1000);
                         }
                     }
                 } catch (error) {
@@ -1137,10 +1045,15 @@
             }, 500);
             
             // Funciones globales
-            window.mostrarModalNuevoProducto = () => window.app?.showModalNuevoProducto?.() || mostrarMensaje('Función no disponible', 'info');
-            window.mostrarModalNuevaCategoria = () => window.app?.showModalNuevaCategoria?.() || mostrarMensaje('Función no disponible', 'info');
-            window.mostrarModalNuevaVenta = () => window.app?.showModalNuevaVenta?.() || mostrarMensaje('Función no disponible', 'info');
-            window.mostrarModalNuevoGasto = () => window.app?.showModalNuevoGasto?.() || mostrarMensaje('Función no disponible', 'info');
+            window.mostrarModalNuevoProducto = () => window.app?.mostrarModalNuevoProducto?.() || mostrarMensaje('Función no disponible', 'info');
+            window.mostrarModalNuevaCategoria = () => window.app?.mostrarModalNuevaCategoria?.() || mostrarMensaje('Función no disponible', 'info');
+            window.mostrarModalNuevaVenta = () => window.app?.mostrarModalNuevaVenta?.() || mostrarMensaje('Función no disponible', 'info');
+            window.mostrarModalNuevoGasto = () => window.app?.mostrarModalNuevoGasto?.() || mostrarMensaje('Función no disponible', 'info');
+            window.mostrarModalNuevoCliente = () => window.app?.mostrarModalNuevoCliente?.() || mostrarMensaje('Función no disponible', 'info');
+            window.mostrarModalNuevoProveedor = () => window.app?.mostrarModalNuevoProveedor?.() || mostrarMensaje('Función no disponible', 'info');
+            window.mostrarModalNuevaPromocion = () => window.app?.mostrarModalNuevaPromocion?.() || mostrarMensaje('Función no disponible', 'info');
+            window.mostrarModalNuevoApartado = () => window.app?.mostrarModalNuevoApartado?.() || mostrarMensaje('Función no disponible', 'info');
+            
             window.cerrarModal = (modalId) => {
                 const modal = document.getElementById(modalId);
                 if (modal) modal.remove();
@@ -1160,6 +1073,10 @@
             console.log('Storage:', !!window.storage);
             console.log('Auth:', typeof checkSession === 'function');
             console.log('Categorías:', window.storage?.getCategorias()?.length || 0);
+            console.log('Usuarios:', window.app?.usuarios?.length || 0);
+            console.log('Clientes:', window.app?.clientes?.length || 0);
+            console.log('Proveedores:', window.app?.proveedores?.length || 0);
+            console.log('Turno:', window.app?.turnoActual ? 'Abierto' : 'Cerrado');
             console.log('=======================');
         };
         
@@ -1174,7 +1091,7 @@
             }
         };
         
-        console.log('Dashboard HTML listo');
+        console.log('Dashboard HTML listo - Versión completa con todos los módulos');
     </script>
 </body>
 </html>
