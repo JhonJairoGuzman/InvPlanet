@@ -1,4 +1,8 @@
-﻿// js/app.js - VERSIÓN DEFINITIVA - MEGA COMPLETA CON TODOS LOS MÓDULOS
+﻿// js/app.js - VERSIÓN DEFINITIVA - MEGA COMPLETA CON TODOS LOS MÓDULOS CRÍTICOS
+// ============================================
+// INCLUYE: Series y Lotes, Taller y Servicios, Recetas Médicas,
+// Presupuestos para Talleres, Vehículos, Compras, Pedidos Especiales,
+// Devoluciones y Garantías, Comisiones Avanzadas
 // ============================================
 
 class InvPlanetApp {
@@ -29,7 +33,26 @@ class InvPlanetApp {
         this.creditos = [];
         this.presupuestos = [];
         
-        console.log('%c🔥 InvPlanet App v14.0 - MEGA COMPLETA (TODOS LOS MÓDULOS)', 'background: #27ae60; color: white; padding: 5px 10px; border-radius: 5px;');
+        // ============================================
+        // NUEVAS PROPIEDADES PARA MÓDULOS CRÍTICOS
+        // ============================================
+        this.series = [];               // Números de serie de productos
+        this.lotes = [];                 // Control por lotes
+        this.ordenesTrabajo = [];        // Taller y servicios
+        this.tecnicos = [];               // Técnicos para taller
+        this.recetasMedicas = [];         // Recetas médicas
+        this.vehiculos = [];              // Vehículos por cliente
+        this.ordenesCompra = [];           // Órdenes de compra
+        this.pedidosEspeciales = [];       // Pedidos especiales a proveedores
+        this.devoluciones = [];            // Devoluciones y garantías
+        this.garantias = [];               // Seguimiento de garantías
+        this.currentOrdenTrabajo = null;   // Orden actual en edición
+        this.currentPedidoEspecial = null; // Pedido especial actual
+        this.currentDevolucion = null;     // Devolución actual
+        
+        console.log('%c🔥 InvPlanet App v15.0 - MEGA COMPLETA CON TODOS LOS MÓDULOS CRÍTICOS', 'background: #27ae60; color: white; padding: 5px 10px; border-radius: 5px;');
+        console.log('📦 Módulos nuevos: Series/Lotes, Taller, Recetas, Vehículos, Compras, Pedidos Especiales, Devoluciones');
+        
         this.verificarStorage();
         this.cargarNombreNegocio();
         this.inicializarLectorBarra();
@@ -43,7 +66,25 @@ class InvPlanetApp {
         this.cargarCreditos();
         this.cargarPresupuestos();
         this.cargarTurnoActual();
+        
+        // ============================================
+        // CARGAR NUEVOS MÓDULOS
+        // ============================================
+        this.cargarSeries();
+        this.cargarLotes();
+        this.cargarOrdenesTrabajo();
+        this.cargarTecnicos();
+        this.cargarRecetasMedicas();
+        this.cargarVehiculos();
+        this.cargarOrdenesCompra();
+        this.cargarPedidosEspeciales();
+        this.cargarDevoluciones();
+        this.cargarGarantias();
     }
+
+    // ============================================
+    // VERIFICACIÓN DE STORAGE
+    // ============================================
 
     verificarStorage() {
         if (typeof storage === 'undefined') {
@@ -97,6 +138,9 @@ class InvPlanetApp {
             'cocina': ['ver_pedidos', 'actualizar_estado'],
             'domiciliario': ['ver_domicilios', 'actualizar_estado'],
             'mesero': ['ventas', 'ver_mesas', 'ver_clientes'],
+            'taller': ['ordenes_trabajo', 'ver_inventario', 'ver_clientes', 'ver_vehiculos'],
+            'tecnico': ['ordenes_trabajo', 'actualizar_estado_orden'],
+            'farmacia': ['ventas', 'recetas', 'control_lotes', 'ver_vencimientos'],
             'invitado': ['ver_inventario']
         };
         
@@ -105,7 +149,7 @@ class InvPlanetApp {
 
     mostrarModalUsuarios() {
         const usuarios = this.usuarios;
-        const roles = ['admin', 'cajero', 'cocina', 'domiciliario', 'mesero', 'invitado'];
+        const roles = ['admin', 'cajero', 'cocina', 'domiciliario', 'mesero', 'invitado', 'taller', 'tecnico', 'farmacia'];
         
         let usuariosHTML = '';
         usuarios.forEach(u => {
@@ -161,7 +205,7 @@ class InvPlanetApp {
     }
 
     mostrarModalNuevoUsuario() {
-        const roles = ['admin', 'cajero', 'cocina', 'domiciliario', 'mesero', 'invitado'];
+        const roles = ['admin', 'cajero', 'cocina', 'domiciliario', 'mesero', 'invitado', 'taller', 'tecnico', 'farmacia'];
         let rolesOptions = '';
         roles.forEach(r => {
             rolesOptions += `<option value="${r}">${r.charAt(0).toUpperCase() + r.slice(1)}</option>`;
@@ -259,7 +303,7 @@ class InvPlanetApp {
         const usuario = storage.getUserById?.(id) || this.usuarios.find(u => u.id === id);
         if (!usuario) return;
         
-        const roles = ['admin', 'cajero', 'cocina', 'domiciliario', 'mesero', 'invitado'];
+        const roles = ['admin', 'cajero', 'cocina', 'domiciliario', 'mesero', 'invitado', 'taller', 'tecnico', 'farmacia'];
         let rolesOptions = '';
         roles.forEach(r => {
             const selected = r === usuario.role ? 'selected' : '';
@@ -401,6 +445,9 @@ class InvPlanetApp {
                         <button class="btn btn-sm btn-info" onclick="window.app.verHistorialCliente('${c.id}')">
                             <i class="fas fa-history"></i>
                         </button>
+                        <button class="btn btn-sm btn-success" onclick="window.app.verVehiculosCliente('${c.id}')">
+                            <i class="fas fa-car"></i>
+                        </button>
                     </td>
                 </tr>
             `;
@@ -473,6 +520,9 @@ class InvPlanetApp {
                         </button>
                         <button class="btn btn-sm btn-info" onclick="window.app.verHistorialCliente('${c.id}')">
                             <i class="fas fa-history"></i>
+                        </button>
+                        <button class="btn btn-sm btn-success" onclick="window.app.verVehiculosCliente('${c.id}')">
+                            <i class="fas fa-car"></i>
                         </button>
                     </td>
                 </tr>
@@ -653,16 +703,30 @@ class InvPlanetApp {
         
         const ventas = storage.getVentas?.() || [];
         const ventasCliente = ventas.filter(v => v.cliente === cliente.nombre || v.clienteId === id);
+        const ordenes = this.ordenesTrabajo.filter(o => o.clienteId === id);
+        const vehiculos = this.vehiculos.filter(v => v.clienteId === id);
         
         let historialHTML = '';
         ventasCliente.sort((a, b) => new Date(b.fecha) - new Date(a.fecha)).forEach(v => {
             const fecha = new Date(v.fecha);
             historialHTML += `
                 <tr>
+                    <td>Venta</td>
                     <td>${v.numero}</td>
                     <td>${fecha.toLocaleDateString()}</td>
-                    <td>${v.productos?.length || 0}</td>
                     <td>$${v.total.toLocaleString()}</td>
+                </tr>
+            `;
+        });
+        
+        ordenes.forEach(o => {
+            const fecha = new Date(o.fecha);
+            historialHTML += `
+                <tr>
+                    <td>Taller</td>
+                    <td>${o.numero}</td>
+                    <td>${fecha.toLocaleDateString()}</td>
+                    <td>$${o.total.toLocaleString()}</td>
                 </tr>
             `;
         });
@@ -677,19 +741,22 @@ class InvPlanetApp {
                     <div class="modal-body">
                         <p><strong>Total compras:</strong> ${ventasCliente.length}</p>
                         <p><strong>Total gastado:</strong> $${ventasCliente.reduce((s, v) => s + v.total, 0).toLocaleString()}</p>
+                        <p><strong>Órdenes taller:</strong> ${ordenes.length}</p>
+                        <p><strong>Vehículos registrados:</strong> ${vehiculos.length}</p>
                         <p><strong>Puntos actuales:</strong> ${cliente.puntos || 0}</p>
                         
+                        <h5>Historial de transacciones</h5>
                         <table class="table">
                             <thead>
                                 <tr>
-                                    <th>Venta</th>
+                                    <th>Tipo</th>
+                                    <th>Número</th>
                                     <th>Fecha</th>
-                                    <th>Productos</th>
                                     <th>Total</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                ${historialHTML || '<tr><td colspan="4" class="text-center">No hay compras</td></tr>'}
+                                ${historialHTML || '<tr><td colspan="4" class="text-center">No hay transacciones</td></tr>'}
                             </tbody>
                         </table>
                     </div>
@@ -698,6 +765,67 @@ class InvPlanetApp {
         `;
         
         document.getElementById('modalContainer').innerHTML = modalHTML;
+    }
+
+    verVehiculosCliente(id) {
+        const cliente = this.clientes.find(c => c.id === id);
+        if (!cliente) return;
+        
+        const vehiculos = this.vehiculos.filter(v => v.clienteId === id);
+        
+        let vehiculosHTML = '';
+        vehiculos.forEach(v => {
+            vehiculosHTML += `
+                <tr>
+                    <td><strong>${v.placa}</strong></td>
+                    <td>${v.marca} ${v.modelo} (${v.año || 'N/A'})</td>
+                    <td>${v.color || 'N/A'}</td>
+                    <td>${v.kilometraje || 0} km</td>
+                    <td>
+                        <button class="btn btn-sm btn-info" onclick="window.app.verHistorialVehiculo('${v.id}')">
+                            <i class="fas fa-history"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+        
+        const modalHTML = `
+            <div class="modal-overlay active" id="modalVehiculosCliente">
+                <div class="modal-content" style="max-width: 900px;">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-car"></i> Vehículos de ${cliente.nombre}</h3>
+                        <button class="close-modal" onclick="window.app.cerrarModal('modalVehiculosCliente')">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <button class="btn btn-primary mb-3" onclick="window.app.mostrarModalNuevoVehiculoConCliente('${cliente.id}')">
+                            <i class="fas fa-plus"></i> Registrar Nuevo Vehículo
+                        </button>
+                        
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Placa</th>
+                                    <th>Vehículo</th>
+                                    <th>Color</th>
+                                    <th>Kilometraje</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${vehiculosHTML || '<tr><td colspan="5" class="text-center">No hay vehículos registrados</td></tr>'}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('modalContainer').innerHTML = modalHTML;
+    }
+
+    mostrarModalNuevoVehiculoConCliente(clienteId) {
+        this.mostrarModalNuevoVehiculo(clienteId);
     }
 
     // ============================================
@@ -729,6 +857,9 @@ class InvPlanetApp {
                         <button class="btn btn-sm btn-info" onclick="window.app.verProductosProveedor('${p.id}')">
                             <i class="fas fa-boxes"></i>
                         </button>
+                        <button class="btn btn-sm btn-success" onclick="window.app.mostrarModalNuevaOrdenCompraConProveedor('${p.id}')">
+                            <i class="fas fa-shopping-cart"></i> OC
+                        </button>
                     </td>
                 </tr>
             `;
@@ -736,7 +867,7 @@ class InvPlanetApp {
         
         const modalHTML = `
             <div class="modal-overlay active" id="modalProveedores">
-                <div class="modal-content" style="max-width: 900px;">
+                <div class="modal-content" style="max-width: 1000px;">
                     <div class="modal-header">
                         <h3><i class="fas fa-truck"></i> Proveedores</h3>
                         <button class="close-modal" onclick="window.app.cerrarModal('modalProveedores')">&times;</button>
@@ -965,12 +1096,20 @@ class InvPlanetApp {
                                 ${productosHTML || '<tr><td colspan="4" class="text-center">No hay productos de este proveedor</td></tr>'}
                             </tbody>
                         </table>
+                        
+                        <button class="btn btn-primary mt-3" onclick="window.app.mostrarModalNuevaOrdenCompraConProveedor('${id}')">
+                            <i class="fas fa-shopping-cart"></i> Crear Orden de Compra
+                        </button>
                     </div>
                 </div>
             </div>
         `;
         
         document.getElementById('modalContainer').innerHTML = modalHTML;
+    }
+
+    mostrarModalNuevaOrdenCompraConProveedor(proveedorId) {
+        this.mostrarModalNuevaOrdenCompra(proveedorId);
     }
 
     // ============================================
@@ -2920,6 +3059,3558 @@ class InvPlanetApp {
     }
 
     // ============================================
+    // ============================================
+    // MÓDULO 1: SERIES Y LOTES (CRÍTICO)
+    // ============================================
+    // ============================================
+
+    cargarSeries() {
+        this.series = JSON.parse(localStorage.getItem('invplanet_series') || '[]');
+        console.log(`🔢 Números de serie cargados: ${this.series.length}`);
+    }
+
+    guardarSeries() {
+        localStorage.setItem('invplanet_series', JSON.stringify(this.series));
+    }
+
+    cargarLotes() {
+        this.lotes = JSON.parse(localStorage.getItem('invplanet_lotes') || '[]');
+        console.log(`📦 Lotes cargados: ${this.lotes.length}`);
+    }
+
+    guardarLotes() {
+        localStorage.setItem('invplanet_lotes', JSON.stringify(this.lotes));
+    }
+
+    // ============================================
+    // FUNCIONES PARA SERIES (PRODUCTOS ÚNICOS)
+    // ============================================
+
+    mostrarModalSeries() {
+        const productos = storage.getInventario().filter(p => p.activo);
+        let productosOptions = '<option value="">Seleccionar producto</option>';
+        productos.forEach(p => {
+            productosOptions += `<option value="${p.id}">${p.nombre} (Código: ${p.codigo})</option>`;
+        });
+
+        let seriesHTML = '';
+        this.series.sort((a, b) => new Date(b.fechaIngreso) - new Date(a.fechaIngreso)).forEach(s => {
+            const producto = storage.getProducto(s.productoId);
+            const fechaVenta = s.fechaVenta ? new Date(s.fechaVenta).toLocaleDateString() : 'No vendido';
+            const garantiaVence = s.fechaVenta ? this.calcularFechaVencimientoGarantia(s.fechaVenta, s.diasGarantia) : null;
+            
+            seriesHTML += `
+                <tr>
+                    <td>${producto ? producto.nombre : 'Producto eliminado'}</td>
+                    <td><strong>${s.numeroSerie}</strong></td>
+                    <td>${new Date(s.fechaIngreso).toLocaleDateString()}</td>
+                    <td>${s.estado}</td>
+                    <td>${fechaVenta}</td>
+                    <td>${garantiaVence ? garantiaVence.toLocaleDateString() : '-'}</td>
+                    <td>
+                        <button class="btn btn-sm btn-info" onclick="window.app.verHistorialSerie('${s.id}')">
+                            <i class="fas fa-history"></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="window.app.anularSerie('${s.id}')">
+                            <i class="fas fa-ban"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+
+        const modalHTML = `
+            <div class="modal-overlay active" id="modalSeries">
+                <div class="modal-content" style="max-width: 1200px;">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-fingerprint"></i> Números de Serie</h3>
+                        <button class="close-modal" onclick="window.app.cerrarModal('modalSeries')">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <button class="btn btn-primary mb-3" onclick="window.app.mostrarModalNuevoSerie()">
+                            <i class="fas fa-plus"></i> Registrar Número de Serie
+                        </button>
+                        
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Producto</th>
+                                        <th>Número de Serie</th>
+                                        <th>Fecha Ingreso</th>
+                                        <th>Estado</th>
+                                        <th>Fecha Venta</th>
+                                        <th>Vencimiento Garantía</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${seriesHTML || '<tr><td colspan="7" class="text-center">No hay números de serie registrados</td></tr>'}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('modalContainer').innerHTML = modalHTML;
+        this.modalOpen = true;
+    }
+
+    mostrarModalNuevoSerie() {
+        const productos = storage.getInventario().filter(p => p.activo);
+        let productosOptions = '<option value="">Seleccionar producto</option>';
+        productos.forEach(p => {
+            productosOptions += `<option value="${p.id}">${p.nombre} (Código: ${p.codigo})</option>`;
+        });
+
+        const modalHTML = `
+            <div class="modal-overlay active" id="modalNuevoSerie">
+                <div class="modal-content" style="max-width: 500px;">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-plus-circle"></i> Registrar Número de Serie</h3>
+                        <button class="close-modal" onclick="window.app.cerrarModal('modalNuevoSerie')">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="formNuevoSerie" onsubmit="return false;">
+                            <div class="form-group">
+                                <label>Producto *</label>
+                                <select id="serieProductoId" class="form-control" required>
+                                    ${productosOptions}
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Número de Serie *</label>
+                                <input type="text" id="serieNumero" class="form-control" required placeholder="Ej: SN-2024-0001">
+                            </div>
+                            <div class="form-group">
+                                <label>Días de Garantía</label>
+                                <input type="number" id="serieGarantia" class="form-control" value="365" min="0">
+                            </div>
+                            <div class="form-group">
+                                <label>Notas</label>
+                                <textarea id="serieNotas" class="form-control" rows="2"></textarea>
+                            </div>
+                            <div class="form-actions">
+                                <button type="button" class="btn btn-secondary" onclick="window.app.cerrarModal('modalNuevoSerie')">Cancelar</button>
+                                <button type="button" class="btn btn-primary" onclick="window.app.guardarNuevoSerie()">Guardar</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('modalContainer').innerHTML = modalHTML;
+    }
+
+    guardarNuevoSerie() {
+        const productoId = document.getElementById('serieProductoId')?.value;
+        const numeroSerie = document.getElementById('serieNumero')?.value;
+        
+        if (!productoId || !numeroSerie) {
+            this.mostrarMensaje('❌ Completa los campos obligatorios', 'error');
+            return;
+        }
+
+        // Verificar si el número de serie ya existe
+        const existe = this.series.find(s => s.numeroSerie === numeroSerie);
+        if (existe) {
+            this.mostrarMensaje('❌ Este número de serie ya está registrado', 'error');
+            return;
+        }
+
+        const nuevoSerie = {
+            id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+            productoId: productoId,
+            numeroSerie: numeroSerie,
+            fechaIngreso: new Date().toISOString(),
+            estado: 'disponible', // disponible, vendido, garantia, anulado
+            diasGarantia: parseInt(document.getElementById('serieGarantia')?.value) || 365,
+            notas: document.getElementById('serieNotas')?.value || '',
+            historial: [{
+                fecha: new Date().toISOString(),
+                accion: 'Registro inicial',
+                usuario: this.getUsuarioActual()?.nombre || 'Sistema'
+            }]
+        };
+
+        this.series.push(nuevoSerie);
+        this.guardarSeries();
+        this.mostrarMensaje('✅ Número de serie registrado', 'success');
+        this.cerrarModal('modalNuevoSerie');
+        this.mostrarModalSeries();
+    }
+
+    verHistorialSerie(id) {
+        const serie = this.series.find(s => s.id === id);
+        if (!serie) return;
+
+        const producto = storage.getProducto(serie.productoId);
+        
+        let historialHTML = '';
+        serie.historial.forEach(h => {
+            const fecha = new Date(h.fecha);
+            historialHTML += `
+                <tr>
+                    <td>${fecha.toLocaleDateString()} ${fecha.toLocaleTimeString()}</td>
+                    <td>${h.accion}</td>
+                    <td>${h.usuario || 'Sistema'}</td>
+                </tr>
+            `;
+        });
+
+        const modalHTML = `
+            <div class="modal-overlay active" id="modalHistorialSerie">
+                <div class="modal-content" style="max-width: 700px;">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-history"></i> Historial de Serie: ${serie.numeroSerie}</h3>
+                        <button class="close-modal" onclick="window.app.cerrarModal('modalHistorialSerie')">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <p><strong>Producto:</strong> ${producto ? producto.nombre : 'N/A'}</p>
+                        <p><strong>Estado actual:</strong> ${serie.estado}</p>
+                        <p><strong>Garantía:</strong> ${serie.diasGarantia} días</p>
+                        
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Acción</th>
+                                    <th>Usuario</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${historialHTML}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('modalContainer').innerHTML = modalHTML;
+    }
+
+    anularSerie(id) {
+        if (!confirm('¿Anular este número de serie?')) return;
+        
+        const index = this.series.findIndex(s => s.id === id);
+        if (index !== -1) {
+            this.series[index].estado = 'anulado';
+            this.series[index].historial.push({
+                fecha: new Date().toISOString(),
+                accion: 'Serie anulada',
+                usuario: this.getUsuarioActual()?.nombre || 'Sistema'
+            });
+            this.guardarSeries();
+            this.mostrarMensaje('✅ Serie anulada', 'success');
+            this.mostrarModalSeries();
+        }
+    }
+
+    // ============================================
+    // FUNCIONES PARA LOTES (CONTROL POR LOTES)
+    // ============================================
+
+    mostrarModalLotes() {
+        const productos = storage.getInventario().filter(p => p.activo);
+        let productosOptions = '<option value="">Todos los productos</option>';
+        productos.forEach(p => {
+            productosOptions += `<option value="${p.id}">${p.nombre}</option>`;
+        });
+
+        // Verificar alertas de vencimiento
+        const hoy = new Date();
+        const lotesProximosVencer = this.lotes.filter(l => {
+            if (!l.fechaVencimiento) return false;
+            const vencimiento = new Date(l.fechaVencimiento);
+            const diasRestantes = Math.ceil((vencimiento - hoy) / (1000 * 60 * 60 * 24));
+            return diasRestantes <= 30 && diasRestantes > 0 && l.cantidad > 0;
+        });
+
+        let lotesHTML = '';
+        this.lotes.sort((a, b) => {
+            if (!a.fechaVencimiento) return 1;
+            if (!b.fechaVencimiento) return -1;
+            return new Date(a.fechaVencimiento) - new Date(b.fechaVencimiento);
+        }).forEach(l => {
+            const producto = storage.getProducto(l.productoId);
+            const fechaVencimiento = l.fechaVencimiento ? new Date(l.fechaVencimiento).toLocaleDateString() : 'Sin vencimiento';
+            
+            let diasRestantes = null;
+            let badgeClass = 'badge-success';
+            if (l.fechaVencimiento) {
+                const vencimiento = new Date(l.fechaVencimiento);
+                diasRestantes = Math.ceil((vencimiento - hoy) / (1000 * 60 * 60 * 24));
+                if (diasRestantes < 0) {
+                    badgeClass = 'badge-danger';
+                } else if (diasRestantes <= 7) {
+                    badgeClass = 'badge-danger';
+                } else if (diasRestantes <= 15) {
+                    badgeClass = 'badge-warning';
+                } else if (diasRestantes <= 30) {
+                    badgeClass = 'badge-info';
+                }
+            }
+
+            lotesHTML += `
+                <tr>
+                    <td>${producto ? producto.nombre : 'Producto eliminado'}</td>
+                    <td><strong>${l.numeroLote}</strong></td>
+                    <td>${l.cantidad}</td>
+                    <td>${fechaVencimiento}</td>
+                    <td>
+                        <span class="badge ${badgeClass}">
+                            ${l.fechaVencimiento ? (diasRestantes < 0 ? 'Vencido' : diasRestantes + ' días') : 'N/A'}
+                        </span>
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-info" onclick="window.app.verDetalleLote('${l.id}')">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="btn btn-sm btn-warning" onclick="window.app.ajustarStockLote('${l.id}')">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+
+        const modalHTML = `
+            <div class="modal-overlay active" id="modalLotes">
+                <div class="modal-content" style="max-width: 1200px;">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-layer-group"></i> Control de Lotes</h3>
+                        <button class="close-modal" onclick="window.app.cerrarModal('modalLotes')">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <button class="btn btn-primary mb-3" onclick="window.app.mostrarModalNuevoLote()">
+                            <i class="fas fa-plus"></i> Nuevo Lote
+                        </button>
+
+                        ${lotesProximosVencer.length > 0 ? `
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <strong>¡Atención!</strong> ${lotesProximosVencer.length} lotes próximos a vencer
+                        </div>
+                        ` : ''}
+                        
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Producto</th>
+                                        <th>Número de Lote</th>
+                                        <th>Cantidad</th>
+                                        <th>Fecha Vencimiento</th>
+                                        <th>Estado</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${lotesHTML || '<tr><td colspan="6" class="text-center">No hay lotes registrados</td></tr>'}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('modalContainer').innerHTML = modalHTML;
+        this.modalOpen = true;
+    }
+
+    mostrarModalNuevoLote() {
+        const productos = storage.getInventario().filter(p => p.activo);
+        let productosOptions = '<option value="">Seleccionar producto</option>';
+        productos.forEach(p => {
+            productosOptions += `<option value="${p.id}">${p.nombre} (Stock: ${p.unidades})</option>`;
+        });
+
+        const modalHTML = `
+            <div class="modal-overlay active" id="modalNuevoLote">
+                <div class="modal-content" style="max-width: 500px;">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-plus-circle"></i> Nuevo Lote</h3>
+                        <button class="close-modal" onclick="window.app.cerrarModal('modalNuevoLote')">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="formNuevoLote" onsubmit="return false;">
+                            <div class="form-group">
+                                <label>Producto *</label>
+                                <select id="loteProductoId" class="form-control" required>
+                                    ${productosOptions}
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Número de Lote *</label>
+                                <input type="text" id="loteNumero" class="form-control" required placeholder="Ej: LOTE-2024-001">
+                            </div>
+                            <div class="form-group">
+                                <label>Cantidad *</label>
+                                <input type="number" id="loteCantidad" class="form-control" required min="1" value="1">
+                            </div>
+                            <div class="form-group">
+                                <label>Fecha de Vencimiento</label>
+                                <input type="date" id="loteVencimiento" class="form-control">
+                            </div>
+                            <div class="form-group">
+                                <label>Proveedor</label>
+                                <select id="loteProveedorId" class="form-control">
+                                    <option value="">Seleccionar proveedor</option>
+                                    ${this.proveedores.map(p => `<option value="${p.id}">${p.nombre}</option>`).join('')}
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Costo por unidad</label>
+                                <input type="number" id="loteCosto" class="form-control" min="0" step="100">
+                            </div>
+                            <div class="form-actions">
+                                <button type="button" class="btn btn-secondary" onclick="window.app.cerrarModal('modalNuevoLote')">Cancelar</button>
+                                <button type="button" class="btn btn-primary" onclick="window.app.guardarNuevoLote()">Guardar</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('modalContainer').innerHTML = modalHTML;
+    }
+
+    guardarNuevoLote() {
+        const productoId = document.getElementById('loteProductoId')?.value;
+        const numeroLote = document.getElementById('loteNumero')?.value;
+        const cantidad = document.getElementById('loteCantidad')?.value;
+        
+        if (!productoId || !numeroLote || !cantidad) {
+            this.mostrarMensaje('❌ Completa los campos obligatorios', 'error');
+            return;
+        }
+
+        // Verificar si el lote ya existe para este producto
+        const existe = this.lotes.find(l => l.productoId === productoId && l.numeroLote === numeroLote);
+        if (existe) {
+            this.mostrarMensaje('❌ Este número de lote ya existe para este producto', 'error');
+            return;
+        }
+
+        const nuevoLote = {
+            id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+            productoId: productoId,
+            numeroLote: numeroLote,
+            cantidad: parseInt(cantidad),
+            cantidadOriginal: parseInt(cantidad),
+            fechaVencimiento: document.getElementById('loteVencimiento')?.value || null,
+            proveedorId: document.getElementById('loteProveedorId')?.value || null,
+            costoUnitario: parseFloat(document.getElementById('loteCosto')?.value) || 0,
+            fechaIngreso: new Date().toISOString(),
+            movimientos: [{
+                fecha: new Date().toISOString(),
+                tipo: 'ingreso',
+                cantidad: parseInt(cantidad),
+                usuario: this.getUsuarioActual()?.nombre || 'Sistema'
+            }]
+        };
+
+        this.lotes.push(nuevoLote);
+        this.guardarLotes();
+
+        // Actualizar stock del producto
+        const producto = storage.getProducto(productoId);
+        if (producto) {
+            producto.unidades += parseInt(cantidad);
+            storage.updateProducto(productoId, { unidades: producto.unidades });
+        }
+
+        this.mostrarMensaje('✅ Lote registrado exitosamente', 'success');
+        this.cerrarModal('modalNuevoLote');
+        this.mostrarModalLotes();
+    }
+
+    verDetalleLote(id) {
+        const lote = this.lotes.find(l => l.id === id);
+        if (!lote) return;
+
+        const producto = storage.getProducto(lote.productoId);
+        const proveedor = lote.proveedorId ? this.proveedores.find(p => p.id === lote.proveedorId) : null;
+
+        let movimientosHTML = '';
+        lote.movimientos.forEach(m => {
+            const fecha = new Date(m.fecha);
+            movimientosHTML += `
+                <tr>
+                    <td>${fecha.toLocaleDateString()} ${fecha.toLocaleTimeString()}</td>
+                    <td>${m.tipo === 'ingreso' ? '📦 Ingreso' : '🛒 Venta'}</td>
+                    <td>${m.cantidad}</td>
+                    <td>${m.usuario}</td>
+                    <td>${m.nota || ''}</td>
+                </tr>
+            `;
+        });
+
+        const modalHTML = `
+            <div class="modal-overlay active" id="modalDetalleLote">
+                <div class="modal-content" style="max-width: 800px;">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-layer-group"></i> Detalle del Lote: ${lote.numeroLote}</h3>
+                        <button class="close-modal" onclick="window.app.cerrarModal('modalDetalleLote')">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <p><strong>Producto:</strong> ${producto ? producto.nombre : 'N/A'}</p>
+                        <p><strong>Cantidad original:</strong> ${lote.cantidadOriginal}</p>
+                        <p><strong>Cantidad actual:</strong> ${lote.cantidad}</p>
+                        <p><strong>Fecha vencimiento:</strong> ${lote.fechaVencimiento ? new Date(lote.fechaVencimiento).toLocaleDateString() : 'N/A'}</p>
+                        <p><strong>Proveedor:</strong> ${proveedor ? proveedor.nombre : 'N/A'}</p>
+                        
+                        <h5>Historial de movimientos</h5>
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Tipo</th>
+                                    <th>Cantidad</th>
+                                    <th>Usuario</th>
+                                    <th>Nota</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${movimientosHTML}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('modalContainer').innerHTML = modalHTML;
+    }
+
+    ajustarStockLote(id) {
+        const lote = this.lotes.find(l => l.id === id);
+        if (!lote) return;
+
+        const nuevaCantidad = prompt(`Nueva cantidad para lote ${lote.numeroLote} (Actual: ${lote.cantidad})`, lote.cantidad);
+        if (!nuevaCantidad) return;
+
+        const cantidadNum = parseInt(nuevaCantidad);
+        if (isNaN(cantidadNum) || cantidadNum < 0) {
+            this.mostrarMensaje('❌ Cantidad inválida', 'error');
+            return;
+        }
+
+        const diferencia = cantidadNum - lote.cantidad;
+        
+        lote.cantidad = cantidadNum;
+        lote.movimientos.push({
+            fecha: new Date().toISOString(),
+            tipo: diferencia > 0 ? 'ingreso' : 'ajuste',
+            cantidad: Math.abs(diferencia),
+            nota: diferencia > 0 ? 'Ajuste manual (+)' : 'Ajuste manual (-)',
+            usuario: this.getUsuarioActual()?.nombre || 'Sistema'
+        });
+
+        this.guardarLotes();
+
+        // Actualizar stock del producto
+        const producto = storage.getProducto(lote.productoId);
+        if (producto) {
+            producto.unidades += diferencia;
+            storage.updateProducto(lote.productoId, { unidades: producto.unidades });
+        }
+
+        this.mostrarMensaje('✅ Lote actualizado', 'success');
+        this.mostrarModalLotes();
+    }
+
+    // ============================================
+    // MÓDULO 2: TALLER Y SERVICIOS
+    // ============================================
+
+    cargarTecnicos() {
+        this.tecnicos = JSON.parse(localStorage.getItem('invplanet_tecnicos') || '[]');
+        if (this.tecnicos.length === 0) {
+            // Técnicos por defecto
+            this.tecnicos = [
+                { id: 'tec1', nombre: 'Carlos Martínez', especialidad: 'Mecánica general', valorHora: 25000 },
+                { id: 'tec2', nombre: 'Juan Pérez', especialidad: 'Electricidad', valorHora: 28000 },
+                { id: 'tec3', nombre: 'Andrés López', especialidad: 'Diagnóstico', valorHora: 30000 }
+            ];
+            this.guardarTecnicos();
+        }
+        console.log(`🔧 Técnicos cargados: ${this.tecnicos.length}`);
+    }
+
+    guardarTecnicos() {
+        localStorage.setItem('invplanet_tecnicos', JSON.stringify(this.tecnicos));
+    }
+
+    cargarOrdenesTrabajo() {
+        this.ordenesTrabajo = JSON.parse(localStorage.getItem('invplanet_ordenes_trabajo') || '[]');
+        console.log(`📋 Órdenes de trabajo cargadas: ${this.ordenesTrabajo.length}`);
+    }
+
+    guardarOrdenesTrabajo() {
+        localStorage.setItem('invplanet_ordenes_trabajo', JSON.stringify(this.ordenesTrabajo));
+    }
+
+    // ============================================
+    // FUNCIONES PARA TALLER
+    // ============================================
+
+    mostrarModalOrdenesTrabajo() {
+        let ordenesHTML = '';
+        this.ordenesTrabajo.sort((a, b) => new Date(b.fecha) - new Date(a.fecha)).forEach(o => {
+            const fecha = new Date(o.fecha).toLocaleDateString();
+            
+            let badgeClass = 'badge-warning';
+            if (o.estado === 'completada') badgeClass = 'badge-success';
+            if (o.estado === 'entregado') badgeClass = 'badge-primary';
+            if (o.estado === 'cancelada') badgeClass = 'badge-danger';
+
+            ordenesHTML += `
+                <tr>
+                    <td><strong>${o.numero}</strong></td>
+                    <td>${fecha}</td>
+                    <td>${o.cliente}</td>
+                    <td>${o.vehiculo || 'N/A'}</td>
+                    <td>${o.tecnico || 'Sin asignar'}</td>
+                    <td><span class="badge ${badgeClass}">${o.estado}</span></td>
+                    <td>$${o.total.toLocaleString()}</td>
+                    <td>
+                        <button class="btn btn-sm btn-info" onclick="window.app.verDetalleOrdenTrabajo('${o.id}')">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="btn btn-sm btn-success" onclick="window.app.imprimirOrdenTrabajo('${o.id}')">
+                            <i class="fas fa-print"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+
+        const modalHTML = `
+            <div class="modal-overlay active" id="modalOrdenesTrabajo">
+                <div class="modal-content" style="max-width: 1200px;">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-tools"></i> Órdenes de Trabajo - Taller</h3>
+                        <button class="close-modal" onclick="window.app.cerrarModal('modalOrdenesTrabajo')">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <button class="btn btn-primary mb-3" onclick="window.app.mostrarModalNuevaOrdenTrabajo()">
+                            <i class="fas fa-plus"></i> Nueva Orden de Trabajo
+                        </button>
+                        
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Número</th>
+                                        <th>Fecha</th>
+                                        <th>Cliente</th>
+                                        <th>Vehículo</th>
+                                        <th>Técnico</th>
+                                        <th>Estado</th>
+                                        <th>Total</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${ordenesHTML || '<tr><td colspan="8" class="text-center">No hay órdenes de trabajo</td></tr>'}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('modalContainer').innerHTML = modalHTML;
+        this.modalOpen = true;
+    }
+
+    mostrarModalNuevaOrdenTrabajo() {
+        // Obtener clientes para el select
+        let clientesOptions = '<option value="">Seleccionar cliente</option>';
+        this.clientes.forEach(c => {
+            clientesOptions += `<option value="${c.id}">${c.nombre}</option>`;
+        });
+        clientesOptions += '<option value="nuevo">-- Crear nuevo cliente --</option>';
+
+        // Obtener vehículos
+        let vehiculosOptions = '<option value="">Seleccionar vehículo</option>';
+        this.vehiculos.forEach(v => {
+            vehiculosOptions += `<option value="${v.id}">${v.placa} - ${v.marca} ${v.modelo}</option>`;
+        });
+
+        // Obtener técnicos
+        let tecnicosOptions = '<option value="">Seleccionar técnico</option>';
+        this.tecnicos.forEach(t => {
+            tecnicosOptions += `<option value="${t.id}" data-valorhora="${t.valorHora}">${t.nombre} - ${t.especialidad} ($${t.valorHora}/hora)</option>`;
+        });
+
+        // Obtener productos para repuestos
+        const productos = storage.getInventario().filter(p => p.activo && p.unidades > 0);
+        let productosOptions = '<option value="">Seleccionar repuesto</option>';
+        productos.forEach(p => {
+            productosOptions += `<option value="${p.id}">${p.nombre} - $${p.precioVenta} (Stock: ${p.unidades})</option>`;
+        });
+
+        const modalHTML = `
+            <div class="modal-overlay active" id="modalNuevaOrdenTrabajo">
+                <div class="modal-content" style="max-width: 1200px; width: 90%; height: 90vh;">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-plus-circle"></i> Nueva Orden de Trabajo</h3>
+                        <button class="close-modal" onclick="window.app.cerrarModal('modalNuevaOrdenTrabajo')">&times;</button>
+                    </div>
+                    <div class="modal-body" style="overflow-y: auto; padding: 20px;">
+                        <form id="formNuevaOrdenTrabajo" onsubmit="return false;">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h5>Datos del Cliente y Vehículo</h5>
+                                    <div class="form-group">
+                                        <label>Cliente *</label>
+                                        <select id="ordenClienteId" class="form-control" required>
+                                            ${clientesOptions}
+                                        </select>
+                                    </div>
+                                    <div id="camposNuevoClienteOrden" style="display:none; margin-top: 10px;">
+                                        <div class="form-group">
+                                            <label>Nombre del nuevo cliente</label>
+                                            <input type="text" id="ordenNuevoCliente" class="form-control">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Teléfono</label>
+                                            <input type="tel" id="ordenClienteTelefono" class="form-control">
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label>Vehículo</label>
+                                        <select id="ordenVehiculoId" class="form-control">
+                                            ${vehiculosOptions}
+                                            <option value="nuevo">-- Registrar nuevo vehículo --</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div id="camposNuevoVehiculo" style="display:none; margin-top: 10px; background: #f5f5f5; padding: 15px; border-radius: 8px;">
+                                        <h6>Registrar Vehículo</h6>
+                                        <div class="form-group">
+                                            <label>Placa</label>
+                                            <input type="text" id="ordenVehiculoPlaca" class="form-control" placeholder="ABC-123">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Marca</label>
+                                            <input type="text" id="ordenVehiculoMarca" class="form-control">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Modelo</label>
+                                            <input type="text" id="ordenVehiculoModelo" class="form-control">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Año</label>
+                                            <input type="number" id="ordenVehiculoAnio" class="form-control" min="1900" max="2025">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Kilometraje</label>
+                                            <input type="number" id="ordenVehiculoKilometraje" class="form-control">
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <h5>Datos del Servicio</h5>
+                                    <div class="form-group">
+                                        <label>Técnico asignado *</label>
+                                        <select id="ordenTecnicoId" class="form-control" required>
+                                            ${tecnicosOptions}
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label>Tipo de servicio</label>
+                                        <select id="ordenTipoServicio" class="form-control">
+                                            <option value="mecanica">Mecánica general</option>
+                                            <option value="electricidad">Electricidad</option>
+                                            <option value="diagnostico">Diagnóstico</option>
+                                            <option value="mantenimiento">Mantenimiento preventivo</option>
+                                            <option value="reparacion">Reparación</option>
+                                            <option value="otro">Otro</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label>Diagnóstico inicial *</label>
+                                        <textarea id="ordenDiagnostico" class="form-control" rows="3" required placeholder="Describa el problema o servicio requerido..."></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row mt-4">
+                                <div class="col-md-12">
+                                    <h5>Mano de Obra</h5>
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <div class="form-group">
+                                                <label>Horas estimadas</label>
+                                                <input type="number" id="ordenHoras" class="form-control" min="0" step="0.5" value="1">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="form-group">
+                                                <label>Valor por hora</label>
+                                                <input type="number" id="ordenValorHora" class="form-control" readonly value="0">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="form-group">
+                                                <label>Total mano de obra</label>
+                                                <input type="number" id="ordenTotalManoObra" class="form-control" readonly value="0">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row mt-4">
+                                <div class="col-md-12">
+                                    <h5>Repuestos a utilizar</h5>
+                                    <div id="repuestosOrden">
+                                        <div class="row mb-2">
+                                            <div class="col-md-5">
+                                                <select class="form-control repuesto-producto" name="repuestoProducto[]">
+                                                    ${productosOptions}
+                                                </select>
+                                            </div>
+                                            <div class="col-md-2">
+                                                <input type="number" class="form-control repuesto-cantidad" name="repuestoCantidad[]" value="1" min="1">
+                                            </div>
+                                            <div class="col-md-3">
+                                                <input type="text" class="form-control repuesto-precio" name="repuestoPrecio[]" readonly placeholder="Precio">
+                                            </div>
+                                            <div class="col-md-2">
+                                                <button type="button" class="btn btn-danger btn-sm" onclick="this.parentElement.parentElement.remove()">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button type="button" class="btn btn-info btn-sm" onclick="window.app.agregarRepuestoOrden()">
+                                        <i class="fas fa-plus"></i> Agregar repuesto
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="row mt-4">
+                                <div class="col-md-12">
+                                    <div class="form-group">
+                                        <label>Observaciones / Notas adicionales</label>
+                                        <textarea id="ordenObservaciones" class="form-control" rows="2"></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row mt-4">
+                                <div class="col-md-12">
+                                    <div class="card" style="background: #f8f9fa; padding: 20px; border-radius: 8px;">
+                                        <h5>Resumen de costos</h5>
+                                        <div class="row">
+                                            <div class="col-md-4">
+                                                <p><strong>Mano de obra:</strong> <span id="resumenManoObra">$0</span></p>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <p><strong>Repuestos:</strong> <span id="resumenRepuestos">$0</span></p>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <p><strong>TOTAL:</strong> <span id="resumenTotalOrden">$0</span></p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="form-actions mt-4" style="display: flex; gap: 10px; justify-content: flex-end;">
+                                <button type="button" class="btn btn-secondary" onclick="window.app.cerrarModal('modalNuevaOrdenTrabajo')">
+                                    Cancelar
+                                </button>
+                                <button type="button" class="btn btn-primary" onclick="window.app.guardarNuevaOrdenTrabajo()">
+                                    <i class="fas fa-save"></i> Guardar Orden de Trabajo
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('modalContainer').innerHTML = modalHTML;
+        this.modalOpen = true;
+
+        // Event listeners
+        document.getElementById('ordenClienteId')?.addEventListener('change', (e) => {
+            document.getElementById('camposNuevoClienteOrden').style.display = e.target.value === 'nuevo' ? 'block' : 'none';
+        });
+
+        document.getElementById('ordenVehiculoId')?.addEventListener('change', (e) => {
+            document.getElementById('camposNuevoVehiculo').style.display = e.target.value === 'nuevo' ? 'block' : 'none';
+        });
+
+        document.getElementById('ordenTecnicoId')?.addEventListener('change', (e) => {
+            const select = e.target;
+            const option = select.options[select.selectedIndex];
+            const valorHora = option.getAttribute('data-valorhora') || 0;
+            document.getElementById('ordenValorHora').value = valorHora;
+            this.calcularTotalesOrden();
+        });
+
+        document.getElementById('ordenHoras')?.addEventListener('input', () => this.calcularTotalesOrden());
+
+        // Inicializar valores
+        setTimeout(() => {
+            const tecSelect = document.getElementById('ordenTecnicoId');
+            if (tecSelect && tecSelect.selectedIndex > 0) {
+                const option = tecSelect.options[tecSelect.selectedIndex];
+                document.getElementById('ordenValorHora').value = option.getAttribute('data-valorhora') || 0;
+            }
+        }, 500);
+    }
+
+    agregarRepuestoOrden() {
+        const productos = storage.getInventario().filter(p => p.activo && p.unidades > 0);
+        let productosOptions = '<option value="">Seleccionar repuesto</option>';
+        productos.forEach(p => {
+            productosOptions += `<option value="${p.id}" data-precio="${p.precioVenta}">${p.nombre} - $${p.precioVenta} (Stock: ${p.unidades})</option>`;
+        });
+
+        const div = document.createElement('div');
+        div.className = 'row mb-2';
+        div.innerHTML = `
+            <div class="col-md-5">
+                <select class="form-control repuesto-producto" name="repuestoProducto[]" onchange="window.app.actualizarPrecioRepuesto(this)">
+                    ${productosOptions}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <input type="number" class="form-control repuesto-cantidad" name="repuestoCantidad[]" value="1" min="1" onchange="window.app.calcularTotalesOrden()">
+            </div>
+            <div class="col-md-3">
+                <input type="text" class="form-control repuesto-precio" name="repuestoPrecio[]" readonly placeholder="Precio">
+            </div>
+            <div class="col-md-2">
+                <button type="button" class="btn btn-danger btn-sm" onclick="this.parentElement.parentElement.remove(); window.app.calcularTotalesOrden()">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        `;
+        
+        document.getElementById('repuestosOrden').appendChild(div);
+    }
+
+    actualizarPrecioRepuesto(select) {
+        const row = select.closest('.row');
+        const precioInput = row.querySelector('.repuesto-precio');
+        const option = select.options[select.selectedIndex];
+        const precio = option.getAttribute('data-precio') || 0;
+        precioInput.value = precio;
+        this.calcularTotalesOrden();
+    }
+
+    calcularTotalesOrden() {
+        // Calcular mano de obra
+        const horas = parseFloat(document.getElementById('ordenHoras')?.value) || 0;
+        const valorHora = parseFloat(document.getElementById('ordenValorHora')?.value) || 0;
+        const totalManoObra = horas * valorHora;
+        document.getElementById('ordenTotalManoObra').value = totalManoObra;
+
+        // Calcular repuestos
+        let totalRepuestos = 0;
+        const repuestosRows = document.querySelectorAll('.repuesto-producto');
+        repuestosRows.forEach((select, index) => {
+            if (select.value) {
+                const cantidad = parseFloat(document.querySelectorAll('.repuesto-cantidad')[index]?.value) || 1;
+                const precio = parseFloat(document.querySelectorAll('.repuesto-precio')[index]?.value) || 0;
+                totalRepuestos += cantidad * precio;
+            }
+        });
+
+        // Actualizar resumen
+        document.getElementById('resumenManoObra').textContent = `$${totalManoObra.toLocaleString()}`;
+        document.getElementById('resumenRepuestos').textContent = `$${totalRepuestos.toLocaleString()}`;
+        document.getElementById('resumenTotalOrden').textContent = `$${(totalManoObra + totalRepuestos).toLocaleString()}`;
+    }
+
+    guardarNuevaOrdenTrabajo() {
+        const clienteId = document.getElementById('ordenClienteId')?.value;
+        const diagnostico = document.getElementById('ordenDiagnostico')?.value;
+        const tecnicoId = document.getElementById('ordenTecnicoId')?.value;
+
+        if (!clienteId || !diagnostico || !tecnicoId) {
+            this.mostrarMensaje('❌ Completa los campos obligatorios', 'error');
+            return;
+        }
+
+        let clienteNombre = '';
+        if (clienteId === 'nuevo') {
+            const nuevoCliente = document.getElementById('ordenNuevoCliente')?.value;
+            if (!nuevoCliente) {
+                this.mostrarMensaje('❌ Ingresa el nombre del nuevo cliente', 'error');
+                return;
+            }
+            // Crear cliente
+            const cliente = {
+                id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+                nombre: nuevoCliente,
+                telefono: document.getElementById('ordenClienteTelefono')?.value || '',
+                puntos: 0,
+                fechaCreacion: new Date().toISOString()
+            };
+            this.clientes.push(cliente);
+            this.guardarClientes();
+            clienteNombre = nuevoCliente;
+        } else {
+            const cliente = this.clientes.find(c => c.id === clienteId);
+            clienteNombre = cliente ? cliente.nombre : '';
+        }
+
+        // Registrar vehículo si es nuevo
+        let vehiculoId = document.getElementById('ordenVehiculoId')?.value;
+        if (vehiculoId === 'nuevo') {
+            const placa = document.getElementById('ordenVehiculoPlaca')?.value;
+            if (placa) {
+                const nuevoVehiculo = {
+                    id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+                    clienteId: clienteId === 'nuevo' ? this.clientes[this.clientes.length - 1].id : clienteId,
+                    placa: placa,
+                    marca: document.getElementById('ordenVehiculoMarca')?.value || '',
+                    modelo: document.getElementById('ordenVehiculoModelo')?.value || '',
+                    año: document.getElementById('ordenVehiculoAnio')?.value || '',
+                    kilometraje: document.getElementById('ordenVehiculoKilometraje')?.value || 0,
+                    fechaRegistro: new Date().toISOString()
+                };
+                this.vehiculos.push(nuevoVehiculo);
+                this.guardarVehiculos();
+                vehiculoId = nuevoVehiculo.id;
+            }
+        }
+
+        // Obtener repuestos
+        const repuestos = [];
+        const repuestoSelects = document.querySelectorAll('.repuesto-producto');
+        const repuestoCantidades = document.querySelectorAll('.repuesto-cantidad');
+        const repuestoPrecios = document.querySelectorAll('.repuesto-precio');
+
+        for (let i = 0; i < repuestoSelects.length; i++) {
+            if (repuestoSelects[i].value) {
+                const productoId = repuestoSelects[i].value;
+                const cantidad = parseInt(repuestoCantidades[i].value) || 1;
+                const precio = parseFloat(repuestoPrecios[i].value) || 0;
+                
+                // Verificar stock
+                const producto = storage.getProducto(productoId);
+                if (!producto || producto.unidades < cantidad) {
+                    this.mostrarMensaje(`❌ Stock insuficiente para el repuesto seleccionado`, 'error');
+                    return;
+                }
+
+                repuestos.push({
+                    productoId: productoId,
+                    nombre: producto.nombre,
+                    cantidad: cantidad,
+                    precioUnitario: precio,
+                    subtotal: precio * cantidad
+                });
+            }
+        }
+
+        const horas = parseFloat(document.getElementById('ordenHoras')?.value) || 0;
+        const valorHora = parseFloat(document.getElementById('ordenValorHora')?.value) || 0;
+        const totalManoObra = horas * valorHora;
+        const totalRepuestos = repuestos.reduce((s, r) => s + r.subtotal, 0);
+        const total = totalManoObra + totalRepuestos;
+
+        // Crear orden de trabajo
+        const orden = {
+            id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+            numero: `OT-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}${String(this.ordenesTrabajo.length + 1).padStart(4, '0')}`,
+            fecha: new Date().toISOString(),
+            clienteId: clienteId === 'nuevo' ? this.clientes[this.clientes.length - 1].id : clienteId,
+            cliente: clienteNombre,
+            vehiculoId: vehiculoId,
+            tecnicoId: tecnicoId,
+            tecnico: this.tecnicos.find(t => t.id === tecnicoId)?.nombre || '',
+            tipoServicio: document.getElementById('ordenTipoServicio')?.value || 'mecanica',
+            diagnostico: diagnostico,
+            observaciones: document.getElementById('ordenObservaciones')?.value || '',
+            manoObra: {
+                horas: horas,
+                valorHora: valorHora,
+                total: totalManoObra
+            },
+            repuestos: repuestos,
+            total: total,
+            estado: 'pendiente',
+            historial: [{
+                fecha: new Date().toISOString(),
+                estado: 'pendiente',
+                usuario: this.getUsuarioActual()?.nombre || 'Sistema'
+            }]
+        };
+
+        // Descontar repuestos del inventario
+        repuestos.forEach(r => {
+            const producto = storage.getProducto(r.productoId);
+            if (producto) {
+                producto.unidades -= r.cantidad;
+                storage.updateProducto(r.productoId, { unidades: producto.unidades });
+            }
+        });
+
+        this.ordenesTrabajo.push(orden);
+        this.guardarOrdenesTrabajo();
+
+        this.mostrarMensaje('✅ Orden de trabajo creada', 'success');
+        this.cerrarModal('modalNuevaOrdenTrabajo');
+        this.mostrarModalOrdenesTrabajo();
+    }
+
+    verDetalleOrdenTrabajo(id) {
+        const orden = this.ordenesTrabajo.find(o => o.id === id);
+        if (!orden) return;
+
+        const cliente = this.clientes.find(c => c.id === orden.clienteId);
+        const vehiculo = this.vehiculos.find(v => v.id === orden.vehiculoId);
+        const tecnico = this.tecnicos.find(t => t.id === orden.tecnicoId);
+
+        const fecha = new Date(orden.fecha);
+
+        let repuestosHTML = '';
+        orden.repuestos.forEach(r => {
+            repuestosHTML += `
+                <tr>
+                    <td>${r.nombre}</td>
+                    <td>${r.cantidad}</td>
+                    <td>$${r.precioUnitario}</td>
+                    <td>$${r.subtotal}</td>
+                </tr>
+            `;
+        });
+
+        let historialHTML = '';
+        orden.historial.forEach(h => {
+            const fechaH = new Date(h.fecha);
+            historialHTML += `
+                <tr>
+                    <td>${fechaH.toLocaleDateString()} ${fechaH.toLocaleTimeString()}</td>
+                    <td>${h.estado}</td>
+                    <td>${h.usuario}</td>
+                    <td>${h.observacion || ''}</td>
+                </tr>
+            `;
+        });
+
+        const modalHTML = `
+            <div class="modal-overlay active" id="modalDetalleOrdenTrabajo">
+                <div class="modal-content" style="max-width: 1000px;">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-tools"></i> Orden de Trabajo: ${orden.numero}</h3>
+                        <button class="close-modal" onclick="window.app.cerrarModal('modalDetalleOrdenTrabajo')">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p><strong>Fecha:</strong> ${fecha.toLocaleDateString()}</p>
+                                <p><strong>Cliente:</strong> ${cliente ? cliente.nombre : orden.cliente}</p>
+                                <p><strong>Teléfono cliente:</strong> ${cliente ? cliente.telefono : 'N/A'}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <p><strong>Vehículo:</strong> ${vehiculo ? vehiculo.placa + ' - ' + vehiculo.marca + ' ' + vehiculo.modelo : 'N/A'}</p>
+                                <p><strong>Técnico:</strong> ${tecnico ? tecnico.nombre : orden.tecnico}</p>
+                                <p><strong>Estado:</strong> <span class="badge badge-warning">${orden.estado}</span></p>
+                            </div>
+                        </div>
+
+                        <div class="mt-3">
+                            <h5>Diagnóstico</h5>
+                            <p>${orden.diagnostico}</p>
+                        </div>
+
+                        <div class="mt-3">
+                            <h5>Mano de Obra</h5>
+                            <p>Horas: ${orden.manoObra.horas} | Valor hora: $${orden.manoObra.valorHora} | Total: $${orden.manoObra.total}</p>
+                        </div>
+
+                        <div class="mt-3">
+                            <h5>Repuestos utilizados</h5>
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Producto</th>
+                                        <th>Cantidad</th>
+                                        <th>Precio Unit.</th>
+                                        <th>Subtotal</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${repuestosHTML || '<tr><td colspan="4" class="text-center">No se usaron repuestos</td></tr>'}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="mt-3 text-right">
+                            <h4>Total: $${orden.total.toLocaleString()}</h4>
+                        </div>
+
+                        <div class="mt-3">
+                            <h5>Historial de estados</h5>
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Fecha</th>
+                                        <th>Estado</th>
+                                        <th>Usuario</th>
+                                        <th>Observación</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${historialHTML}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="mt-3">
+                            <h5>Actualizar estado</h5>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <select id="nuevoEstadoOrden" class="form-control">
+                                        <option value="pendiente">Pendiente</option>
+                                        <option value="en_proceso">En proceso</option>
+                                        <option value="espera_repuestos">Espera de repuestos</option>
+                                        <option value="completada">Completada</option>
+                                        <option value="entregado">Entregado al cliente</option>
+                                        <option value="cancelada">Cancelada</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <input type="text" id="observacionEstado" class="form-control" placeholder="Observación (opcional)">
+                                </div>
+                                <div class="col-md-12 mt-2">
+                                    <button class="btn btn-primary" onclick="window.app.actualizarEstadoOrden('${orden.id}')">
+                                        Actualizar Estado
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-4">
+                            <button class="btn btn-success" onclick="window.app.imprimirOrdenTrabajo('${orden.id}')">
+                                <i class="fas fa-print"></i> Imprimir Orden
+                            </button>
+                            <button class="btn btn-info" onclick="window.app.convertirOrdenAFactura('${orden.id}')">
+                                <i class="fas fa-file-invoice"></i> Generar Factura
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('modalContainer').innerHTML = modalHTML;
+    }
+
+    actualizarEstadoOrden(id) {
+        const orden = this.ordenesTrabajo.find(o => o.id === id);
+        if (!orden) return;
+
+        const nuevoEstado = document.getElementById('nuevoEstadoOrden')?.value;
+        const observacion = document.getElementById('observacionEstado')?.value || '';
+
+        if (!nuevoEstado) return;
+
+        orden.estado = nuevoEstado;
+        orden.historial.push({
+            fecha: new Date().toISOString(),
+            estado: nuevoEstado,
+            observacion: observacion,
+            usuario: this.getUsuarioActual()?.nombre || 'Sistema'
+        });
+
+        this.guardarOrdenesTrabajo();
+        this.mostrarMensaje('✅ Estado actualizado', 'success');
+        this.verDetalleOrdenTrabajo(id);
+    }
+
+    imprimirOrdenTrabajo(id) {
+        const orden = this.ordenesTrabajo.find(o => o.id === id);
+        if (!orden) return;
+
+        const cliente = this.clientes.find(c => c.id === orden.clienteId);
+        const vehiculo = this.vehiculos.find(v => v.id === orden.vehiculoId);
+        const tecnico = this.tecnicos.find(t => t.id === orden.tecnicoId);
+        const config = storage.getConfig?.() || {};
+        const nombreNegocio = config.nombreNegocio || 'Mi Negocio';
+
+        const fecha = new Date(orden.fecha);
+
+        let repuestosHTML = '';
+        orden.repuestos.forEach(r => {
+            repuestosHTML += `
+                <tr>
+                    <td>${r.nombre}</td>
+                    <td>${r.cantidad}</td>
+                    <td>$${r.precioUnitario}</td>
+                    <td>$${r.subtotal}</td>
+                </tr>
+            `;
+        });
+
+        const ordenHTML = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Orden de Trabajo ${orden.numero}</title>
+                <style>
+                    body { font-family: Arial, sans-serif; margin: 40px; }
+                    .header { text-align: center; margin-bottom: 30px; }
+                    .empresa { font-size: 24px; font-weight: bold; color: #27ae60; }
+                    table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+                    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                    th { background-color: #f2f2f2; }
+                    .totales { text-align: right; margin-top: 20px; }
+                    .footer { margin-top: 40px; text-align: center; font-size: 12px; color: #666; }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <div class="empresa">${nombreNegocio}</div>
+                    <h2>ORDEN DE TRABAJO</h2>
+                    <p>${orden.numero}</p>
+                </div>
+                
+                <p><strong>Fecha:</strong> ${fecha.toLocaleDateString()}</p>
+                <p><strong>Cliente:</strong> ${cliente ? cliente.nombre : orden.cliente}</p>
+                <p><strong>Teléfono:</strong> ${cliente ? cliente.telefono : 'N/A'}</p>
+                
+                <p><strong>Vehículo:</strong> ${vehiculo ? vehiculo.placa + ' - ' + vehiculo.marca + ' ' + vehiculo.modelo + ' (' + vehiculo.año + ')' : 'N/A'}</p>
+                <p><strong>Kilometraje:</strong> ${vehiculo ? vehiculo.kilometraje : 'N/A'}</p>
+                
+                <p><strong>Técnico asignado:</strong> ${tecnico ? tecnico.nombre : orden.tecnico}</p>
+                
+                <h3>Diagnóstico</h3>
+                <p>${orden.diagnostico}</p>
+                
+                <h3>Mano de Obra</h3>
+                <p>Horas: ${orden.manoObra.horas} | Valor hora: $${orden.manoObra.valorHora} | Total: $${orden.manoObra.total}</p>
+                
+                <h3>Repuestos</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Producto</th>
+                            <th>Cantidad</th>
+                            <th>Precio Unit.</th>
+                            <th>Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${repuestosHTML || '<tr><td colspan="4" class="text-center">No se usaron repuestos</td></tr>'}
+                    </tbody>
+                </table>
+                
+                <div class="totales">
+                    <h3>TOTAL: $${orden.total.toLocaleString()}</h3>
+                </div>
+                
+                ${orden.observaciones ? `<p><strong>Observaciones:</strong> ${orden.observaciones}</p>` : ''}
+                
+                <div class="footer">
+                    <p>Firma del cliente: ___________________________</p>
+                    <p>Fecha de entrega: ___________________________</p>
+                </div>
+            </body>
+            </html>
+        `;
+
+        const ventana = window.open('', '_blank');
+        ventana.document.write(ordenHTML);
+        ventana.document.close();
+    }
+
+    convertirOrdenAFactura(id) {
+        const orden = this.ordenesTrabajo.find(o => o.id === id);
+        if (!orden) return;
+
+        if (orden.estado !== 'completada' && orden.estado !== 'entregado') {
+            if (!confirm('La orden no está completada. ¿Convertir a factura de todas formas?')) {
+                return;
+            }
+        }
+
+        // Crear carrito con los repuestos
+        this.carritoVenta = orden.repuestos.map(r => ({
+            productoId: r.productoId,
+            nombre: r.nombre,
+            codigo: storage.getProducto(r.productoId)?.codigo || '',
+            precioUnitario: r.precioUnitario,
+            cantidad: r.cantidad,
+            subtotal: r.subtotal,
+            stockDisponible: storage.getProducto(r.productoId)?.unidades || 0
+        }));
+
+        // Agregar mano de obra como un item
+        if (orden.manoObra.total > 0) {
+            this.carritoVenta.push({
+                productoId: 'mano_obra_' + orden.id,
+                nombre: 'Mano de obra - ' + (orden.tipoServicio || 'Servicio'),
+                codigo: 'SERVICIO',
+                precioUnitario: orden.manoObra.total,
+                cantidad: 1,
+                subtotal: orden.manoObra.total,
+                stockDisponible: 999999,
+                esServicio: true
+            });
+        }
+
+        // Abrir modal de venta
+        this.mostrarModalNuevaVenta();
+        
+        // Rellenar datos del cliente
+        setTimeout(() => {
+            const cliente = this.clientes.find(c => c.id === orden.clienteId);
+            if (cliente) {
+                document.getElementById('tipoDomicilioLabel')?.click();
+                document.getElementById('domicilioNombre').value = cliente.nombre;
+                document.getElementById('domicilioTelefono').value = cliente.telefono || '';
+            }
+        }, 1000);
+    }
+
+    // ============================================
+    // MÓDULO 3: RECETAS MÉDICAS (FARMACIAS)
+    // ============================================
+
+    cargarRecetasMedicas() {
+        this.recetasMedicas = JSON.parse(localStorage.getItem('invplanet_recetas_medicas') || '[]');
+        console.log(`💊 Recetas médicas cargadas: ${this.recetasMedicas.length}`);
+    }
+
+    guardarRecetasMedicas() {
+        localStorage.setItem('invplanet_recetas_medicas', JSON.stringify(this.recetasMedicas));
+    }
+
+    mostrarModalRecetasMedicas() {
+        let recetasHTML = '';
+        this.recetasMedicas.sort((a, b) => new Date(b.fecha) - new Date(a.fecha)).forEach(r => {
+            const fecha = new Date(r.fecha).toLocaleDateString();
+            const vencimiento = r.fechaVencimiento ? new Date(r.fechaVencimiento).toLocaleDateString() : 'N/A';
+            
+            let badgeClass = 'badge-success';
+            if (r.estado === 'parcial') badgeClass = 'badge-warning';
+            if (r.estado === 'vencida') badgeClass = 'badge-danger';
+            if (r.estado === 'completada') badgeClass = 'badge-info';
+
+            recetasHTML += `
+                <tr>
+                    <td>${r.numero}</td>
+                    <td>${fecha}</td>
+                    <td>${r.paciente}</td>
+                    <td>${r.doctor || 'N/A'}</td>
+                    <td>${r.medicamentos.length}</td>
+                    <td>${vencimiento}</td>
+                    <td><span class="badge ${badgeClass}">${r.estado}</span></td>
+                    <td>
+                        <button class="btn btn-sm btn-info" onclick="window.app.verDetalleReceta('${r.id}')">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="btn btn-sm btn-success" onclick="window.app.despacharReceta('${r.id}')">
+                            <i class="fas fa-pills"></i> Despachar
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+
+        const modalHTML = `
+            <div class="modal-overlay active" id="modalRecetasMedicas">
+                <div class="modal-content" style="max-width: 1200px;">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-prescription"></i> Recetas Médicas</h3>
+                        <button class="close-modal" onclick="window.app.cerrarModal('modalRecetasMedicas')">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <button class="btn btn-primary mb-3" onclick="window.app.mostrarModalNuevaReceta()">
+                            <i class="fas fa-plus"></i> Nueva Receta
+                        </button>
+                        
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Número</th>
+                                        <th>Fecha</th>
+                                        <th>Paciente</th>
+                                        <th>Doctor</th>
+                                        <th>Medicamentos</th>
+                                        <th>Vencimiento</th>
+                                        <th>Estado</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${recetasHTML || '<tr><td colspan="8" class="text-center">No hay recetas registradas</td></tr>'}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('modalContainer').innerHTML = modalHTML;
+        this.modalOpen = true;
+    }
+
+    mostrarModalNuevaReceta() {
+        // Obtener medicamentos (productos de farmacia)
+        const medicamentos = storage.getInventario().filter(p => p.activo && p.categoriaId === 'farmacia');
+        let medicamentosOptions = '<option value="">Seleccionar medicamento</option>';
+        medicamentos.forEach(m => {
+            medicamentosOptions += `<option value="${m.id}" data-precio="${m.precioVenta}">${m.nombre} - $${m.precioVenta} (Stock: ${m.unidades})</option>`;
+        });
+
+        const modalHTML = `
+            <div class="modal-overlay active" id="modalNuevaReceta">
+                <div class="modal-content" style="max-width: 800px;">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-plus-circle"></i> Nueva Receta Médica</h3>
+                        <button class="close-modal" onclick="window.app.cerrarModal('modalNuevaReceta')">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="formNuevaReceta" onsubmit="return false;">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Paciente *</label>
+                                        <input type="text" id="recetaPaciente" class="form-control" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Edad</label>
+                                        <input type="number" id="recetaEdad" class="form-control" min="0">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Doctor</label>
+                                        <input type="text" id="recetaDoctor" class="form-control">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Registro médico</label>
+                                        <input type="text" id="recetaRegistro" class="form-control">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Fecha de vencimiento de la receta</label>
+                                <input type="date" id="recetaVencimiento" class="form-control" value="${this.sumarDias(new Date(), 30).toISOString().split('T')[0]}">
+                            </div>
+
+                            <h5>Medicamentos</h5>
+                            <div id="medicamentosReceta">
+                                <div class="row mb-2">
+                                    <div class="col-md-5">
+                                        <select class="form-control receta-medicamento" name="recetaMedicamento[]">
+                                            ${medicamentosOptions}
+                                        </select>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <input type="text" class="form-control receta-dosis" name="recetaDosis[]" placeholder="Dosis (ej: 500mg)">
+                                    </div>
+                                    <div class="col-md-2">
+                                        <input type="text" class="form-control receta-presentacion" name="recetaPresentacion[]" placeholder="Presentación">
+                                    </div>
+                                    <div class="col-md-2">
+                                        <input type="number" class="form-control receta-cantidad" name="recetaCantidad[]" value="1" min="1">
+                                    </div>
+                                    <div class="col-md-1">
+                                        <button type="button" class="btn btn-danger btn-sm" onclick="this.parentElement.parentElement.remove()">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button type="button" class="btn btn-info mb-3" onclick="window.app.agregarMedicamentoReceta()">
+                                <i class="fas fa-plus"></i> Agregar medicamento
+                            </button>
+
+                            <div class="form-group">
+                                <label>Indicaciones</label>
+                                <textarea id="recetaIndicaciones" class="form-control" rows="2" placeholder="Tomar cada 8 horas, etc..."></textarea>
+                            </div>
+
+                            <div class="form-actions">
+                                <button type="button" class="btn btn-secondary" onclick="window.app.cerrarModal('modalNuevaReceta')">Cancelar</button>
+                                <button type="button" class="btn btn-primary" onclick="window.app.guardarNuevaReceta()">Guardar Receta</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('modalContainer').innerHTML = modalHTML;
+    }
+
+    agregarMedicamentoReceta() {
+        const medicamentos = storage.getInventario().filter(p => p.activo && p.categoriaId === 'farmacia');
+        let medicamentosOptions = '<option value="">Seleccionar medicamento</option>';
+        medicamentos.forEach(m => {
+            medicamentosOptions += `<option value="${m.id}" data-precio="${m.precioVenta}">${m.nombre} - $${m.precioVenta} (Stock: ${m.unidades})</option>`;
+        });
+
+        const div = document.createElement('div');
+        div.className = 'row mb-2';
+        div.innerHTML = `
+            <div class="col-md-5">
+                <select class="form-control receta-medicamento" name="recetaMedicamento[]">
+                    ${medicamentosOptions}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <input type="text" class="form-control receta-dosis" name="recetaDosis[]" placeholder="Dosis">
+            </div>
+            <div class="col-md-2">
+                <input type="text" class="form-control receta-presentacion" name="recetaPresentacion[]" placeholder="Presentación">
+            </div>
+            <div class="col-md-2">
+                <input type="number" class="form-control receta-cantidad" name="recetaCantidad[]" value="1" min="1">
+            </div>
+            <div class="col-md-1">
+                <button type="button" class="btn btn-danger btn-sm" onclick="this.parentElement.parentElement.remove()">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        `;
+        
+        document.getElementById('medicamentosReceta').appendChild(div);
+    }
+
+    guardarNuevaReceta() {
+        const paciente = document.getElementById('recetaPaciente')?.value;
+        if (!paciente) {
+            this.mostrarMensaje('❌ El nombre del paciente es obligatorio', 'error');
+            return;
+        }
+
+        const medicamentoSelects = document.querySelectorAll('.receta-medicamento');
+        if (medicamentoSelects.length === 0) {
+            this.mostrarMensaje('❌ Agrega al menos un medicamento', 'error');
+            return;
+        }
+
+        const medicamentos = [];
+        for (let i = 0; i < medicamentoSelects.length; i++) {
+            const select = medicamentoSelects[i];
+            if (select.value) {
+                const medicamento = storage.getProducto(select.value);
+                const dosis = document.querySelectorAll('.receta-dosis')[i]?.value || '';
+                const presentacion = document.querySelectorAll('.receta-presentacion')[i]?.value || '';
+                const cantidad = parseInt(document.querySelectorAll('.receta-cantidad')[i]?.value) || 1;
+
+                medicamentos.push({
+                    productoId: select.value,
+                    nombre: medicamento.nombre,
+                    dosis: dosis,
+                    presentacion: presentacion,
+                    cantidad: cantidad,
+                    despachado: 0,
+                    precioUnitario: medicamento.precioVenta
+                });
+            }
+        }
+
+        const nuevaReceta = {
+            id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+            numero: `REC-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}${String(this.recetasMedicas.length + 1).padStart(4, '0')}`,
+            fecha: new Date().toISOString(),
+            paciente: paciente,
+            edad: document.getElementById('recetaEdad')?.value || '',
+            doctor: document.getElementById('recetaDoctor')?.value || '',
+            registroMedico: document.getElementById('recetaRegistro')?.value || '',
+            fechaVencimiento: document.getElementById('recetaVencimiento')?.value || null,
+            medicamentos: medicamentos,
+            indicaciones: document.getElementById('recetaIndicaciones')?.value || '',
+            estado: 'activa',
+            historial: [{
+                fecha: new Date().toISOString(),
+                accion: 'Receta creada',
+                usuario: this.getUsuarioActual()?.nombre || 'Sistema'
+            }]
+        };
+
+        this.recetasMedicas.push(nuevaReceta);
+        this.guardarRecetasMedicas();
+
+        this.mostrarMensaje('✅ Receta médica registrada', 'success');
+        this.cerrarModal('modalNuevaReceta');
+        this.mostrarModalRecetasMedicas();
+    }
+
+    verDetalleReceta(id) {
+        const receta = this.recetasMedicas.find(r => r.id === id);
+        if (!receta) return;
+
+        const fecha = new Date(receta.fecha);
+
+        let medicamentosHTML = '';
+        receta.medicamentos.forEach(m => {
+            medicamentosHTML += `
+                <tr>
+                    <td>${m.nombre}</td>
+                    <td>${m.dosis || 'N/A'}</td>
+                    <td>${m.presentacion || 'N/A'}</td>
+                    <td>${m.cantidad}</td>
+                    <td>${m.despachado || 0}</td>
+                    <td>${m.cantidad - (m.despachado || 0)}</td>
+                </tr>
+            `;
+        });
+
+        let historialHTML = '';
+        receta.historial.forEach(h => {
+            const fechaH = new Date(h.fecha);
+            historialHTML += `
+                <tr>
+                    <td>${fechaH.toLocaleDateString()} ${fechaH.toLocaleTimeString()}</td>
+                    <td>${h.accion}</td>
+                    <td>${h.usuario}</td>
+                </tr>
+            `;
+        });
+
+        const modalHTML = `
+            <div class="modal-overlay active" id="modalDetalleReceta">
+                <div class="modal-content" style="max-width: 1000px;">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-prescription"></i> Receta Médica: ${receta.numero}</h3>
+                        <button class="close-modal" onclick="window.app.cerrarModal('modalDetalleReceta')">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p><strong>Fecha:</strong> ${fecha.toLocaleDateString()}</p>
+                                <p><strong>Paciente:</strong> ${receta.paciente}</p>
+                                <p><strong>Edad:</strong> ${receta.edad || 'N/A'}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <p><strong>Doctor:</strong> ${receta.doctor || 'N/A'}</p>
+                                <p><strong>Registro:</strong> ${receta.registroMedico || 'N/A'}</p>
+                                <p><strong>Vence:</strong> ${receta.fechaVencimiento ? new Date(receta.fechaVencimiento).toLocaleDateString() : 'N/A'}</p>
+                            </div>
+                        </div>
+
+                        <h5>Medicamentos</h5>
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Medicamento</th>
+                                    <th>Dosis</th>
+                                    <th>Presentación</th>
+                                    <th>Cantidad</th>
+                                    <th>Despachado</th>
+                                    <th>Pendiente</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${medicamentosHTML}
+                            </tbody>
+                        </table>
+
+                        <p><strong>Indicaciones:</strong> ${receta.indicaciones || 'Ninguna'}</p>
+
+                        <h5>Historial</h5>
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Acción</th>
+                                    <th>Usuario</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${historialHTML}
+                            </tbody>
+                        </table>
+
+                        <div class="mt-3">
+                            <button class="btn btn-success" onclick="window.app.despacharReceta('${receta.id}')">
+                                <i class="fas fa-pills"></i> Despachar Medicamentos
+                            </button>
+                            <button class="btn btn-info" onclick="window.app.imprimirReceta('${receta.id}')">
+                                <i class="fas fa-print"></i> Imprimir Receta
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('modalContainer').innerHTML = modalHTML;
+    }
+
+    despacharReceta(id) {
+        const receta = this.recetasMedicas.find(r => r.id === id);
+        if (!receta) return;
+
+        // Verificar si la receta está vencida
+        if (receta.fechaVencimiento) {
+            const hoy = new Date();
+            const vencimiento = new Date(receta.fechaVencimiento);
+            if (hoy > vencimiento) {
+                if (!confirm('⚠️ Esta receta está vencida. ¿Despachar de todas formas?')) {
+                    return;
+                }
+            }
+        }
+
+        // Crear carrito con los medicamentos pendientes
+        this.carritoVenta = [];
+        receta.medicamentos.forEach(m => {
+            const pendiente = m.cantidad - (m.despachado || 0);
+            if (pendiente > 0) {
+                const producto = storage.getProducto(m.productoId);
+                if (producto && producto.unidades >= pendiente) {
+                    this.carritoVenta.push({
+                        productoId: m.productoId,
+                        nombre: m.nombre,
+                        codigo: producto.codigo,
+                        precioUnitario: producto.precioVenta,
+                        cantidad: pendiente,
+                        subtotal: producto.precioVenta * pendiente,
+                        stockDisponible: producto.unidades,
+                        nota: `Receta: ${receta.numero} - ${m.dosis || ''}`,
+                        recetaId: receta.id
+                    });
+                } else {
+                    this.mostrarMensaje(`⚠️ Stock insuficiente para ${m.nombre}`, 'warning');
+                }
+            }
+        });
+
+        if (this.carritoVenta.length === 0) {
+            this.mostrarMensaje('❌ No hay medicamentos pendientes por despachar', 'error');
+            return;
+        }
+
+        // Abrir modal de venta
+        this.mostrarModalNuevaVenta();
+        
+        // Rellenar datos del cliente
+        setTimeout(() => {
+            document.getElementById('tipoDomicilioLabel')?.click();
+            document.getElementById('domicilioNombre').value = receta.paciente;
+            document.getElementById('notaGeneral').value = `Despacho de receta médica #${receta.numero} - Dr. ${receta.doctor || 'N/A'}`;
+        }, 1000);
+    }
+
+    imprimirReceta(id) {
+        const receta = this.recetasMedicas.find(r => r.id === id);
+        if (!receta) return;
+
+        const fecha = new Date(receta.fecha);
+        const config = storage.getConfig?.() || {};
+
+        let medicamentosHTML = '';
+        receta.medicamentos.forEach(m => {
+            medicamentosHTML += `
+                <tr>
+                    <td>${m.nombre}</td>
+                    <td>${m.dosis || 'N/A'}</td>
+                    <td>${m.presentacion || 'N/A'}</td>
+                    <td>${m.cantidad}</td>
+                </tr>
+            `;
+        });
+
+        const recetaHTML = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Receta Médica ${receta.numero}</title>
+                <style>
+                    body { font-family: Arial, sans-serif; margin: 40px; }
+                    .header { text-align: center; margin-bottom: 30px; }
+                    .title { font-size: 20px; font-weight: bold; color: #e74c3c; }
+                    table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+                    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                    th { background-color: #f2f2f2; }
+                    .footer { margin-top: 40px; }
+                    .firma { margin-top: 60px; border-top: 1px solid #000; width: 300px; text-align: center; }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <div class="title">RECETA MÉDICA</div>
+                    <p>${receta.numero}</p>
+                </div>
+                
+                <p><strong>Fecha:</strong> ${fecha.toLocaleDateString()}</p>
+                <p><strong>Paciente:</strong> ${receta.paciente} - Edad: ${receta.edad || 'N/A'}</p>
+                <p><strong>Doctor:</strong> ${receta.doctor || 'N/A'} - Registro: ${receta.registroMedico || 'N/A'}</p>
+                <p><strong>Válida hasta:</strong> ${receta.fechaVencimiento ? new Date(receta.fechaVencimiento).toLocaleDateString() : 'N/A'}</p>
+                
+                <h3>Medicamentos</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Medicamento</th>
+                            <th>Dosis</th>
+                            <th>Presentación</th>
+                            <th>Cantidad</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${medicamentosHTML}
+                    </tbody>
+                </table>
+                
+                <p><strong>Indicaciones:</strong> ${receta.indicaciones || 'Ninguna'}</p>
+                
+                <div class="footer">
+                    <div class="firma">
+                        Firma y sello del doctor
+                    </div>
+                </div>
+            </body>
+            </html>
+        `;
+
+        const ventana = window.open('', '_blank');
+        ventana.document.write(recetaHTML);
+        ventana.document.close();
+    }
+
+    // ============================================
+    // MÓDULO 4: VEHÍCULOS
+    // ============================================
+
+    cargarVehiculos() {
+        this.vehiculos = JSON.parse(localStorage.getItem('invplanet_vehiculos') || '[]');
+        console.log(`🚗 Vehículos cargados: ${this.vehiculos.length}`);
+    }
+
+    guardarVehiculos() {
+        localStorage.setItem('invplanet_vehiculos', JSON.stringify(this.vehiculos));
+    }
+
+    mostrarModalVehiculos(clienteId = null) {
+        let vehiculosHTML = '';
+        let vehiculosFiltrados = clienteId ? this.vehiculos.filter(v => v.clienteId === clienteId) : this.vehiculos;
+        
+        vehiculosFiltrados.forEach(v => {
+            const cliente = this.clientes.find(c => c.id === v.clienteId);
+            vehiculosHTML += `
+                <tr>
+                    <td><strong>${v.placa}</strong></td>
+                    <td>${v.marca} ${v.modelo} (${v.año || 'N/A'})</td>
+                    <td>${cliente ? cliente.nombre : 'N/A'}</td>
+                    <td>${v.kilometraje || 0} km</td>
+                    <td>${v.color || 'N/A'}</td>
+                    <td>
+                        <button class="btn btn-sm btn-info" onclick="window.app.verHistorialVehiculo('${v.id}')">
+                            <i class="fas fa-history"></i>
+                        </button>
+                        <button class="btn btn-sm btn-primary" onclick="window.app.editarVehiculo('${v.id}')">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-sm btn-success" onclick="window.app.mostrarModalNuevaOrdenTrabajoConVehiculo('${v.id}')">
+                            <i class="fas fa-tools"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+
+        const modalHTML = `
+            <div class="modal-overlay active" id="modalVehiculos">
+                <div class="modal-content" style="max-width: 1100px;">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-car"></i> Vehículos Registrados</h3>
+                        <button class="close-modal" onclick="window.app.cerrarModal('modalVehiculos')">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <button class="btn btn-primary mb-3" onclick="window.app.mostrarModalNuevoVehiculo()">
+                            <i class="fas fa-plus"></i> Nuevo Vehículo
+                        </button>
+                        
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Placa</th>
+                                        <th>Vehículo</th>
+                                        <th>Propietario</th>
+                                        <th>Kilometraje</th>
+                                        <th>Color</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${vehiculosHTML || '<tr><td colspan="6" class="text-center">No hay vehículos registrados</td></tr>'}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('modalContainer').innerHTML = modalHTML;
+        this.modalOpen = true;
+    }
+
+    mostrarModalNuevoVehiculo(clienteIdPreseleccionado = null) {
+        let clientesOptions = '<option value="">Seleccionar propietario</option>';
+        this.clientes.forEach(c => {
+            const selected = c.id === clienteIdPreseleccionado ? 'selected' : '';
+            clientesOptions += `<option value="${c.id}" ${selected}>${c.nombre}</option>`;
+        });
+
+        const modalHTML = `
+            <div class="modal-overlay active" id="modalNuevoVehiculo">
+                <div class="modal-content" style="max-width: 500px;">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-plus-circle"></i> Registrar Vehículo</h3>
+                        <button class="close-modal" onclick="window.app.cerrarModal('modalNuevoVehiculo')">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="formNuevoVehiculo" onsubmit="return false;">
+                            <div class="form-group">
+                                <label>Propietario *</label>
+                                <select id="vehiculoClienteId" class="form-control" required>
+                                    ${clientesOptions}
+                                    <option value="nuevo">-- Crear nuevo cliente --</option>
+                                </select>
+                            </div>
+
+                            <div id="camposNuevoClienteVehiculo" style="display:none; margin-top: 10px;">
+                                <div class="form-group">
+                                    <label>Nombre del nuevo cliente</label>
+                                    <input type="text" id="vehiculoNuevoCliente" class="form-control">
+                                </div>
+                                <div class="form-group">
+                                    <label>Teléfono</label>
+                                    <input type="tel" id="vehiculoClienteTelefono" class="form-control">
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Placa *</label>
+                                <input type="text" id="vehiculoPlaca" class="form-control" required placeholder="ABC-123">
+                            </div>
+
+                            <div class="form-group">
+                                <label>Marca</label>
+                                <input type="text" id="vehiculoMarca" class="form-control">
+                            </div>
+
+                            <div class="form-group">
+                                <label>Modelo</label>
+                                <input type="text" id="vehiculoModelo" class="form-control">
+                            </div>
+
+                            <div class="form-group">
+                                <label>Año</label>
+                                <input type="number" id="vehiculoAnio" class="form-control" min="1900" max="2025">
+                            </div>
+
+                            <div class="form-group">
+                                <label>Color</label>
+                                <input type="text" id="vehiculoColor" class="form-control">
+                            </div>
+
+                            <div class="form-group">
+                                <label>Kilometraje actual</label>
+                                <input type="number" id="vehiculoKilometraje" class="form-control" min="0">
+                            </div>
+
+                            <div class="form-group">
+                                <label>Notas</label>
+                                <textarea id="vehiculoNotas" class="form-control" rows="2"></textarea>
+                            </div>
+
+                            <div class="form-actions">
+                                <button type="button" class="btn btn-secondary" onclick="window.app.cerrarModal('modalNuevoVehiculo')">Cancelar</button>
+                                <button type="button" class="btn btn-primary" onclick="window.app.guardarNuevoVehiculo()">Guardar</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('modalContainer').innerHTML = modalHTML;
+
+        document.getElementById('vehiculoClienteId')?.addEventListener('change', (e) => {
+            document.getElementById('camposNuevoClienteVehiculo').style.display = e.target.value === 'nuevo' ? 'block' : 'none';
+        });
+    }
+
+    guardarNuevoVehiculo() {
+        const clienteId = document.getElementById('vehiculoClienteId')?.value;
+        const placa = document.getElementById('vehiculoPlaca')?.value;
+
+        if (!clienteId || !placa) {
+            this.mostrarMensaje('❌ Completa los campos obligatorios', 'error');
+            return;
+        }
+
+        let clienteFinalId = clienteId;
+        if (clienteId === 'nuevo') {
+            const nuevoCliente = document.getElementById('vehiculoNuevoCliente')?.value;
+            if (!nuevoCliente) {
+                this.mostrarMensaje('❌ Ingresa el nombre del nuevo cliente', 'error');
+                return;
+            }
+            const cliente = {
+                id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+                nombre: nuevoCliente,
+                telefono: document.getElementById('vehiculoClienteTelefono')?.value || '',
+                puntos: 0,
+                fechaCreacion: new Date().toISOString()
+            };
+            this.clientes.push(cliente);
+            this.guardarClientes();
+            clienteFinalId = cliente.id;
+        }
+
+        const nuevoVehiculo = {
+            id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+            clienteId: clienteFinalId,
+            placa: placa.toUpperCase(),
+            marca: document.getElementById('vehiculoMarca')?.value || '',
+            modelo: document.getElementById('vehiculoModelo')?.value || '',
+            año: document.getElementById('vehiculoAnio')?.value || '',
+            color: document.getElementById('vehiculoColor')?.value || '',
+            kilometraje: parseInt(document.getElementById('vehiculoKilometraje')?.value) || 0,
+            notas: document.getElementById('vehiculoNotas')?.value || '',
+            fechaRegistro: new Date().toISOString(),
+            historialServicios: []
+        };
+
+        this.vehiculos.push(nuevoVehiculo);
+        this.guardarVehiculos();
+
+        this.mostrarMensaje('✅ Vehículo registrado', 'success');
+        this.cerrarModal('modalNuevoVehiculo');
+        this.mostrarModalVehiculos();
+    }
+
+    verHistorialVehiculo(id) {
+        const vehiculo = this.vehiculos.find(v => v.id === id);
+        if (!vehiculo) return;
+
+        const cliente = this.clientes.find(c => c.id === vehiculo.clienteId);
+
+        // Buscar órdenes de trabajo para este vehículo
+        const ordenes = this.ordenesTrabajo.filter(o => o.vehiculoId === id).sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+
+        let serviciosHTML = '';
+        ordenes.forEach(o => {
+            const fecha = new Date(o.fecha);
+            serviciosHTML += `
+                <tr>
+                    <td>${o.numero}</td>
+                    <td>${fecha.toLocaleDateString()}</td>
+                    <td>${o.diagnostico.substring(0, 50)}${o.diagnostico.length > 50 ? '...' : ''}</td>
+                    <td>$${o.total.toLocaleString()}</td>
+                    <td><span class="badge badge-info">${o.estado}</span></td>
+                    <td>
+                        <button class="btn btn-sm btn-info" onclick="window.app.verDetalleOrdenTrabajo('${o.id}')">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+
+        const modalHTML = `
+            <div class="modal-overlay active" id="modalHistorialVehiculo">
+                <div class="modal-content" style="max-width: 1000px;">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-history"></i> Historial del Vehículo: ${vehiculo.placa}</h3>
+                        <button class="close-modal" onclick="window.app.cerrarModal('modalHistorialVehiculo')">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p><strong>Propietario:</strong> ${cliente ? cliente.nombre : 'N/A'}</p>
+                                <p><strong>Marca/Modelo:</strong> ${vehiculo.marca} ${vehiculo.modelo} (${vehiculo.año || 'N/A'})</p>
+                                <p><strong>Color:</strong> ${vehiculo.color || 'N/A'}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <p><strong>Kilometraje actual:</strong> ${vehiculo.kilometraje} km</p>
+                                <p><strong>Registrado:</strong> ${new Date(vehiculo.fechaRegistro).toLocaleDateString()}</p>
+                                <p><strong>Total servicios:</strong> ${ordenes.length}</p>
+                            </div>
+                        </div>
+
+                        <h5>Servicios realizados</h5>
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Orden</th>
+                                    <th>Fecha</th>
+                                    <th>Servicio</th>
+                                    <th>Total</th>
+                                    <th>Estado</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${serviciosHTML || '<tr><td colspan="6" class="text-center">No hay servicios registrados para este vehículo</td></tr>'}
+                            </tbody>
+                        </table>
+
+                        <div class="mt-3">
+                            <h5>Recordatorios de mantenimiento</h5>
+                            <div class="form-group">
+                                <label>Kilometraje para próximo mantenimiento</label>
+                                <div class="input-group">
+                                    <input type="number" id="proximoMantenimiento" class="form-control" value="${vehiculo.kilometraje + 5000}">
+                                    <div class="input-group-append">
+                                        <button class="btn btn-primary" onclick="window.app.guardarRecordatorioMantenimiento('${vehiculo.id}')">
+                                            Guardar
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('modalContainer').innerHTML = modalHTML;
+    }
+
+    guardarRecordatorioMantenimiento(id) {
+        const vehiculo = this.vehiculos.find(v => v.id === id);
+        if (!vehiculo) return;
+
+        const proximo = document.getElementById('proximoMantenimiento')?.value;
+        if (proximo) {
+            vehiculo.proximoMantenimiento = parseInt(proximo);
+            this.guardarVehiculos();
+            this.mostrarMensaje('✅ Recordatorio guardado', 'success');
+        }
+    }
+
+    editarVehiculo(id) {
+        // Similar a nuevo vehículo pero con datos precargados
+        this.mostrarMensaje('Función en desarrollo', 'info');
+    }
+
+    mostrarModalNuevaOrdenTrabajoConVehiculo(vehiculoId) {
+        // Abrir modal de nueva orden con vehículo preseleccionado
+        this.mostrarModalNuevaOrdenTrabajo();
+        setTimeout(() => {
+            const selectVehiculo = document.getElementById('ordenVehiculoId');
+            if (selectVehiculo) {
+                selectVehiculo.value = vehiculoId;
+                // Disparar evento change si es necesario
+                const event = new Event('change', { bubbles: true });
+                selectVehiculo.dispatchEvent(event);
+            }
+        }, 1000);
+    }
+
+    // ============================================
+    // MÓDULO 5: ÓRDENES DE COMPRA
+    // ============================================
+
+    cargarOrdenesCompra() {
+        this.ordenesCompra = JSON.parse(localStorage.getItem('invplanet_ordenes_compra') || '[]');
+        console.log(`📋 Órdenes de compra cargadas: ${this.ordenesCompra.length}`);
+    }
+
+    guardarOrdenesCompra() {
+        localStorage.setItem('invplanet_ordenes_compra', JSON.stringify(this.ordenesCompra));
+    }
+
+    mostrarModalOrdenesCompra() {
+        let ordenesHTML = '';
+        this.ordenesCompra.sort((a, b) => new Date(b.fecha) - new Date(a.fecha)).forEach(o => {
+            const fecha = new Date(o.fecha).toLocaleDateString();
+            const proveedor = this.proveedores.find(p => p.id === o.proveedorId);
+            
+            let badgeClass = 'badge-warning';
+            if (o.estado === 'recibida') badgeClass = 'badge-success';
+            if (o.estado === 'cancelada') badgeClass = 'badge-danger';
+
+            ordenesHTML += `
+                <tr>
+                    <td><strong>${o.numero}</strong></td>
+                    <td>${fecha}</td>
+                    <td>${proveedor ? proveedor.nombre : 'N/A'}</td>
+                    <td>${o.productos.length}</td>
+                    <td>$${o.total.toLocaleString()}</td>
+                    <td><span class="badge ${badgeClass}">${o.estado}</span></td>
+                    <td>
+                        <button class="btn btn-sm btn-info" onclick="window.app.verDetalleOrdenCompra('${o.id}')">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="btn btn-sm btn-success" onclick="window.app.recibirOrdenCompra('${o.id}')" ${o.estado !== 'pendiente' ? 'disabled' : ''}>
+                            <i class="fas fa-check"></i> Recibir
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+
+        const modalHTML = `
+            <div class="modal-overlay active" id="modalOrdenesCompra">
+                <div class="modal-content" style="max-width: 1200px;">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-shopping-cart"></i> Órdenes de Compra</h3>
+                        <button class="close-modal" onclick="window.app.cerrarModal('modalOrdenesCompra')">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <button class="btn btn-primary mb-3" onclick="window.app.mostrarModalNuevaOrdenCompra()">
+                            <i class="fas fa-plus"></i> Nueva Orden de Compra
+                        </button>
+                        
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Número</th>
+                                        <th>Fecha</th>
+                                        <th>Proveedor</th>
+                                        <th>Productos</th>
+                                        <th>Total</th>
+                                        <th>Estado</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${ordenesHTML || '<tr><td colspan="7" class="text-center">No hay órdenes de compra</td></tr>'}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('modalContainer').innerHTML = modalHTML;
+        this.modalOpen = true;
+    }
+
+    mostrarModalNuevaOrdenCompra(proveedorIdPreseleccionado = null) {
+        let proveedoresOptions = '<option value="">Seleccionar proveedor</option>';
+        this.proveedores.forEach(p => {
+            const selected = p.id === proveedorIdPreseleccionado ? 'selected' : '';
+            proveedoresOptions += `<option value="${p.id}" ${selected}>${p.nombre}</option>`;
+        });
+
+        const productos = storage.getInventario().filter(p => p.activo);
+        let productosOptions = '<option value="">Seleccionar producto</option>';
+        productos.forEach(p => {
+            productosOptions += `<option value="${p.id}" data-costo="${p.costoUnitario || 0}">${p.nombre} - Stock: ${p.unidades}</option>`;
+        });
+
+        const modalHTML = `
+            <div class="modal-overlay active" id="modalNuevaOrdenCompra">
+                <div class="modal-content" style="max-width: 900px;">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-plus-circle"></i> Nueva Orden de Compra</h3>
+                        <button class="close-modal" onclick="window.app.cerrarModal('modalNuevaOrdenCompra')">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="formNuevaOrdenCompra" onsubmit="return false;">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Proveedor *</label>
+                                        <select id="ordenCompraProveedorId" class="form-control" required>
+                                            ${proveedoresOptions}
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Fecha estimada de entrega</label>
+                                        <input type="date" id="ordenCompraFechaEntrega" class="form-control" value="${this.sumarDias(new Date(), 7).toISOString().split('T')[0]}">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <h5>Productos</h5>
+                            <div id="productosOrdenCompra">
+                                <div class="row mb-2">
+                                    <div class="col-md-5">
+                                        <select class="form-control oc-producto" name="ocProducto[]">
+                                            ${productosOptions}
+                                        </select>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <input type="number" class="form-control oc-cantidad" name="ocCantidad[]" value="1" min="1">
+                                    </div>
+                                    <div class="col-md-2">
+                                        <input type="number" class="form-control oc-precio" name="ocPrecio[]" placeholder="Costo unit." min="0" step="100">
+                                    </div>
+                                    <div class="col-md-2">
+                                        <input type="text" class="form-control oc-subtotal" name="ocSubtotal[]" readonly placeholder="Subtotal">
+                                    </div>
+                                    <div class="col-md-1">
+                                        <button type="button" class="btn btn-danger btn-sm" onclick="this.parentElement.parentElement.remove(); window.app.calcularTotalOC()">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button type="button" class="btn btn-info mb-3" onclick="window.app.agregarProductoOC()">
+                                <i class="fas fa-plus"></i> Agregar producto
+                            </button>
+
+                            <div class="row mt-3">
+                                <div class="col-md-8">
+                                    <div class="form-group">
+                                        <label>Notas / observaciones</label>
+                                        <textarea id="ocNotas" class="form-control" rows="2"></textarea>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="card" style="background: #f8f9fa; padding: 15px;">
+                                        <h5>Total Orden: <span id="ocTotal">$0</span></h5>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-actions mt-3">
+                                <button type="button" class="btn btn-secondary" onclick="window.app.cerrarModal('modalNuevaOrdenCompra')">Cancelar</button>
+                                <button type="button" class="btn btn-primary" onclick="window.app.guardarNuevaOrdenCompra()">Guardar Orden</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('modalContainer').innerHTML = modalHTML;
+    }
+
+    agregarProductoOC() {
+        const productos = storage.getInventario().filter(p => p.activo);
+        let productosOptions = '<option value="">Seleccionar producto</option>';
+        productos.forEach(p => {
+            productosOptions += `<option value="${p.id}" data-costo="${p.costoUnitario || 0}">${p.nombre} - Stock: ${p.unidades}</option>`;
+        });
+
+        const div = document.createElement('div');
+        div.className = 'row mb-2';
+        div.innerHTML = `
+            <div class="col-md-5">
+                <select class="form-control oc-producto" name="ocProducto[]" onchange="window.app.actualizarPrecioOC(this)">
+                    ${productosOptions}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <input type="number" class="form-control oc-cantidad" name="ocCantidad[]" value="1" min="1" onchange="window.app.calcularTotalOC()">
+            </div>
+            <div class="col-md-2">
+                <input type="number" class="form-control oc-precio" name="ocPrecio[]" placeholder="Costo unit." min="0" step="100" onchange="window.app.calcularTotalOC()">
+            </div>
+            <div class="col-md-2">
+                <input type="text" class="form-control oc-subtotal" name="ocSubtotal[]" readonly placeholder="Subtotal">
+            </div>
+            <div class="col-md-1">
+                <button type="button" class="btn btn-danger btn-sm" onclick="this.parentElement.parentElement.remove(); window.app.calcularTotalOC()">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        `;
+        
+        document.getElementById('productosOrdenCompra').appendChild(div);
+    }
+
+    actualizarPrecioOC(select) {
+        const row = select.closest('.row');
+        const precioInput = row.querySelector('.oc-precio');
+        const option = select.options[select.selectedIndex];
+        const costo = option.getAttribute('data-costo') || 0;
+        precioInput.value = costo;
+        this.calcularTotalOC();
+    }
+
+    calcularTotalOC() {
+        let total = 0;
+        const rows = document.querySelectorAll('.oc-producto');
+        
+        rows.forEach((select, index) => {
+            if (select.value) {
+                const cantidad = parseFloat(document.querySelectorAll('.oc-cantidad')[index]?.value) || 1;
+                const precio = parseFloat(document.querySelectorAll('.oc-precio')[index]?.value) || 0;
+                const subtotal = cantidad * precio;
+                
+                const subtotalInput = document.querySelectorAll('.oc-subtotal')[index];
+                if (subtotalInput) {
+                    subtotalInput.value = `$${subtotal.toLocaleString()}`;
+                }
+                
+                total += subtotal;
+            }
+        });
+
+        document.getElementById('ocTotal').textContent = `$${total.toLocaleString()}`;
+    }
+
+    guardarNuevaOrdenCompra() {
+        const proveedorId = document.getElementById('ordenCompraProveedorId')?.value;
+        if (!proveedorId) {
+            this.mostrarMensaje('❌ Selecciona un proveedor', 'error');
+            return;
+        }
+
+        const productoSelects = document.querySelectorAll('.oc-producto');
+        if (productoSelects.length === 0) {
+            this.mostrarMensaje('❌ Agrega al menos un producto', 'error');
+            return;
+        }
+
+        const productos = [];
+        let total = 0;
+
+        for (let i = 0; i < productoSelects.length; i++) {
+            const select = productoSelects[i];
+            if (select.value) {
+                const cantidad = parseFloat(document.querySelectorAll('.oc-cantidad')[i]?.value) || 1;
+                const precio = parseFloat(document.querySelectorAll('.oc-precio')[i]?.value) || 0;
+                const subtotal = cantidad * precio;
+                
+                const producto = storage.getProducto(select.value);
+                
+                productos.push({
+                    productoId: select.value,
+                    nombre: producto.nombre,
+                    codigo: producto.codigo,
+                    cantidad: cantidad,
+                    precioUnitario: precio,
+                    subtotal: subtotal
+                });
+                
+                total += subtotal;
+            }
+        }
+
+        const orden = {
+            id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+            numero: `OC-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}${String(this.ordenesCompra.length + 1).padStart(4, '0')}`,
+            fecha: new Date().toISOString(),
+            proveedorId: proveedorId,
+            fechaEntregaEstimada: document.getElementById('ordenCompraFechaEntrega')?.value || null,
+            productos: productos,
+            total: total,
+            notas: document.getElementById('ocNotas')?.value || '',
+            estado: 'pendiente',
+            fechaCreacion: new Date().toISOString()
+        };
+
+        this.ordenesCompra.push(orden);
+        this.guardarOrdenesCompra();
+
+        this.mostrarMensaje('✅ Orden de compra creada', 'success');
+        this.cerrarModal('modalNuevaOrdenCompra');
+        this.mostrarModalOrdenesCompra();
+    }
+
+    verDetalleOrdenCompra(id) {
+        const orden = this.ordenesCompra.find(o => o.id === id);
+        if (!orden) return;
+
+        const proveedor = this.proveedores.find(p => p.id === orden.proveedorId);
+        const fecha = new Date(orden.fecha);
+
+        let productosHTML = '';
+        orden.productos.forEach(p => {
+            productosHTML += `
+                <tr>
+                    <td>${p.nombre}</td>
+                    <td>${p.cantidad}</td>
+                    <td>$${p.precioUnitario}</td>
+                    <td>$${p.subtotal}</td>
+                </tr>
+            `;
+        });
+
+        const modalHTML = `
+            <div class="modal-overlay active" id="modalDetalleOrdenCompra">
+                <div class="modal-content" style="max-width: 800px;">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-file-invoice"></i> Orden de Compra: ${orden.numero}</h3>
+                        <button class="close-modal" onclick="window.app.cerrarModal('modalDetalleOrdenCompra')">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <p><strong>Fecha:</strong> ${fecha.toLocaleDateString()}</p>
+                        <p><strong>Proveedor:</strong> ${proveedor ? proveedor.nombre : 'N/A'}</p>
+                        <p><strong>Estado:</strong> <span class="badge badge-warning">${orden.estado}</span></p>
+                        
+                        <h5>Productos</h5>
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Producto</th>
+                                    <th>Cantidad</th>
+                                    <th>Costo Unit.</th>
+                                    <th>Subtotal</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${productosHTML}
+                            </tbody>
+                        </table>
+                        
+                        <div class="text-right">
+                            <h4>Total: $${orden.total.toLocaleString()}</h4>
+                        </div>
+                        
+                        <div class="mt-3">
+                            <button class="btn btn-success" onclick="window.app.recibirOrdenCompra('${orden.id}')" ${orden.estado !== 'pendiente' ? 'disabled' : ''}>
+                                <i class="fas fa-check"></i> Recibir Mercancía
+                            </button>
+                            <button class="btn btn-primary" onclick="window.app.imprimirOrdenCompra('${orden.id}')">
+                                <i class="fas fa-print"></i> Imprimir
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('modalContainer').innerHTML = modalHTML;
+    }
+
+    recibirOrdenCompra(id) {
+        const orden = this.ordenesCompra.find(o => o.id === id);
+        if (!orden) return;
+
+        if (!confirm('¿Recibir toda la mercancía de esta orden? Se actualizará el inventario.')) {
+            return;
+        }
+
+        // Actualizar inventario
+        orden.productos.forEach(p => {
+            const producto = storage.getProducto(p.productoId);
+            if (producto) {
+                producto.unidades += p.cantidad;
+                // Si hay costo actualizado, actualizar también
+                if (p.precioUnitario > 0) {
+                    producto.costoUnitario = p.precioUnitario;
+                }
+                storage.updateProducto(p.productoId, { 
+                    unidades: producto.unidades,
+                    costoUnitario: producto.costoUnitario
+                });
+            }
+        });
+
+        // Registrar en lotes si aplica
+        const tieneLotes = confirm('¿Registrar estos productos como lotes?');
+        if (tieneLotes) {
+            orden.productos.forEach(p => {
+                const producto = storage.getProducto(p.productoId);
+                if (producto) {
+                    const nuevoLote = {
+                        id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+                        productoId: p.productoId,
+                        numeroLote: `OC-${orden.numero}-${p.productoId.substring(0,4)}`,
+                        cantidad: p.cantidad,
+                        cantidadOriginal: p.cantidad,
+                        fechaVencimiento: null,
+                        proveedorId: orden.proveedorId,
+                        costoUnitario: p.precioUnitario,
+                        fechaIngreso: new Date().toISOString(),
+                        movimientos: [{
+                            fecha: new Date().toISOString(),
+                            tipo: 'ingreso',
+                            cantidad: p.cantidad,
+                            nota: `Recibido de OC ${orden.numero}`,
+                            usuario: this.getUsuarioActual()?.nombre || 'Sistema'
+                        }]
+                    };
+                    this.lotes.push(nuevoLote);
+                }
+            });
+            this.guardarLotes();
+        }
+
+        orden.estado = 'recibida';
+        orden.fechaRecepcion = new Date().toISOString();
+        this.guardarOrdenesCompra();
+
+        this.mostrarMensaje('✅ Mercancía recibida exitosamente', 'success');
+        this.mostrarModalOrdenesCompra();
+    }
+
+    imprimirOrdenCompra(id) {
+        const orden = this.ordenesCompra.find(o => o.id === id);
+        if (!orden) return;
+
+        const proveedor = this.proveedores.find(p => p.id === orden.proveedorId);
+        const fecha = new Date(orden.fecha);
+        const config = storage.getConfig?.() || {};
+
+        let productosHTML = '';
+        orden.productos.forEach(p => {
+            productosHTML += `
+                <tr>
+                    <td>${p.nombre}</td>
+                    <td>${p.cantidad}</td>
+                    <td>$${p.precioUnitario}</td>
+                    <td>$${p.subtotal}</td>
+                </tr>
+            `;
+        });
+
+        const ordenHTML = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Orden de Compra ${orden.numero}</title>
+                <style>
+                    body { font-family: Arial, sans-serif; margin: 40px; }
+                    .header { text-align: center; margin-bottom: 30px; }
+                    .empresa { font-size: 24px; font-weight: bold; color: #27ae60; }
+                    table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+                    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                    th { background-color: #f2f2f2; }
+                    .totales { text-align: right; }
+                    .footer { margin-top: 40px; }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <div class="empresa">${config.nombreNegocio || 'Mi Negocio'}</div>
+                    <h2>ORDEN DE COMPRA</h2>
+                    <p>${orden.numero}</p>
+                </div>
+                
+                <p><strong>Fecha:</strong> ${fecha.toLocaleDateString()}</p>
+                <p><strong>Proveedor:</strong> ${proveedor ? proveedor.nombre : 'N/A'}</p>
+                <p><strong>Contacto:</strong> ${proveedor ? proveedor.contacto : 'N/A'}</p>
+                <p><strong>Teléfono:</strong> ${proveedor ? proveedor.telefono : 'N/A'}</p>
+                
+                <h3>Productos</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Producto</th>
+                            <th>Cantidad</th>
+                            <th>Costo Unit.</th>
+                            <th>Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${productosHTML}
+                    </tbody>
+                </table>
+                
+                <div class="totales">
+                    <h3>TOTAL: $${orden.total.toLocaleString()}</h3>
+                </div>
+                
+                <p><strong>Notas:</strong> ${orden.notas || 'Ninguna'}</p>
+                
+                <div class="footer">
+                    <p>_________________________</p>
+                    <p>Firma autorizada</p>
+                </div>
+            </body>
+            </html>
+        `;
+
+        const ventana = window.open('', '_blank');
+        ventana.document.write(ordenHTML);
+        ventana.document.close();
+    }
+
+    // ============================================
+    // MÓDULO 6: PEDIDOS ESPECIALES
+    // ============================================
+
+    cargarPedidosEspeciales() {
+        this.pedidosEspeciales = JSON.parse(localStorage.getItem('invplanet_pedidos_especiales') || '[]');
+        console.log(`📦 Pedidos especiales cargados: ${this.pedidosEspeciales.length}`);
+    }
+
+    guardarPedidosEspeciales() {
+        localStorage.setItem('invplanet_pedidos_especiales', JSON.stringify(this.pedidosEspeciales));
+    }
+
+    mostrarModalPedidosEspeciales() {
+        let pedidosHTML = '';
+        this.pedidosEspeciales.sort((a, b) => new Date(b.fecha) - new Date(a.fecha)).forEach(p => {
+            const fecha = new Date(p.fecha).toLocaleDateString();
+            
+            let badgeClass = 'badge-warning';
+            if (p.estado === 'recibido') badgeClass = 'badge-success';
+            if (p.estado === 'cancelado') badgeClass = 'badge-danger';
+            if (p.estado === 'entregado') badgeClass = 'badge-info';
+
+            pedidosHTML += `
+                <tr>
+                    <td><strong>${p.numero}</strong></td>
+                    <td>${fecha}</td>
+                    <td>${p.cliente}</td>
+                    <td>${p.producto}</td>
+                    <td>${p.cantidad}</td>
+                    <td>$${p.total.toLocaleString()}</td>
+                    <td><span class="badge ${badgeClass}">${p.estado}</span></td>
+                    <td>
+                        <button class="btn btn-sm btn-success" onclick="window.app.marcarPedidoRecibido('${p.id}')" ${p.estado !== 'pendiente' ? 'disabled' : ''}>
+                            <i class="fas fa-check"></i>
+                        </button>
+                        <button class="btn btn-sm btn-info" onclick="window.app.notificarClientePedido('${p.id}')" ${p.estado !== 'recibido' ? 'disabled' : ''}>
+                            <i class="fab fa-whatsapp"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+
+        const modalHTML = `
+            <div class="modal-overlay active" id="modalPedidosEspeciales">
+                <div class="modal-content" style="max-width: 1200px;">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-box-open"></i> Pedidos Especiales</h3>
+                        <button class="close-modal" onclick="window.app.cerrarModal('modalPedidosEspeciales')">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <button class="btn btn-primary mb-3" onclick="window.app.mostrarModalNuevoPedidoEspecial()">
+                            <i class="fas fa-plus"></i> Nuevo Pedido Especial
+                        </button>
+                        
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Número</th>
+                                        <th>Fecha</th>
+                                        <th>Cliente</th>
+                                        <th>Producto</th>
+                                        <th>Cantidad</th>
+                                        <th>Total</th>
+                                        <th>Estado</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${pedidosHTML || '<tr><td colspan="8" class="text-center">No hay pedidos especiales</td></tr>'}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('modalContainer').innerHTML = modalHTML;
+        this.modalOpen = true;
+    }
+
+    mostrarModalNuevoPedidoEspecial() {
+        let clientesOptions = '<option value="">Seleccionar cliente</option>';
+        this.clientes.forEach(c => {
+            clientesOptions += `<option value="${c.id}">${c.nombre}</option>`;
+        });
+
+        let proveedoresOptions = '<option value="">Seleccionar proveedor</option>';
+        this.proveedores.forEach(p => {
+            proveedoresOptions += `<option value="${p.id}">${p.nombre}</option>`;
+        });
+
+        const modalHTML = `
+            <div class="modal-overlay active" id="modalNuevoPedidoEspecial">
+                <div class="modal-content" style="max-width: 600px;">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-plus-circle"></i> Nuevo Pedido Especial</h3>
+                        <button class="close-modal" onclick="window.app.cerrarModal('modalNuevoPedidoEspecial')">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="formNuevoPedidoEspecial" onsubmit="return false;">
+                            <div class="form-group">
+                                <label>Cliente *</label>
+                                <select id="pedidoClienteId" class="form-control" required>
+                                    ${clientesOptions}
+                                    <option value="nuevo">-- Crear nuevo cliente --</option>
+                                </select>
+                            </div>
+
+                            <div id="camposNuevoClientePedido" style="display:none; margin-top: 10px;">
+                                <div class="form-group">
+                                    <label>Nombre del nuevo cliente</label>
+                                    <input type="text" id="pedidoNuevoCliente" class="form-control">
+                                </div>
+                                <div class="form-group">
+                                    <label>Teléfono *</label>
+                                    <input type="tel" id="pedidoClienteTelefono" class="form-control" required>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Producto solicitado *</label>
+                                <input type="text" id="pedidoProducto" class="form-control" required placeholder="Ej: Repuesto específico, medicamento, etc.">
+                            </div>
+
+                            <div class="form-group">
+                                <label>Cantidad *</label>
+                                <input type="number" id="pedidoCantidad" class="form-control" required min="1" value="1">
+                            </div>
+
+                            <div class="form-group">
+                                <label>Proveedor sugerido</label>
+                                <select id="pedidoProveedorId" class="form-control">
+                                    ${proveedoresOptions}
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Precio estimado</label>
+                                <input type="number" id="pedidoPrecio" class="form-control" min="0" step="100">
+                            </div>
+
+                            <div class="form-group">
+                                <label>Notas / especificaciones</label>
+                                <textarea id="pedidoNotas" class="form-control" rows="2" placeholder="Marca, modelo, referencia, etc."></textarea>
+                            </div>
+
+                            <div class="form-actions">
+                                <button type="button" class="btn btn-secondary" onclick="window.app.cerrarModal('modalNuevoPedidoEspecial')">Cancelar</button>
+                                <button type="button" class="btn btn-primary" onclick="window.app.guardarNuevoPedidoEspecial()">Guardar Pedido</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('modalContainer').innerHTML = modalHTML;
+
+        document.getElementById('pedidoClienteId')?.addEventListener('change', (e) => {
+            document.getElementById('camposNuevoClientePedido').style.display = e.target.value === 'nuevo' ? 'block' : 'none';
+        });
+    }
+
+    guardarNuevoPedidoEspecial() {
+        const clienteId = document.getElementById('pedidoClienteId')?.value;
+        const producto = document.getElementById('pedidoProducto')?.value;
+        const cantidad = document.getElementById('pedidoCantidad')?.value;
+        const telefono = document.getElementById('pedidoClienteTelefono')?.value;
+
+        if (!clienteId || !producto || !cantidad) {
+            this.mostrarMensaje('❌ Completa los campos obligatorios', 'error');
+            return;
+        }
+
+        let clienteNombre = '';
+        let clienteTelefono = '';
+
+        if (clienteId === 'nuevo') {
+            const nuevoCliente = document.getElementById('pedidoNuevoCliente')?.value;
+            if (!nuevoCliente || !telefono) {
+                this.mostrarMensaje('❌ Completa los datos del nuevo cliente', 'error');
+                return;
+            }
+            const cliente = {
+                id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+                nombre: nuevoCliente,
+                telefono: telefono,
+                puntos: 0,
+                fechaCreacion: new Date().toISOString()
+            };
+            this.clientes.push(cliente);
+            this.guardarClientes();
+            clienteNombre = nuevoCliente;
+            clienteTelefono = telefono;
+        } else {
+            const cliente = this.clientes.find(c => c.id === clienteId);
+            clienteNombre = cliente ? cliente.nombre : '';
+            clienteTelefono = cliente ? cliente.telefono : '';
+        }
+
+        const precio = parseFloat(document.getElementById('pedidoPrecio')?.value) || 0;
+
+        const pedido = {
+            id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+            numero: `PE-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}${String(this.pedidosEspeciales.length + 1).padStart(4, '0')}`,
+            fecha: new Date().toISOString(),
+            clienteId: clienteId === 'nuevo' ? this.clientes[this.clientes.length - 1].id : clienteId,
+            cliente: clienteNombre,
+            telefono: clienteTelefono,
+            producto: producto,
+            cantidad: parseInt(cantidad),
+            precioEstimado: precio,
+            total: precio * parseInt(cantidad),
+            proveedorId: document.getElementById('pedidoProveedorId')?.value || null,
+            notas: document.getElementById('pedidoNotas')?.value || '',
+            estado: 'pendiente',
+            historial: [{
+                fecha: new Date().toISOString(),
+                accion: 'Pedido creado',
+                usuario: this.getUsuarioActual()?.nombre || 'Sistema'
+            }]
+        };
+
+        this.pedidosEspeciales.push(pedido);
+        this.guardarPedidosEspeciales();
+
+        this.mostrarMensaje('✅ Pedido especial registrado', 'success');
+        this.cerrarModal('modalNuevoPedidoEspecial');
+        this.mostrarModalPedidosEspeciales();
+    }
+
+    marcarPedidoRecibido(id) {
+        const pedido = this.pedidosEspeciales.find(p => p.id === id);
+        if (!pedido) return;
+
+        pedido.estado = 'recibido';
+        pedido.fechaRecepcion = new Date().toISOString();
+        pedido.historial.push({
+            fecha: new Date().toISOString(),
+            accion: 'Producto recibido de proveedor',
+            usuario: this.getUsuarioActual()?.nombre || 'Sistema'
+        });
+
+        this.guardarPedidosEspeciales();
+
+        // Preguntar si notificar al cliente
+        if (pedido.telefono && confirm('¿Notificar al cliente que su pedido llegó?')) {
+            this.notificarClientePedido(id);
+        }
+
+        this.mostrarMensaje('✅ Pedido marcado como recibido', 'success');
+        this.mostrarModalPedidosEspeciales();
+    }
+
+    notificarClientePedido(id) {
+        const pedido = this.pedidosEspeciales.find(p => p.id === id);
+        if (!pedido || !pedido.telefono) return;
+
+        const mensaje = `📦 *¡BUENAS NOTICIAS!* 📦\n\nHola *${pedido.cliente}*, te informamos que ha llegado tu pedido especial:\n\n*Producto:* ${pedido.producto}\n*Cantidad:* ${pedido.cantidad}\n\nPuedes pasar a recogerlo a nuestra tienda. ¡Te esperamos! 🛍️`;
+
+        const mensajeCodificado = encodeURIComponent(mensaje);
+        const url = `https://wa.me/${pedido.telefono}?text=${mensajeCodificado}`;
+        window.open(url, '_blank');
+
+        pedido.estado = 'entregado';
+        pedido.fechaEntrega = new Date().toISOString();
+        pedido.historial.push({
+            fecha: new Date().toISOString(),
+            accion: 'Cliente notificado',
+            usuario: this.getUsuarioActual()?.nombre || 'Sistema'
+        });
+        this.guardarPedidosEspeciales();
+
+        this.mostrarMensaje('✅ Cliente notificado', 'success');
+    }
+
+    // ============================================
+    // MÓDULO 7: DEVOLUCIONES Y GARANTÍAS
+    // ============================================
+
+    cargarDevoluciones() {
+        this.devoluciones = JSON.parse(localStorage.getItem('invplanet_devoluciones') || '[]');
+        console.log(`🔄 Devoluciones cargadas: ${this.devoluciones.length}`);
+    }
+
+    guardarDevoluciones() {
+        localStorage.setItem('invplanet_devoluciones', JSON.stringify(this.devoluciones));
+    }
+
+    cargarGarantias() {
+        this.garantias = JSON.parse(localStorage.getItem('invplanet_garantias') || '[]');
+        console.log(`🛡️ Garantías cargadas: ${this.garantias.length}`);
+    }
+
+    guardarGarantias() {
+        localStorage.setItem('invplanet_garantias', JSON.stringify(this.garantias));
+    }
+
+    mostrarModalDevoluciones() {
+        let devolucionesHTML = '';
+        this.devoluciones.sort((a, b) => new Date(b.fecha) - new Date(a.fecha)).forEach(d => {
+            const fecha = new Date(d.fecha).toLocaleDateString();
+            
+            let badgeClass = 'badge-warning';
+            if (d.estado === 'completada') badgeClass = 'badge-success';
+            if (d.estado === 'rechazada') badgeClass = 'badge-danger';
+
+            devolucionesHTML += `
+                <tr>
+                    <td>${d.numero}</td>
+                    <td>${fecha}</td>
+                    <td>${d.cliente}</td>
+                    <td>${d.producto}</td>
+                    <td>${d.cantidad}</td>
+                    <td>$${d.monto.toLocaleString()}</td>
+                    <td><span class="badge ${badgeClass}">${d.estado}</span></td>
+                    <td>
+                        <button class="btn btn-sm btn-info" onclick="window.app.verDetalleDevolucion('${d.id}')">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="btn btn-sm btn-success" onclick="window.app.procesarDevolucion('${d.id}')" ${d.estado !== 'pendiente' ? 'disabled' : ''}>
+                            <i class="fas fa-check"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+
+        const modalHTML = `
+            <div class="modal-overlay active" id="modalDevoluciones">
+                <div class="modal-content" style="max-width: 1200px;">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-undo-alt"></i> Devoluciones y Garantías</h3>
+                        <button class="close-modal" onclick="window.app.cerrarModal('modalDevoluciones')">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <button class="btn btn-primary mb-3" onclick="window.app.mostrarModalNuevaDevolucion()">
+                            <i class="fas fa-plus"></i> Nueva Devolución
+                        </button>
+                        
+                        <ul class="nav nav-tabs mb-3">
+                            <li class="nav-item">
+                                <a class="nav-link active" data-toggle="tab" href="#devoluciones">Devoluciones</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" data-toggle="tab" href="#garantias">Garantías</a>
+                            </li>
+                        </ul>
+                        
+                        <div class="tab-content">
+                            <div id="devoluciones" class="tab-pane active">
+                                <div class="table-responsive">
+                                    <table class="table">
+                                        <thead>
+                                            <tr>
+                                                <th>Número</th>
+                                                <th>Fecha</th>
+                                                <th>Cliente</th>
+                                                <th>Producto</th>
+                                                <th>Cantidad</th>
+                                                <th>Monto</th>
+                                                <th>Estado</th>
+                                                <th>Acciones</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            ${devolucionesHTML || '<tr><td colspan="8" class="text-center">No hay devoluciones registradas</td></tr>'}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div id="garantias" class="tab-pane fade">
+                                ${this.renderGarantias()}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('modalContainer').innerHTML = modalHTML;
+        this.modalOpen = true;
+    }
+
+    renderGarantias() {
+        let garantiasHTML = '';
+        this.garantias.sort((a, b) => new Date(b.fecha) - new Date(a.fecha)).forEach(g => {
+            const fecha = new Date(g.fecha).toLocaleDateString();
+            const vence = new Date(g.fechaVencimiento).toLocaleDateString();
+            
+            let badgeClass = 'badge-success';
+            if (g.estado === 'activa') badgeClass = 'badge-success';
+            if (g.estado === 'vencida') badgeClass = 'badge-danger';
+            if (g.estado === 'usada') badgeClass = 'badge-warning';
+
+            garantiasHTML += `
+                <tr>
+                    <td>${g.numero}</td>
+                    <td>${fecha}</td>
+                    <td>${g.cliente}</td>
+                    <td>${g.producto}</td>
+                    <td>${g.numeroSerie || 'N/A'}</td>
+                    <td>${vence}</td>
+                    <td><span class="badge ${badgeClass}">${g.estado}</span></td>
+                    <td>
+                        <button class="btn btn-sm btn-info" onclick="window.app.verDetalleGarantia('${g.id}')">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+
+        return `
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Número</th>
+                            <th>Fecha</th>
+                            <th>Cliente</th>
+                            <th>Producto</th>
+                            <th>N° Serie</th>
+                            <th>Vence</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${garantiasHTML || '<tr><td colspan="8" class="text-center">No hay garantías registradas</td></tr>'}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+
+    mostrarModalNuevaDevolucion() {
+        const ventas = storage.getVentas?.() || [];
+        let ventasOptions = '<option value="">Seleccionar venta</option>';
+        ventas.filter(v => v.estado === 'completada' || v.estado === 'modificada').forEach(v => {
+            ventasOptions += `<option value="${v.id}">${v.numero} - ${v.cliente} - $${v.total}</option>`;
+        });
+
+        const modalHTML = `
+            <div class="modal-overlay active" id="modalNuevaDevolucion">
+                <div class="modal-content" style="max-width: 700px;">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-plus-circle"></i> Nueva Devolución</h3>
+                        <button class="close-modal" onclick="window.app.cerrarModal('modalNuevaDevolucion')">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="formNuevaDevolucion" onsubmit="return false;">
+                            <div class="form-group">
+                                <label>Venta original</label>
+                                <select id="devolucionVentaId" class="form-control">
+                                    ${ventasOptions}
+                                </select>
+                                <small class="text-muted">O selecciona los productos manualmente</small>
+                            </div>
+
+                            <div id="productosVentaDevolucion" style="display:none; margin-top: 15px;">
+                                <h5>Productos de la venta</h5>
+                                <div id="productosVentaList"></div>
+                            </div>
+
+                            <hr>
+
+                            <div class="form-group">
+                                <label>Cliente *</label>
+                                <input type="text" id="devolucionCliente" class="form-control" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Producto a devolver *</label>
+                                <input type="text" id="devolucionProducto" class="form-control" required>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Cantidad *</label>
+                                        <input type="number" id="devolucionCantidad" class="form-control" required min="1" value="1">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Monto a devolver ($) *</label>
+                                        <input type="number" id="devolucionMonto" class="form-control" required min="0" step="100">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Motivo de la devolución *</label>
+                                <select id="devolucionMotivo" class="form-control" required>
+                                    <option value="defecto">Producto defectuoso</option>
+                                    <option value="garantia">Aplicación de garantía</option>
+                                    <option value="cambio">Cambio de producto</option>
+                                    <option value="insatisfecho">Cliente insatisfecho</option>
+                                    <option value="error">Error en venta</option>
+                                    <option value="otro">Otro</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Observaciones</label>
+                                <textarea id="devolucionObservaciones" class="form-control" rows="2"></textarea>
+                            </div>
+
+                            <div class="form-check mb-3">
+                                <input type="checkbox" id="devolucionReponer" class="form-check-input">
+                                <label class="form-check-label">Reponer producto (devolver stock a inventario)</label>
+                            </div>
+
+                            <div class="form-actions">
+                                <button type="button" class="btn btn-secondary" onclick="window.app.cerrarModal('modalNuevaDevolucion')">Cancelar</button>
+                                <button type="button" class="btn btn-primary" onclick="window.app.guardarNuevaDevolucion()">Registrar Devolución</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('modalContainer').innerHTML = modalHTML;
+
+        document.getElementById('devolucionVentaId')?.addEventListener('change', (e) => {
+            this.cargarProductosVentaDevolucion(e.target.value);
+        });
+    }
+
+    cargarProductosVentaDevolucion(ventaId) {
+        const ventas = storage.getVentas?.() || [];
+        const venta = ventas.find(v => v.id === ventaId);
+        
+        if (!venta) {
+            document.getElementById('productosVentaDevolucion').style.display = 'none';
+            return;
+        }
+
+        let productosHTML = '';
+        venta.productos.forEach(p => {
+            productosHTML += `
+                <div class="producto-venta-item" style="padding: 10px; border: 1px solid #ddd; margin-bottom: 5px; border-radius: 5px;">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <strong>${p.nombre}</strong>
+                        </div>
+                        <div class="col-md-2">
+                            Cant: ${p.cantidad}
+                        </div>
+                        <div class="col-md-2">
+                            $${p.subtotal}
+                        </div>
+                        <div class="col-md-2">
+                            <button class="btn btn-sm btn-warning" onclick="window.app.seleccionarProductoDevolucion('${p.nombre}', ${p.cantidad}, ${p.precioUnitario})">
+                                Seleccionar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        document.getElementById('productosVentaList').innerHTML = productosHTML;
+        document.getElementById('productosVentaDevolucion').style.display = 'block';
+        document.getElementById('devolucionCliente').value = venta.cliente;
+    }
+
+    seleccionarProductoDevolucion(nombre, cantidad, precio) {
+        document.getElementById('devolucionProducto').value = nombre;
+        document.getElementById('devolucionCantidad').value = 1;
+        document.getElementById('devolucionMonto').value = precio;
+    }
+
+    guardarNuevaDevolucion() {
+        const cliente = document.getElementById('devolucionCliente')?.value;
+        const producto = document.getElementById('devolucionProducto')?.value;
+        const cantidad = document.getElementById('devolucionCantidad')?.value;
+        const monto = document.getElementById('devolucionMonto')?.value;
+        const motivo = document.getElementById('devolucionMotivo')?.value;
+
+        if (!cliente || !producto || !cantidad || !monto || !motivo) {
+            this.mostrarMensaje('❌ Completa todos los campos', 'error');
+            return;
+        }
+
+        const reponerStock = document.getElementById('devolucionReponer')?.checked;
+
+        // Buscar si el producto tiene número de serie
+        const productoConSerie = this.series.find(s => 
+            s.estado === 'vendido' && 
+            s.productoId && 
+            storage.getProducto(s.productoId)?.nombre === producto
+        );
+
+        const devolucion = {
+            id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+            numero: `DEV-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}${String(this.devoluciones.length + 1).padStart(4, '0')}`,
+            fecha: new Date().toISOString(),
+            ventaId: document.getElementById('devolucionVentaId')?.value || null,
+            cliente: cliente,
+            producto: producto,
+            cantidad: parseInt(cantidad),
+            monto: parseFloat(monto),
+            motivo: motivo,
+            observaciones: document.getElementById('devolucionObservaciones')?.value || '',
+            reponerStock: reponerStock,
+            estado: 'pendiente',
+            historial: [{
+                fecha: new Date().toISOString(),
+                accion: 'Devolución registrada',
+                usuario: this.getUsuarioActual()?.nombre || 'Sistema'
+            }]
+        };
+
+        this.devoluciones.push(devolucion);
+
+        // Si se va a reponer stock, devolver al inventario
+        if (reponerStock) {
+            // Buscar el producto en inventario
+            const inventario = storage.getInventario();
+            const productoInv = inventario.find(p => p.nombre === producto);
+            if (productoInv) {
+                productoInv.unidades += parseInt(cantidad);
+                storage.updateProducto(productoInv.id, { unidades: productoInv.unidades });
+            }
+
+            // Si tiene número de serie, actualizar estado
+            if (productoConSerie) {
+                productoConSerie.estado = 'disponible';
+                productoConSerie.historial.push({
+                    fecha: new Date().toISOString(),
+                    accion: 'Producto devuelto, disponible nuevamente',
+                    usuario: this.getUsuarioActual()?.nombre || 'Sistema'
+                });
+                this.guardarSeries();
+            }
+        }
+
+        // Si es por garantía, registrar garantía
+        if (motivo === 'garantia') {
+            this.registrarGarantiaDesdeDevolucion(devolucion, productoConSerie);
+        }
+
+        this.guardarDevoluciones();
+
+        // Generar nota crédito
+        this.generarNotaCredito(devolucion);
+
+        this.mostrarMensaje('✅ Devolución registrada', 'success');
+        this.cerrarModal('modalNuevaDevolucion');
+        this.mostrarModalDevoluciones();
+    }
+
+    registrarGarantiaDesdeDevolucion(devolucion, serie) {
+        const garantia = {
+            id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+            numero: `GAR-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}${String(this.garantias.length + 1).padStart(4, '0')}`,
+            fecha: new Date().toISOString(),
+            devolucionId: devolucion.id,
+            cliente: devolucion.cliente,
+            producto: devolucion.producto,
+            numeroSerie: serie ? serie.numeroSerie : null,
+            fechaVencimiento: this.calcularFechaVencimientoGarantia(new Date().toISOString(), 365).toISOString(),
+            estado: 'activa',
+            observaciones: 'Garantía aplicada por devolución'
+        };
+
+        this.garantias.push(garantia);
+        this.guardarGarantias();
+    }
+
+    calcularFechaVencimientoGarantia(fechaVenta, diasGarantia) {
+        const fecha = new Date(fechaVenta);
+        fecha.setDate(fecha.getDate() + diasGarantia);
+        return fecha;
+    }
+
+    generarNotaCredito(devolucion) {
+        console.log('📝 Generando nota crédito para devolución:', devolucion.numero);
+        // Aquí se integraría con facturación electrónica
+    }
+
+    verDetalleDevolucion(id) {
+        const devolucion = this.devoluciones.find(d => d.id === id);
+        if (!devolucion) return;
+
+        const fecha = new Date(devolucion.fecha);
+
+        const modalHTML = `
+            <div class="modal-overlay active" id="modalDetalleDevolucion">
+                <div class="modal-content" style="max-width: 600px;">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-undo-alt"></i> Devolución: ${devolucion.numero}</h3>
+                        <button class="close-modal" onclick="window.app.cerrarModal('modalDetalleDevolucion')">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <p><strong>Fecha:</strong> ${fecha.toLocaleDateString()}</p>
+                        <p><strong>Cliente:</strong> ${devolucion.cliente}</p>
+                        <p><strong>Producto:</strong> ${devolucion.producto}</p>
+                        <p><strong>Cantidad:</strong> ${devolucion.cantidad}</p>
+                        <p><strong>Monto devuelto:</strong> $${devolucion.monto.toLocaleString()}</p>
+                        <p><strong>Motivo:</strong> ${devolucion.motivo}</p>
+                        <p><strong>Reponer stock:</strong> ${devolucion.reponerStock ? 'Sí' : 'No'}</p>
+                        <p><strong>Estado:</strong> <span class="badge badge-warning">${devolucion.estado}</span></p>
+                        
+                        <div class="mt-3">
+                            <button class="btn btn-success" onclick="window.app.procesarDevolucion('${devolucion.id}')">
+                                Procesar Devolución
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('modalContainer').innerHTML = modalHTML;
+    }
+
+    procesarDevolucion(id) {
+        const devolucion = this.devoluciones.find(d => d.id === id);
+        if (!devolucion) return;
+
+        devolucion.estado = 'completada';
+        devolucion.fechaProcesamiento = new Date().toISOString();
+        devolucion.historial.push({
+            fecha: new Date().toISOString(),
+            accion: 'Devolución procesada',
+            usuario: this.getUsuarioActual()?.nombre || 'Sistema'
+        });
+
+        this.guardarDevoluciones();
+        this.mostrarMensaje('✅ Devolución procesada', 'success');
+        this.mostrarModalDevoluciones();
+    }
+
+    verDetalleGarantia(id) {
+        const garantia = this.garantias.find(g => g.id === id);
+        if (!garantia) return;
+
+        const fecha = new Date(garantia.fecha);
+        const vence = new Date(garantia.fechaVencimiento);
+
+        const modalHTML = `
+            <div class="modal-overlay active" id="modalDetalleGarantia">
+                <div class="modal-content" style="max-width: 500px;">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-shield-alt"></i> Garantía: ${garantia.numero}</h3>
+                        <button class="close-modal" onclick="window.app.cerrarModal('modalDetalleGarantia')">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <p><strong>Fecha emisión:</strong> ${fecha.toLocaleDateString()}</p>
+                        <p><strong>Cliente:</strong> ${garantia.cliente}</p>
+                        <p><strong>Producto:</strong> ${garantia.producto}</p>
+                        <p><strong>Número de serie:</strong> ${garantia.numeroSerie || 'N/A'}</p>
+                        <p><strong>Vence:</strong> ${vence.toLocaleDateString()}</p>
+                        <p><strong>Estado:</strong> <span class="badge badge-success">${garantia.estado}</span></p>
+                        <p><strong>Observaciones:</strong> ${garantia.observaciones || 'Ninguna'}</p>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('modalContainer').innerHTML = modalHTML;
+    }
+
+    // ============================================
     // LECTOR DE CÓDIGO DE BARRAS
     // ============================================
 
@@ -3014,7 +6705,7 @@ class InvPlanetApp {
     }
 
     setupNavigation() {
-        const navLinks = document.querySelectorAll('.nav-link');
+        const navLinks = document.querySelectorAll('.nav-link[data-view]');
         navLinks.forEach(link => {
             link.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -3080,7 +6771,7 @@ class InvPlanetApp {
         
         contentArea.innerHTML = `
             <div class="loading-container">
-                <div class="spinner"></div>
+                <div class="loading-spinner"></div>
                 <p>Cargando ${view}...</p>
             </div>
         `;
@@ -3147,6 +6838,21 @@ class InvPlanetApp {
         });
         const totalGastosHoy = gastosHoy.reduce((sum, g) => sum + (g.monto || 0), 0);
         
+        // Alertas de lotes próximos a vencer
+        const hoy = new Date();
+        const lotesProximosVencer = this.lotes.filter(l => {
+            if (!l.fechaVencimiento) return false;
+            const vencimiento = new Date(l.fechaVencimiento);
+            const diasRestantes = Math.ceil((vencimiento - hoy) / (1000 * 60 * 60 * 24));
+            return diasRestantes <= 30 && diasRestantes > 0 && l.cantidad > 0;
+        });
+
+        // Órdenes de trabajo pendientes
+        const ordenesPendientes = this.ordenesTrabajo.filter(o => o.estado === 'pendiente' || o.estado === 'en_proceso').length;
+
+        // Pedidos especiales pendientes
+        const pedidosPendientes = this.pedidosEspeciales.filter(p => p.estado === 'pendiente').length;
+
         const config = storage.getConfig?.() || {};
         const nombreNegocio = config.nombreNegocio || 'Mi Negocio';
         
@@ -3175,6 +6881,26 @@ class InvPlanetApp {
                         <div class="stat-info">
                             <h3>${productosBajos.length}</h3>
                             <p>Stock Bajo</p>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: #f39c12;">
+                            <i class="fas fa-layer-group"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3>${lotesProximosVencer.length}</h3>
+                            <p>Lotes por Vencer</p>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: #9b59b6;">
+                            <i class="fas fa-tools"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3>${ordenesPendientes}</h3>
+                            <p>Órdenes Taller</p>
                         </div>
                     </div>
                     
@@ -3209,28 +6935,39 @@ class InvPlanetApp {
                     </div>
 
                     <div class="stat-card">
-                        <div class="stat-icon" style="background: #9b59b6;">
-                            <i class="fas fa-chart-line"></i>
+                        <div class="stat-icon" style="background: #1abc9c;">
+                            <i class="fas fa-box-open"></i>
                         </div>
                         <div class="stat-info">
-                            <h3>$${(totalVentasHoy - totalGastosHoy).toLocaleString()}</h3>
-                            <p>Utilidad Hoy</p>
+                            <h3>${pedidosPendientes}</h3>
+                            <p>Pedidos Especiales</p>
                         </div>
                     </div>
                 </div>
                 
                 <div class="dashboard-sections">
                     <div class="dashboard-section">
-                        <h3><i class="fas fa-exclamation-triangle text-warning"></i> Productos con Stock Bajo</h3>
-                        <div id="stockBajoList" class="alertas-list">
-                            ${this.renderProductosBajos(productosBajos)}
+                        <h3><i class="fas fa-exclamation-triangle text-warning"></i> Alertas Críticas</h3>
+                        <div id="alertasList" class="alertas-list">
+                            ${this.renderAlertasDashboard(productosBajos, lotesProximosVencer)}
                         </div>
                     </div>
                     
                     <div class="dashboard-section">
-                        <h3><i class="fas fa-clock"></i> Últimas Ventas</h3>
-                        <div class="ultimas-ventas">
-                            ${this.renderUltimasVentas(ventas.slice(0, 5))}
+                        <h3><i class="fas fa-clock"></i> Acciones Rápidas</h3>
+                        <div class="acciones-rapidas">
+                            <button class="btn btn-success btn-block" onclick="window.app.mostrarModalNuevaVenta()">
+                                <i class="fas fa-cash-register"></i> Nueva Venta
+                            </button>
+                            <button class="btn btn-primary btn-block" onclick="window.app.mostrarModalNuevaOrdenTrabajo()">
+                                <i class="fas fa-tools"></i> Nueva Orden Taller
+                            </button>
+                            <button class="btn btn-info btn-block" onclick="window.app.mostrarModalNuevoPedidoEspecial()">
+                                <i class="fas fa-box-open"></i> Nuevo Pedido Especial
+                            </button>
+                            <button class="btn btn-warning btn-block" onclick="window.app.mostrarModalNuevaDevolucion()">
+                                <i class="fas fa-undo-alt"></i> Nueva Devolución
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -3238,54 +6975,71 @@ class InvPlanetApp {
         `;
     }
 
-    renderProductosBajos(productos) {
-        if (productos.length === 0) {
-            return `
-                <div class="alerta-item">
-                    <i class="fas fa-check-circle text-success"></i>
-                    <div>
-                        <p class="mb-0">Todo el stock está en buen estado</p>
-                    </div>
-                </div>
-            `;
-        }
+    renderAlertasDashboard(productosBajos, lotesProximosVencer) {
+        let alertas = '';
         
-        let html = '';
-        productos.slice(0, 5).forEach(p => {
-            html += `
+        if (productosBajos.length > 0) {
+            alertas += `
                 <div class="alerta-item">
                     <i class="fas fa-exclamation-triangle text-warning"></i>
                     <div>
-                        <p class="mb-0"><strong>${p.nombre}</strong></p>
-                        <small class="text-muted">${p.unidades} unidades - Stock mínimo: ${p.stockMinimo || 10}</small>
+                        <p class="mb-0"><strong>${productosBajos.length} productos con stock bajo</strong></p>
+                        <small class="text-muted">Revisa el inventario</small>
                     </div>
                 </div>
             `;
-        });
-        return html;
-    }
-
-    renderUltimasVentas(ventas) {
-        if (ventas.length === 0) {
-            return '<p class="text-muted">No hay ventas recientes</p>';
         }
         
-        let html = '';
-        ventas.forEach(v => {
-            const fecha = new Date(v.fecha);
-            html += `
-                <div class="venta-item">
+        if (lotesProximosVencer.length > 0) {
+            alertas += `
+                <div class="alerta-item">
+                    <i class="fas fa-calendar-times text-danger"></i>
                     <div>
-                        <strong>${v.numero}</strong>
-                        <p class="text-muted">${fecha.toLocaleDateString()}</p>
-                    </div>
-                    <div>
-                        <span class="badge badge-success">$${v.total.toLocaleString()}</span>
+                        <p class="mb-0"><strong>${lotesProximosVencer.length} lotes próximos a vencer</strong></p>
+                        <small class="text-muted">Revisa control de lotes</small>
                     </div>
                 </div>
             `;
-        });
-        return html;
+        }
+        
+        const ordenesPendientes = this.ordenesTrabajo.filter(o => o.estado === 'pendiente').length;
+        if (ordenesPendientes > 0) {
+            alertas += `
+                <div class="alerta-item">
+                    <i class="fas fa-tools text-info"></i>
+                    <div>
+                        <p class="mb-0"><strong>${ordenesPendientes} órdenes de taller pendientes</strong></p>
+                        <small class="text-muted">Revisa el taller</small>
+                    </div>
+                </div>
+            `;
+        }
+        
+        const pedidosPendientes = this.pedidosEspeciales.filter(p => p.estado === 'pendiente').length;
+        if (pedidosPendientes > 0) {
+            alertas += `
+                <div class="alerta-item">
+                    <i class="fas fa-box-open text-primary"></i>
+                    <div>
+                        <p class="mb-0"><strong>${pedidosPendientes} pedidos especiales pendientes</strong></p>
+                        <small class="text-muted">Revisa pedidos</small>
+                    </div>
+                </div>
+            `;
+        }
+        
+        if (alertas === '') {
+            alertas = `
+                <div class="alerta-item">
+                    <i class="fas fa-check-circle text-success"></i>
+                    <div>
+                        <p class="mb-0">Todo está en orden</p>
+                    </div>
+                </div>
+            `;
+        }
+        
+        return alertas;
     }
 
     // ============================================
@@ -6792,6 +10546,7 @@ window.cargarVista = cargarVista;
 // EXPORTAR FUNCIONES GLOBALES PARA BOTONES
 // ============================================
 
+// Módulos existentes
 window.mostrarModalNuevoProducto = () => app.mostrarModalNuevoProducto();
 window.mostrarModalEditarProducto = (id) => app.mostrarModalEditarProducto(id);
 window.mostrarModalNuevoKit = () => app.mostrarModalNuevoKit();
@@ -6836,115 +10591,73 @@ window.mostrarModalTurnos = () => app.mostrarModalTurnos();
 // Presupuestos
 window.mostrarModalPresupuestos = () => app.mostrarModalPresupuestos();
 
-window.cerrarModal = (id) => app.cerrarModal(id);
+// ============================================
+// NUEVOS MÓDULOS
+// ============================================
 
-window.editarProducto = (id) => app.mostrarModalEditarProducto(id);
-window.eliminarProducto = (id) => app.eliminarProducto(id);
-window.guardarNuevoProducto = () => app.guardarNuevoProducto();
-window.guardarEdicionProducto = () => app.guardarEdicionProducto();
-window.agregarProductoKit = () => app.agregarProductoKit();
-window.guardarNuevoKit = () => app.guardarNuevoKit();
-window.agregarStock = (id) => app.mostrarMensaje('Función en desarrollo', 'info');
-window.verMovimientos = (id) => app.verMovimientos(id);
-window.verComponentesKit = (id) => app.verComponentesKit(id);
+// Series y Lotes
+window.mostrarModalSeries = () => app.mostrarModalSeries();
+window.mostrarModalNuevoSerie = () => app.mostrarModalNuevoSerie();
+window.mostrarModalLotes = () => app.mostrarModalLotes();
+window.mostrarModalNuevoLote = () => app.mostrarModalNuevoLote();
 
-window.editarCategoria = (id) => app.mostrarModalEditarCategoria(id);
-window.eliminarCategoria = (id) => app.eliminarCategoria(id);
+// Taller y Servicios
+window.mostrarModalOrdenesTrabajo = () => app.mostrarModalOrdenesTrabajo();
+window.mostrarModalNuevaOrdenTrabajo = () => app.mostrarModalNuevaOrdenTrabajo();
+window.agregarRepuestoOrden = () => app.agregarRepuestoOrden();
+window.actualizarPrecioRepuesto = (select) => app.actualizarPrecioRepuesto(select);
+window.calcularTotalesOrden = () => app.calcularTotalesOrden();
+window.verDetalleOrdenTrabajo = (id) => app.verDetalleOrdenTrabajo(id);
+window.actualizarEstadoOrden = (id) => app.actualizarEstadoOrden(id);
+window.imprimirOrdenTrabajo = (id) => app.imprimirOrdenTrabajo(id);
+window.convertirOrdenAFactura = (id) => app.convertirOrdenAFactura(id);
 
-window.verDetalleVenta = (id) => app.verDetalleVenta(id);
-window.imprimirFactura = (id) => app.imprimirFactura(id);
-window.enviarFacturaEmail = (id) => app.enviarFacturaEmail(id);
-window.enviarWhatsApp = (id) => app.enviarWhatsApp(id);
-window.anularVenta = (id) => app.anularVenta(id);
-window.seleccionarTipoEntrega = (tipo) => app.seleccionarTipoEntrega(tipo);
+// Recetas Médicas
+window.mostrarModalRecetasMedicas = () => app.mostrarModalRecetasMedicas();
+window.mostrarModalNuevaReceta = () => app.mostrarModalNuevaReceta();
+window.agregarMedicamentoReceta = () => app.agregarMedicamentoReceta();
+window.verDetalleReceta = (id) => app.verDetalleReceta(id);
+window.despacharReceta = (id) => app.despacharReceta(id);
+window.imprimirReceta = (id) => app.imprimirReceta(id);
 
-// Funciones para modificación de ventas
-window.agregarAlCarritoModificacion = (id) => app.agregarAlCarritoModificacion(id);
-window.aumentarCantidadModificacion = (i) => app.aumentarCantidadModificacion(i);
-window.disminuirCantidadModificacion = (i) => app.disminuirCantidadModificacion(i);
-window.eliminarDelCarritoModificacion = (i) => app.eliminarDelCarritoModificacion(i);
-window.guardarModificacionVenta = () => app.guardarModificacionVenta();
+// Vehículos
+window.mostrarModalVehiculos = () => app.mostrarModalVehiculos();
+window.mostrarModalNuevoVehiculo = (clienteId) => app.mostrarModalNuevoVehiculo(clienteId);
+window.verHistorialVehiculo = (id) => app.verHistorialVehiculo(id);
+window.guardarRecordatorioMantenimiento = (id) => app.guardarRecordatorioMantenimiento(id);
+window.editarVehiculo = (id) => app.editarVehiculo(id);
+window.mostrarModalNuevaOrdenTrabajoConVehiculo = (id) => app.mostrarModalNuevaOrdenTrabajoConVehiculo(id);
+window.verVehiculosCliente = (id) => app.verVehiculosCliente(id);
 
-window.editarGasto = (id) => app.mostrarModalEditarGasto(id);
-window.eliminarGasto = (id) => app.eliminarGasto(id);
-window.guardarNuevoGasto = () => app.guardarNuevoGasto();
-window.guardarEdicionGasto = () => app.guardarEdicionGasto();
+// Órdenes de Compra
+window.mostrarModalOrdenesCompra = () => app.mostrarModalOrdenesCompra();
+window.mostrarModalNuevaOrdenCompra = (proveedorId) => app.mostrarModalNuevaOrdenCompra(proveedorId);
+window.agregarProductoOC = () => app.agregarProductoOC();
+window.actualizarPrecioOC = (select) => app.actualizarPrecioOC(select);
+window.calcularTotalOC = () => app.calcularTotalOC();
+window.verDetalleOrdenCompra = (id) => app.verDetalleOrdenCompra(id);
+window.recibirOrdenCompra = (id) => app.recibirOrdenCompra(id);
+window.imprimirOrdenCompra = (id) => app.imprimirOrdenCompra(id);
 
-// Clientes
-window.editarCliente = (id) => app.editarCliente(id);
-window.guardarNuevoCliente = () => app.guardarNuevoCliente();
-window.guardarEdicionCliente = () => app.guardarEdicionCliente();
-window.verHistorialCliente = (id) => app.verHistorialCliente(id);
+// Pedidos Especiales
+window.mostrarModalPedidosEspeciales = () => app.mostrarModalPedidosEspeciales();
+window.mostrarModalNuevoPedidoEspecial = () => app.mostrarModalNuevoPedidoEspecial();
+window.marcarPedidoRecibido = (id) => app.marcarPedidoRecibido(id);
+window.notificarClientePedido = (id) => app.notificarClientePedido(id);
 
-// Proveedores
-window.editarProveedor = (id) => app.editarProveedor(id);
-window.guardarNuevoProveedor = () => app.guardarNuevoProveedor();
-window.guardarEdicionProveedor = () => app.guardarEdicionProveedor();
-window.verProductosProveedor = (id) => app.verProductosProveedor(id);
-
-// Promociones
-window.editarPromocion = (id) => app.editarPromocion(id);
-window.eliminarPromocion = (id) => app.eliminarPromocion(id);
-window.guardarNuevaPromocion = () => app.guardarNuevaPromocion();
-
-// Mesas
-window.abrirMesa = (id) => app.abrirMesa(id);
-window.configurarMesas = () => app.configurarMesas();
-window.agregarMesa = () => app.agregarMesa();
-window.eliminarMesa = (id) => app.eliminarMesa(id);
-window.guardarConfigMesas = () => app.guardarConfigMesas();
-
-// Comisiones
-window.editarComision = (id) => app.editarComision(id);
-window.eliminarComision = (id) => app.eliminarComision(id);
-window.guardarNuevaComision = () => app.guardarNuevaComision();
-
-// Apartados
-window.agregarProductoApartado = () => app.agregarProductoApartado();
-window.guardarNuevoApartado = () => app.guardarNuevoApartado();
-window.cobrarApartado = (id) => app.cobrarApartado(id);
-window.cancelarApartado = (id) => app.cancelarApartado(id);
-
-// Créditos
-window.abonarCredito = (id) => app.abonarCredito(id);
-window.verDetalleCredito = (id) => app.verDetalleCredito(id);
-
-// Turnos
-window.abrirTurno = () => app.abrirTurno();
-window.cerrarTurno = () => app.cerrarTurno();
-
-// Presupuestos
-window.agregarProductoPresupuesto = () => app.agregarProductoPresupuesto();
-window.guardarNuevoPresupuesto = () => app.guardarNuevoPresupuesto();
-window.convertirPresupuestoAVenta = (id) => app.convertirPresupuestoAVenta(id);
-window.verPresupuesto = (id) => app.verPresupuesto(id);
-window.imprimirPresupuesto = (id) => app.imprimirPresupuesto(id);
-
-window.exportarReporteVentas = () => app.exportarReporteVentas();
-window.exportarReporteGastos = () => app.exportarReporteGastos();
-window.exportarReporteInventario = () => app.exportarReporteInventario();
-window.exportarReporteCompleto = () => app.exportarReporteCompleto();
-
-window.guardarConfigNegocio = () => app.guardarConfigNegocio();
-window.guardarConfigFinanzas = () => app.guardarConfigFinanzas();
-window.guardarConfigHorario = () => app.guardarConfigHorario();
-window.guardarConfigPagos = () => app.guardarConfigPagos();
-window.guardarConfigNotificaciones = () => app.guardarConfigNotificaciones();
-window.crearBackup = () => app.crearBackup();
-window.restaurarBackup = () => app.restaurarBackup();
-window.resetearDatos = () => app.resetearDatos();
-
-// Funciones del carrito
-window.agregarAlCarrito = (id) => app.agregarAlCarrito(id);
-window.aumentarCantidad = (i) => app.aumentarCantidad(i);
-window.disminuirCantidad = (i) => app.disminuirCantidad(i);
-window.eliminarDelCarrito = (i) => app.eliminarDelCarrito(i);
-window.limpiarCarrito = () => app.limpiarCarrito();
-window.finalizarVenta = () => app.finalizarVenta();
+// Devoluciones y Garantías
+window.mostrarModalDevoluciones = () => app.mostrarModalDevoluciones();
+window.mostrarModalNuevaDevolucion = () => app.mostrarModalNuevaDevolucion();
+window.cargarProductosVentaDevolucion = (ventaId) => app.cargarProductosVentaDevolucion(ventaId);
+window.seleccionarProductoDevolucion = (nombre, cantidad, precio) => app.seleccionarProductoDevolucion(nombre, cantidad, precio);
+window.verDetalleDevolucion = (id) => app.verDetalleDevolucion(id);
+window.procesarDevolucion = (id) => app.procesarDevolucion(id);
+window.verDetalleGarantia = (id) => app.verDetalleGarantia(id);
 
 // ============================================
 // VERIFICACIÓN FINAL
 // ============================================
 
-console.log('%c✅ InvPlanet App v14.0 - MEGA COMPLETA (TODOS LOS MÓDULOS)', 'background: #27ae60; color: white; padding: 10px 15px; border-radius: 5px; font-size: 14px; font-weight: bold;');
-console.log('📦 Módulos incluidos: Usuarios, Clientes, Proveedores, Promociones, Kits, Mesas, Comisiones, Apartados, Créditos, Turnos, Presupuestos');
+console.log('%c✅ InvPlanet App v15.0 - MEGA COMPLETA CON TODOS LOS MÓDULOS CRÍTICOS', 'background: #27ae60; color: white; padding: 10px 15px; border-radius: 5px; font-size: 14px; font-weight: bold;');
+console.log('📦 Módulos nuevos: Series/Lotes, Taller, Recetas, Vehículos, Compras, Pedidos Especiales, Devoluciones');
+console.log('📦 Módulos existentes: Usuarios, Clientes, Proveedores, Promociones, Kits, Mesas, Comisiones, Apartados, Créditos, Turnos, Presupuestos');
