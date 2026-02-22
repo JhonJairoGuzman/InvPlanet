@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>InvPlanet - Dashboard Completo</title>
+    <title>InvPlanet - Dashboard</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="css/auth.css">
     <link rel="icon" href="assets/favicon.ico" type="image/x-icon">
     <style>
         /* ============================================
-           ESTILOS MEJORADOS PARA TODOS LOS MÓDULOS
+           ESTILOS MEJORADOS
            ============================================ */
         
         /* Variables globales */
@@ -211,10 +211,10 @@
         }
 
         /* ============================================
-           NUEVOS ESTILOS PARA MÓDULOS ADICIONALES
+           ESTILOS PARA EL MENÚ SIMPLIFICADO
            ============================================ */
 
-        /* Menú expandido */
+        /* Menú */
         .nav-menu {
             list-style: none;
             padding: 0;
@@ -270,7 +270,7 @@
             letter-spacing: 1px;
         }
 
-        /* Tarjetas de módulos */
+        /* Tarjetas de módulos (para la pantalla de bienvenida) */
         .modules-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -530,7 +530,7 @@
     <!-- Main Content -->
     <div class="container">
         <div class="main-content">
-            <!-- Sidebar Mejorado con TODOS los módulos -->
+            <!-- Sidebar SIMPLIFICADO -->
             <nav class="sidebar">
                 <div class="sidebar-header">
                     <h2><i class="fas fa-bars"></i> Menú Principal</h2>
@@ -571,7 +571,7 @@
                     <li class="nav-divider"></li>
                     <li class="nav-section-title">Gestión</li>
                     
-                    <!-- Nuevos módulos -->
+                    <!-- Módulos de gestión que abren modales -->
                     <li class="nav-item">
                         <a href="#" class="nav-link" onclick="window.app.mostrarModalUsuarios()">
                             <i class="fas fa-users"></i>
@@ -592,65 +592,6 @@
                     </li>
                     
                     <li class="nav-divider"></li>
-                    <li class="nav-section-title">Módulos Críticos</li>
-                    
-                    <!-- SERIES Y LOTES (CRÍTICO) -->
-                    <li class="nav-item">
-                        <a href="#" class="nav-link" onclick="window.app.mostrarModalSeries()">
-                            <i class="fas fa-fingerprint"></i>
-                            <span>Series y Lotes</span>
-                        </a>
-                    </li>
-                    
-                    <!-- TALLER Y SERVICIOS -->
-                    <li class="nav-item">
-                        <a href="#" class="nav-link" onclick="window.app.mostrarModalOrdenesTrabajo()">
-                            <i class="fas fa-tools"></i>
-                            <span>Taller y Servicios</span>
-                        </a>
-                    </li>
-                    
-                    <!-- RECETAS MÉDICAS -->
-                    <li class="nav-item">
-                        <a href="#" class="nav-link" onclick="window.app.mostrarModalRecetasMedicas()">
-                            <i class="fas fa-prescription"></i>
-                            <span>Recetas Médicas</span>
-                        </a>
-                    </li>
-                    
-                    <!-- VEHÍCULOS -->
-                    <li class="nav-item">
-                        <a href="#" class="nav-link" onclick="window.app.mostrarModalVehiculos()">
-                            <i class="fas fa-car"></i>
-                            <span>Vehículos</span>
-                        </a>
-                    </li>
-                    
-                    <!-- ÓRDENES DE COMPRA -->
-                    <li class="nav-item">
-                        <a href="#" class="nav-link" onclick="window.app.mostrarModalOrdenesCompra()">
-                            <i class="fas fa-shopping-cart"></i>
-                            <span>Órdenes de Compra</span>
-                        </a>
-                    </li>
-                    
-                    <!-- PEDIDOS ESPECIALES -->
-                    <li class="nav-item">
-                        <a href="#" class="nav-link" onclick="window.app.mostrarModalPedidosEspeciales()">
-                            <i class="fas fa-box-open"></i>
-                            <span>Pedidos Especiales</span>
-                        </a>
-                    </li>
-                    
-                    <!-- DEVOLUCIONES Y GARANTÍAS -->
-                    <li class="nav-item">
-                        <a href="#" class="nav-link" onclick="window.app.mostrarModalDevoluciones()">
-                            <i class="fas fa-undo-alt"></i>
-                            <span>Devoluciones y Garantías</span>
-                        </a>
-                    </li>
-                    
-                    <li class="nav-divider"></li>
                     <li class="nav-section-title">Operaciones</li>
                     
                     <li class="nav-item">
@@ -665,12 +606,6 @@
                             <span>Mesas</span>
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a href="#" class="nav-link" onclick="window.app.mostrarModalComisiones()">
-                            <i class="fas fa-hand-holding-usd"></i>
-                            <span>Comisiones</span>
-                        </a>
-                    </li>
                     
                     <li class="nav-divider"></li>
                     <li class="nav-section-title">Finanzas</li>
@@ -679,30 +614,6 @@
                         <a href="#" class="nav-link" data-view="gastos">
                             <i class="fas fa-money-bill-wave"></i>
                             <span>Gastos</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="#" class="nav-link" onclick="window.app.mostrarModalApartados()">
-                            <i class="fas fa-box-open"></i>
-                            <span>Apartados</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="#" class="nav-link" onclick="window.app.mostrarModalCreditos()">
-                            <i class="fas fa-credit-card"></i>
-                            <span>Créditos</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="#" class="nav-link" onclick="window.app.mostrarModalTurnos()">
-                            <i class="fas fa-clock"></i>
-                            <span>Turnos</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="#" class="nav-link" onclick="window.app.mostrarModalPresupuestos()">
-                            <i class="fas fa-file-signature"></i>
-                            <span>Presupuestos</span>
                         </a>
                     </li>
                     
@@ -721,9 +632,6 @@
                     <div class="time-display">
                         <p id="currentDate"></p>
                         <p id="currentTime"></p>
-                    </div>
-                    <div class="turno-info" id="turnoInfo" style="margin-top: 10px; padding: 10px; background: var(--light); border-radius: var(--radius-sm); display: none;">
-                        <small><i class="fas fa-clock"></i> <span id="turnoEstado">Turno cerrado</span></small>
                     </div>
                 </div>
             </nav>
@@ -745,41 +653,6 @@
                             <h4>Ventas</h4>
                             <p>Registra nuevas ventas</p>
                         </div>
-                        <div class="module-card" onclick="window.app.mostrarModalSeries()">
-                            <i class="fas fa-fingerprint"></i>
-                            <h4>Series y Lotes</h4>
-                            <p>Control de lotes y vencimientos</p>
-                        </div>
-                        <div class="module-card" onclick="window.app.mostrarModalOrdenesTrabajo()">
-                            <i class="fas fa-tools"></i>
-                            <h4>Taller</h4>
-                            <p>Órdenes de trabajo</p>
-                        </div>
-                        <div class="module-card" onclick="window.app.mostrarModalRecetasMedicas()">
-                            <i class="fas fa-prescription"></i>
-                            <h4>Recetas</h4>
-                            <p>Recetas médicas</p>
-                        </div>
-                        <div class="module-card" onclick="window.app.mostrarModalVehiculos()">
-                            <i class="fas fa-car"></i>
-                            <h4>Vehículos</h4>
-                            <p>Registro de vehículos</p>
-                        </div>
-                        <div class="module-card" onclick="window.app.mostrarModalOrdenesCompra()">
-                            <i class="fas fa-shopping-cart"></i>
-                            <h4>Compras</h4>
-                            <p>Órdenes de compra</p>
-                        </div>
-                        <div class="module-card" onclick="window.app.mostrarModalPedidosEspeciales()">
-                            <i class="fas fa-box-open"></i>
-                            <h4>Pedidos Especiales</h4>
-                            <p>Encargos a proveedores</p>
-                        </div>
-                        <div class="module-card" onclick="window.app.mostrarModalDevoluciones()">
-                            <i class="fas fa-undo-alt"></i>
-                            <h4>Devoluciones</h4>
-                            <p>Garantías y notas crédito</p>
-                        </div>
                         <div class="module-card" onclick="window.app.mostrarModalClientes()">
                             <i class="fas fa-user-tie"></i>
                             <h4>Clientes</h4>
@@ -790,10 +663,10 @@
                             <h4>Mesas</h4>
                             <p>Gestiona el restaurante</p>
                         </div>
-                        <div class="module-card" onclick="window.app.mostrarModalTurnos()">
-                            <i class="fas fa-clock"></i>
-                            <h4>Turnos</h4>
-                            <p>Control de turnos</p>
+                        <div class="module-card" onclick="window.app.loadView('gastos')">
+                            <i class="fas fa-money-bill-wave"></i>
+                            <h4>Gastos</h4>
+                            <p>Controla tus gastos</p>
                         </div>
                     </div>
                     <div class="loading-spinner" style="margin-top: 20px;" id="initialLoading"></div>
@@ -803,7 +676,7 @@
         </div>
     </div>
 
-    <!-- Quick Actions -->
+    <!-- Quick Actions SIMPLIFICADO -->
     <div class="quick-actions">
         <button class="quick-actions-btn" id="quickActionsBtn" onclick="document.getElementById('quickActionsMenu').classList.toggle('show')">
             <i class="fas fa-plus"></i>
@@ -826,28 +699,6 @@
             </button>
             <button onclick="window.app.mostrarModalNuevaPromocion(); document.getElementById('quickActionsMenu').classList.remove('show')">
                 <i class="fas fa-tag"></i> Nueva Promoción
-            </button>
-            <button onclick="window.app.mostrarModalNuevoApartado(); document.getElementById('quickActionsMenu').classList.remove('show')">
-                <i class="fas fa-box-open"></i> Nuevo Apartado
-            </button>
-            <div class="nav-divider"></div>
-            <button onclick="window.app.mostrarModalNuevaOrdenTrabajo(); document.getElementById('quickActionsMenu').classList.remove('show')">
-                <i class="fas fa-tools"></i> Nueva Orden Taller
-            </button>
-            <button onclick="window.app.mostrarModalNuevaReceta(); document.getElementById('quickActionsMenu').classList.remove('show')">
-                <i class="fas fa-prescription"></i> Nueva Receta
-            </button>
-            <button onclick="window.app.mostrarModalNuevoVehiculo(); document.getElementById('quickActionsMenu').classList.remove('show')">
-                <i class="fas fa-car"></i> Nuevo Vehículo
-            </button>
-            <button onclick="window.app.mostrarModalNuevaOrdenCompra(); document.getElementById('quickActionsMenu').classList.remove('show')">
-                <i class="fas fa-shopping-cart"></i> Nueva Orden Compra
-            </button>
-            <button onclick="window.app.mostrarModalNuevoPedidoEspecial(); document.getElementById('quickActionsMenu').classList.remove('show')">
-                <i class="fas fa-box-open"></i> Nuevo Pedido Especial
-            </button>
-            <button onclick="window.app.mostrarModalNuevaDevolucion(); document.getElementById('quickActionsMenu').classList.remove('show')">
-                <i class="fas fa-undo-alt"></i> Nueva Devolución
             </button>
         </div>
     </div>
@@ -1080,18 +931,6 @@
             }
         }
         
-        function actualizarInfoTurno() {
-            const turnoInfo = document.getElementById('turnoInfo');
-            const turnoEstado = document.getElementById('turnoEstado');
-            
-            if (window.app && window.app.turnoActual) {
-                turnoInfo.style.display = 'block';
-                turnoEstado.innerHTML = `<i class="fas fa-play"></i> Turno abierto - Efectivo: $${window.app.turnoActual.efectivoInicial || 0}`;
-            } else {
-                turnoInfo.style.display = 'none';
-            }
-        }
-        
         // ============================================
         // INICIALIZACIÓN PRINCIPAL
         // ============================================
@@ -1150,10 +989,6 @@
                             
                             const loadingElement = document.getElementById('initialLoading');
                             if (loadingElement) loadingElement.style.display = 'none';
-                            
-                            // Actualizar info del turno cada 5 segundos
-                            setInterval(actualizarInfoTurno, 5000);
-                            setTimeout(actualizarInfoTurno, 1000);
                         }
                     }
                 } catch (error) {
@@ -1162,7 +997,7 @@
                 }
             }, 500);
             
-            // Funciones globales para nuevos módulos
+            // Funciones globales para módulos activos
             window.mostrarModalNuevoProducto = () => window.app?.mostrarModalNuevoProducto?.() || mostrarMensaje('Función no disponible', 'info');
             window.mostrarModalNuevaCategoria = () => window.app?.mostrarModalNuevaCategoria?.() || mostrarMensaje('Función no disponible', 'info');
             window.mostrarModalNuevaVenta = () => window.app?.mostrarModalNuevaVenta?.() || mostrarMensaje('Función no disponible', 'info');
@@ -1170,25 +1005,7 @@
             window.mostrarModalNuevoCliente = () => window.app?.mostrarModalNuevoCliente?.() || mostrarMensaje('Función no disponible', 'info');
             window.mostrarModalNuevoProveedor = () => window.app?.mostrarModalNuevoProveedor?.() || mostrarMensaje('Función no disponible', 'info');
             window.mostrarModalNuevaPromocion = () => window.app?.mostrarModalNuevaPromocion?.() || mostrarMensaje('Función no disponible', 'info');
-            window.mostrarModalNuevoApartado = () => window.app?.mostrarModalNuevoApartado?.() || mostrarMensaje('Función no disponible', 'info');
-            
-            // Funciones para nuevos módulos críticos
-            window.mostrarModalSeries = () => window.app?.mostrarModalSeries?.() || mostrarMensaje('Función no disponible', 'info');
-            window.mostrarModalNuevoSerie = () => window.app?.mostrarModalNuevoSerie?.() || mostrarMensaje('Función no disponible', 'info');
-            window.mostrarModalLotes = () => window.app?.mostrarModalLotes?.() || mostrarMensaje('Función no disponible', 'info');
-            window.mostrarModalNuevoLote = () => window.app?.mostrarModalNuevoLote?.() || mostrarMensaje('Función no disponible', 'info');
-            window.mostrarModalOrdenesTrabajo = () => window.app?.mostrarModalOrdenesTrabajo?.() || mostrarMensaje('Función no disponible', 'info');
-            window.mostrarModalNuevaOrdenTrabajo = () => window.app?.mostrarModalNuevaOrdenTrabajo?.() || mostrarMensaje('Función no disponible', 'info');
-            window.mostrarModalRecetasMedicas = () => window.app?.mostrarModalRecetasMedicas?.() || mostrarMensaje('Función no disponible', 'info');
-            window.mostrarModalNuevaReceta = () => window.app?.mostrarModalNuevaReceta?.() || mostrarMensaje('Función no disponible', 'info');
-            window.mostrarModalVehiculos = () => window.app?.mostrarModalVehiculos?.() || mostrarMensaje('Función no disponible', 'info');
-            window.mostrarModalNuevoVehiculo = () => window.app?.mostrarModalNuevoVehiculo?.() || mostrarMensaje('Función no disponible', 'info');
-            window.mostrarModalOrdenesCompra = () => window.app?.mostrarModalOrdenesCompra?.() || mostrarMensaje('Función no disponible', 'info');
-            window.mostrarModalNuevaOrdenCompra = () => window.app?.mostrarModalNuevaOrdenCompra?.() || mostrarMensaje('Función no disponible', 'info');
-            window.mostrarModalPedidosEspeciales = () => window.app?.mostrarModalPedidosEspeciales?.() || mostrarMensaje('Función no disponible', 'info');
-            window.mostrarModalNuevoPedidoEspecial = () => window.app?.mostrarModalNuevoPedidoEspecial?.() || mostrarMensaje('Función no disponible', 'info');
-            window.mostrarModalDevoluciones = () => window.app?.mostrarModalDevoluciones?.() || mostrarMensaje('Función no disponible', 'info');
-            window.mostrarModalNuevaDevolucion = () => window.app?.mostrarModalNuevaDevolucion?.() || mostrarMensaje('Función no disponible', 'info');
+            window.mostrarMapaMesas = () => window.app?.mostrarMapaMesas?.() || mostrarMensaje('Función no disponible', 'info');
             
             window.cerrarModal = (modalId) => {
                 const modal = document.getElementById(modalId);
@@ -1204,7 +1021,7 @@
         
         // Funciones de depuración
         window.mostrarEstadoApp = function() {
-            console.log('=== ESTADO DE LA APP ===');
+            console.log('=== ESTADO DE LA APP (VERSIÓN LIMPIA) ===');
             console.log('App:', !!window.app);
             console.log('Storage:', !!window.storage);
             console.log('Auth:', typeof checkSession === 'function');
@@ -1212,16 +1029,8 @@
             console.log('Usuarios:', window.app?.usuarios?.length || 0);
             console.log('Clientes:', window.app?.clientes?.length || 0);
             console.log('Proveedores:', window.app?.proveedores?.length || 0);
-            console.log('Series:', window.app?.series?.length || 0);
-            console.log('Lotes:', window.app?.lotes?.length || 0);
-            console.log('Órdenes Trabajo:', window.app?.ordenesTrabajo?.length || 0);
-            console.log('Recetas:', window.app?.recetasMedicas?.length || 0);
-            console.log('Vehículos:', window.app?.vehiculos?.length || 0);
-            console.log('Órdenes Compra:', window.app?.ordenesCompra?.length || 0);
-            console.log('Pedidos Especiales:', window.app?.pedidosEspeciales?.length || 0);
-            console.log('Devoluciones:', window.app?.devoluciones?.length || 0);
-            console.log('Garantías:', window.app?.garantias?.length || 0);
-            console.log('Turno:', window.app?.turnoActual ? 'Abierto' : 'Cerrado');
+            console.log('Promociones:', window.app?.promociones?.length || 0);
+            console.log('Mesas:', window.app?.mesas?.length || 0);
             console.log('=======================');
         };
         
@@ -1236,7 +1045,7 @@
             }
         };
         
-        console.log('Dashboard HTML listo - Versión completa con todos los módulos críticos');
+        console.log('Dashboard HTML listo - Versión simplificada con módulos esenciales');
     </script>
 </body>
 </html>
