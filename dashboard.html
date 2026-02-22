@@ -1031,7 +1031,17 @@
             console.log('Proveedores:', window.app?.proveedores?.length || 0);
             console.log('Promociones:', window.app?.promociones?.length || 0);
             console.log('Mesas:', window.app?.mesas?.length || 0);
+            console.log('Config Fidelización:', window.app?.configFidelizacion || 'No disponible');
             console.log('=======================');
+        };
+        
+        // Nueva función de depuración para fidelización
+        window.mostrarEstadoAppFidelizacion = function() {
+            console.log('=== ESTADO DE FIDELIZACIÓN ===');
+            console.log('Config:', window.app?.configFidelizacion);
+            console.log('Puntos a canjear en venta actual:', window.app?.puntosACanjear);
+            console.log('Productos gratis disponibles en config:', window.app?.configFidelizacion?.productosGratis);
+            console.log('===============================');
         };
         
         window.reiniciarApp = function() {
@@ -1045,7 +1055,7 @@
             }
         };
         
-        console.log('Dashboard HTML listo - Versión simplificada con módulos esenciales');
+        console.log('Dashboard HTML listo - Versión simplificada con módulos esenciales y soporte para fidelización');
     </script>
 </body>
 </html>
