@@ -1,6 +1,6 @@
 /* ============================================
    InvPlanet - Estilos Principales
-   Versión 3.2.0 - CATEGORÍAS AMPLIADAS Y MEJORAS VISUALES
+   Versión 4.0.0 - RECETAS Y FIDELIZACIÓN
    ============================================ */
 
 /* ============================================
@@ -42,6 +42,17 @@
     --info-50: #e1f5fe;
     --info-500: #03a9f4;
     --info-600: #039be5;
+    
+    /* NUEVO: Colores para recetas y fidelización */
+    --recipe-50: #f3e5f5;
+    --recipe-500: #9b59b6;
+    --recipe-600: #8e44ad;
+    --recipe-700: #6c3483;
+    
+    --points-50: #fef9e7;
+    --points-500: #f1c40f;
+    --points-600: #f39c12;
+    --points-700: #d4ac0d;
     
     /* Grises */
     --gray-50: #fafafa;
@@ -539,6 +550,17 @@ header {
     color: white;
 }
 
+/* NUEVO: Botones para recetas y puntos */
+.btn-recipe {
+    background: linear-gradient(135deg, var(--recipe-500), var(--recipe-600));
+    color: white;
+}
+
+.btn-points {
+    background: linear-gradient(135deg, var(--points-500), var(--points-600));
+    color: var(--gray-900);
+}
+
 .btn-outline-primary {
     background: transparent;
     border: 2px solid var(--primary-600);
@@ -570,6 +592,28 @@ header {
 .btn-outline-danger:hover {
     background: var(--danger-500);
     color: white;
+}
+
+.btn-outline-recipe {
+    background: transparent;
+    border: 2px solid var(--recipe-500);
+    color: var(--recipe-500);
+}
+
+.btn-outline-recipe:hover {
+    background: var(--recipe-500);
+    color: white;
+}
+
+.btn-outline-points {
+    background: transparent;
+    border: 2px solid var(--points-500);
+    color: var(--points-500);
+}
+
+.btn-outline-points:hover {
+    background: var(--points-500);
+    color: var(--gray-900);
 }
 
 .btn-small {
@@ -1034,6 +1078,17 @@ select.form-control {
     color: white;
 }
 
+/* NUEVO: Badges para recetas y puntos */
+.badge-recipe {
+    background: linear-gradient(135deg, var(--recipe-500), var(--recipe-600));
+    color: white;
+}
+
+.badge-points {
+    background: linear-gradient(135deg, var(--points-500), var(--points-600));
+    color: var(--gray-900);
+}
+
 .badge-outline-success {
     background: transparent;
     border: 2px solid var(--success-500);
@@ -1050,6 +1105,18 @@ select.form-control {
     background: transparent;
     border: 2px solid var(--danger-500);
     color: var(--danger-500);
+}
+
+.badge-outline-recipe {
+    background: transparent;
+    border: 2px solid var(--recipe-500);
+    color: var(--recipe-500);
+}
+
+.badge-outline-points {
+    background: transparent;
+    border: 2px solid var(--points-500);
+    color: var(--points-500);
 }
 
 /* Indicadores */
@@ -1105,6 +1172,25 @@ select.form-control {
 
 .indicator-info::before {
     background: var(--info-500);
+}
+
+/* NUEVO: Indicadores para recetas */
+.indicator-recipe {
+    background: var(--recipe-50);
+    color: var(--recipe-700);
+}
+
+.indicator-recipe::before {
+    background: var(--recipe-500);
+}
+
+.indicator-points {
+    background: var(--points-50);
+    color: var(--points-700);
+}
+
+.indicator-points::before {
+    background: var(--points-500);
 }
 
 /* ============================================
@@ -1214,6 +1300,19 @@ select.form-control {
     color: var(--info-700);
 }
 
+/* NUEVO: Alertas para recetas */
+.alert-recipe {
+    background: var(--recipe-50);
+    border-left-color: var(--recipe-500);
+    color: var(--recipe-700);
+}
+
+.alert-points {
+    background: var(--points-50);
+    border-left-color: var(--points-500);
+    color: var(--points-700);
+}
+
 .alert i {
     font-size: 1.3rem;
 }
@@ -1261,6 +1360,18 @@ select.form-control {
 .mensaje-flotante.info {
     background: linear-gradient(135deg, var(--info-500), var(--info-600));
     color: white;
+    border-left-color: white;
+}
+
+.mensaje-flotante.recipe {
+    background: linear-gradient(135deg, var(--recipe-500), var(--recipe-600));
+    color: white;
+    border-left-color: white;
+}
+
+.mensaje-flotante.points {
+    background: linear-gradient(135deg, var(--points-500), var(--points-600));
+    color: var(--gray-900);
     border-left-color: white;
 }
 
@@ -1365,7 +1476,7 @@ select.form-control {
 }
 
 /* ============================================
-   16. VISTA INVENTARIO
+   16. VISTA INVENTARIO (ACTUALIZADA)
    ============================================ */
 
 .inventario-view {
@@ -1398,8 +1509,26 @@ select.form-control {
     box-shadow: var(--shadow-sm);
 }
 
+/* Indicador de receta en productos */
+.recipe-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-1);
+    padding: 2px var(--spacing-2);
+    background: var(--recipe-50);
+    color: var(--recipe-600);
+    border-radius: var(--border-radius-full);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    margin-left: var(--spacing-2);
+}
+
+.recipe-indicator i {
+    font-size: 0.8rem;
+}
+
 /* ============================================
-   17. VISTA CATEGORÍAS - COMPLETAMENTE MEJORADA
+   17. VISTA CATEGORÍAS
    ============================================ */
 
 .categorias-view {
@@ -1639,7 +1768,7 @@ select.form-control {
 }
 
 /* ============================================
-   18. VISTA VENTAS
+   18. VISTA VENTAS (ACTUALIZADA CON PUNTOS)
    ============================================ */
 
 .ventas-view {
@@ -1699,8 +1828,32 @@ select.form-control {
     box-shadow: var(--shadow-sm);
 }
 
+/* Sección de puntos en ventas */
+.points-section {
+    background: linear-gradient(135deg, var(--points-50), white);
+    border: 2px solid var(--points-500);
+    border-radius: var(--border-radius-lg);
+    padding: var(--spacing-4);
+    margin-bottom: var(--spacing-4);
+}
+
+.points-section h5 {
+    color: var(--points-700);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    margin-top: 0;
+    margin-bottom: var(--spacing-3);
+}
+
+.points-display {
+    font-size: var(--font-size-2xl);
+    font-weight: var(--font-weight-bold);
+    color: var(--points-600);
+}
+
 /* ============================================
-   19. VISTA REPORTES - INCLUYE REPORTES POR CATEGORÍAS
+   19. VISTA REPORTES
    ============================================ */
 
 .reportes-view {
@@ -1911,6 +2064,109 @@ select.form-control {
 }
 
 /* ============================================
+   19.2 NUEVO: REPORTE DE RECETAS
+   ============================================ */
+
+.recetas-reporte {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: var(--spacing-5);
+    margin-top: var(--spacing-6);
+}
+
+.receta-reporte-card {
+    background: white;
+    border-radius: var(--border-radius-xl);
+    padding: var(--spacing-5);
+    box-shadow: var(--shadow-md);
+    border-left: 4px solid var(--recipe-500);
+    transition: all var(--transition-base);
+}
+
+.receta-reporte-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-lg);
+}
+
+.receta-reporte-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-4);
+    margin-bottom: var(--spacing-4);
+    padding-bottom: var(--spacing-4);
+    border-bottom: 1px solid var(--gray-200);
+}
+
+.receta-reporte-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: var(--border-radius-lg);
+    background: var(--recipe-50);
+    color: var(--recipe-600);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+}
+
+.receta-reporte-info h4 {
+    margin: 0 0 var(--spacing-1) 0;
+    font-size: var(--font-size-lg);
+    color: var(--gray-900);
+    font-weight: var(--font-weight-bold);
+}
+
+.receta-reporte-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-3);
+    margin-bottom: var(--spacing-4);
+    padding: var(--spacing-3);
+    background: var(--gray-50);
+    border-radius: var(--border-radius-lg);
+}
+
+.stat-item {
+    text-align: center;
+}
+
+.stat-item .label {
+    font-size: var(--font-size-xs);
+    color: var(--gray-600);
+    text-transform: uppercase;
+}
+
+.stat-item .value {
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-bold);
+    color: var(--gray-900);
+}
+
+.stat-item .value.positive {
+    color: var(--success-600);
+}
+
+.stat-item .value.negative {
+    color: var(--danger-600);
+}
+
+.receta-reporte-ingredientes {
+    max-height: 200px;
+    overflow-y: auto;
+    margin-bottom: var(--spacing-4);
+}
+
+.receta-reporte-ingredientes table {
+    width: 100%;
+    font-size: var(--font-size-sm);
+}
+
+.receta-reporte-ingredientes td {
+    padding: var(--spacing-2);
+    border-bottom: 1px solid var(--gray-200);
+}
+
+/* ============================================
    20. VISTA GASTOS
    ============================================ */
 
@@ -1951,33 +2207,33 @@ select.form-control {
 }
 
 /* ============================================
-   21. VISTA CONFIGURACIÓN
+   21. VISTA CONFIGURACIÓN (ACTUALIZADA)
    ============================================ */
 
 .configuracion-view {
     padding: var(--spacing-4);
 }
 
-.config-container {
+.config-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: var(--spacing-6);
+}
+
+.config-card {
     background: white;
-    border-radius: var(--border-radius-lg);
+    border-radius: var(--border-radius-xl);
     padding: var(--spacing-6);
-    box-shadow: var(--shadow-sm);
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--gray-200);
+    transition: var(--transition-base);
 }
 
-.config-section {
-    margin-bottom: var(--spacing-8);
-    padding-bottom: var(--spacing-6);
-    border-bottom: 2px solid var(--gray-200);
+.config-card:hover {
+    box-shadow: var(--shadow-lg);
 }
 
-.config-section:last-child {
-    border-bottom: none;
-    margin-bottom: 0;
-    padding-bottom: 0;
-}
-
-.config-section h3 {
+.config-card h3 {
     margin-top: 0;
     margin-bottom: var(--spacing-5);
     color: var(--gray-900);
@@ -1986,10 +2242,54 @@ select.form-control {
     display: flex;
     align-items: center;
     gap: var(--spacing-2);
+    padding-bottom: var(--spacing-3);
+    border-bottom: 2px solid var(--gray-200);
 }
 
-.config-section h3 i {
+.config-card h3 i {
     color: var(--primary-600);
+}
+
+.config-card h5 {
+    margin: var(--spacing-4) 0 var(--spacing-3);
+    color: var(--gray-800);
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+}
+
+/* NUEVO: Sección de fidelización en configuración */
+.fidelizacion-config {
+    background: var(--points-50);
+    border: 2px solid var(--points-500);
+    border-radius: var(--border-radius-lg);
+    padding: var(--spacing-4);
+    margin: var(--spacing-4) 0;
+}
+
+.fidelizacion-config h4 {
+    color: var(--points-700);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    margin-top: 0;
+    margin-bottom: var(--spacing-4);
+}
+
+.recetas-config {
+    background: var(--recipe-50);
+    border: 2px solid var(--recipe-500);
+    border-radius: var(--border-radius-lg);
+    padding: var(--spacing-4);
+    margin: var(--spacing-4) 0;
+}
+
+.recetas-config h4 {
+    color: var(--recipe-700);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    margin-top: 0;
+    margin-bottom: var(--spacing-4);
 }
 
 .checkbox-group {
@@ -2087,7 +2387,7 @@ select.form-control {
 }
 
 /* ============================================
-   22. VISTA CARRITO DE VENTAS
+   22. VISTA CARRITO DE VENTAS (ACTUALIZADA)
    ============================================ */
 
 .venta-container {
@@ -2273,6 +2573,8 @@ select.form-control {
 .text-primary { color: var(--primary-600); }
 .text-muted { color: var(--gray-600); }
 .text-white { color: white; }
+.text-recipe { color: var(--recipe-600); }
+.text-points { color: var(--points-600); }
 
 /* Márgenes */
 .m-0 { margin: 0; }
@@ -2423,6 +2725,10 @@ select.form-control {
 .bg-tech { background: linear-gradient(135deg, var(--tech-color), #1a2632); }
 .bg-other { background: linear-gradient(135deg, var(--other-color), #7e8c8d); }
 
+/* NUEVO: Fondos para recetas y puntos */
+.bg-recipe { background: linear-gradient(135deg, var(--recipe-500), var(--recipe-600)); }
+.bg-points { background: linear-gradient(135deg, var(--points-500), var(--points-600)); }
+
 /* Animaciones */
 .animate-fade-in { animation: fadeIn var(--transition-base); }
 .animate-slide-in { animation: slideIn var(--transition-base); }
@@ -2495,6 +2801,10 @@ select.form-control {
     
     .groups-grid {
         grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .config-grid {
+        grid-template-columns: 1fr;
     }
 }
 
@@ -2594,7 +2904,8 @@ select.form-control {
         grid-template-columns: repeat(2, 1fr);
     }
     
-    .categorias-reporte {
+    .categorias-reporte,
+    .recetas-reporte {
         grid-template-columns: 1fr;
     }
 }
@@ -2726,7 +3037,8 @@ select.form-control {
     .categoria-card,
     .stat-card,
     .resumen-card,
-    .reporte-container {
+    .reporte-container,
+    .receta-reporte-card {
         box-shadow: none;
         border: 1px solid var(--gray-300);
         break-inside: avoid;
@@ -2912,7 +3224,114 @@ select.form-control {
 }
 
 /* ============================================
-   28. UTILIDADES ADICIONALES PARA CATEGORÍAS
+   28. UTILIDADES ADICIONALES PARA RECETAS
+   ============================================ */
+
+/* Contador de recetas */
+.recetas-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--recipe-600);
+    color: white;
+    border-radius: var(--border-radius-full);
+    padding: 2px 8px;
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-bold);
+    margin-left: var(--spacing-2);
+}
+
+/* Tooltips para recetas */
+[data-tooltip-recipe] {
+    position: relative;
+    cursor: help;
+}
+
+[data-tooltip-recipe]:before {
+    content: attr(data-tooltip-recipe);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: var(--spacing-2) var(--spacing-3);
+    background: var(--recipe-700);
+    color: white;
+    border-radius: var(--border-radius-sm);
+    font-size: var(--font-size-xs);
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    transition: all var(--transition-base);
+    pointer-events: none;
+    z-index: var(--z-index-tooltip);
+}
+
+[data-tooltip-recipe]:hover:before {
+    opacity: 1;
+    visibility: visible;
+    bottom: 120%;
+}
+
+/* Estado vacío para recetas */
+.empty-recetas {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-16);
+    text-align: center;
+    background: var(--recipe-50);
+    border-radius: var(--border-radius-xl);
+    border: 2px dashed var(--recipe-500);
+}
+
+.empty-recetas i {
+    font-size: 3rem;
+    color: var(--recipe-500);
+    margin-bottom: var(--spacing-4);
+}
+
+.empty-recetas h4 {
+    color: var(--recipe-700);
+    margin-bottom: var(--spacing-2);
+}
+
+.empty-recetas p {
+    color: var(--recipe-600);
+    margin-bottom: var(--spacing-4);
+}
+
+/* Estado vacío para puntos */
+.empty-puntos {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-16);
+    text-align: center;
+    background: var(--points-50);
+    border-radius: var(--border-radius-xl);
+    border: 2px dashed var(--points-500);
+}
+
+.empty-puntos i {
+    font-size: 3rem;
+    color: var(--points-500);
+    margin-bottom: var(--spacing-4);
+}
+
+.empty-puntos h4 {
+    color: var(--points-700);
+    margin-bottom: var(--spacing-2);
+}
+
+.empty-puntos p {
+    color: var(--points-600);
+    margin-bottom: var(--spacing-4);
+}
+
+/* ============================================
+   29. UTILIDADES ADICIONALES PARA CATEGORÍAS
    ============================================ */
 
 /* Contador de categorías */
