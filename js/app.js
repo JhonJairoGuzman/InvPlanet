@@ -1,8 +1,8 @@
-﻿// js/app.js - VERSIÓN COMPLETA CON SISTEMA DE RECETAS Y MODIFICACIÓN DE VENTAS
+﻿// js/app.js - VERSIÓN COMPLETA CON SISTEMA DE RECETAS MANUALES Y FIDELIZACIÓN
 // ============================================
 // INCLUYE: Dashboard, Inventario, Categorías, Ventas (con puntos y canje),
-// Recetas (costo de producción), Gastos, Reportes, Configuración,
-// Clientes, Proveedores, Mesas y Usuarios
+// Recetas MANUALES (ingredientes con nombre, precio y cantidad), Gastos, 
+// Reportes, Configuración, Clientes, Proveedores, Mesas y Usuarios
 // ============================================
 
 class InvPlanetApp {
@@ -30,7 +30,7 @@ class InvPlanetApp {
         this.promociones = [];
         
         // ============================================
-        // NUEVO: SISTEMA DE RECETAS
+        // SISTEMA DE RECETAS MANUALES
         // ============================================
         this.recetas = [];
 
@@ -45,14 +45,14 @@ class InvPlanetApp {
         this.puntosACanjear = 0;
         this.productoGratisSeleccionado = null;
 
-        console.log('%c🔥 InvPlanet App v18.0 - CON SISTEMA DE RECETAS Y FIDELIZACIÓN', 'background: #27ae60; color: white; padding: 5px 10px; border-radius: 5px;');
-        console.log('✅ Módulos Activos: Dashboard, Inventario, Categorías, Ventas (con puntos y recetas), Gastos, Reportes, Configuración, Usuarios, Clientes, Proveedores, Mesas.');
+        console.log('%c🔥 InvPlanet App v4.0 - CON SISTEMA DE RECETAS MANUALES', 'background: #9b59b6; color: white; padding: 5px 10px; border-radius: 5px;');
+        console.log('✅ Módulos Activos: Dashboard, Inventario, Categorías, Ventas, Recetas Manuales, Fidelización');
 
         this.verificarStorage();
         this.cargarNombreNegocio();
         this.cargarConfiguracionEnvio();
         this.cargarConfiguracionFidelizacion();
-        this.cargarRecetas(); // <-- NUEVO: Cargar recetas
+        this.cargarRecetas();
         this.inicializarLectorBarra();
         this.cargarUsuarios();
         this.cargarClientes();
@@ -72,7 +72,6 @@ class InvPlanetApp {
             return;
         }
         console.log('✅ Storage disponible');
-
         const inventario = storage.getInventario();
         console.log(`📦 Productos en inventario: ${inventario.length}`);
     }
@@ -88,7 +87,7 @@ class InvPlanetApp {
     }
 
     // ============================================
-    // RECETAS - NUEVO SISTEMA
+    // RECETAS MANUALES - NUEVO SISTEMA MEJORADO
     // ============================================
 
     cargarRecetas() {
@@ -107,13 +106,11 @@ class InvPlanetApp {
         let costoTotalInsumos = 0;
         
         receta.ingredientes.forEach(ing => {
-            const productoIngrediente = storage.getProducto(ing.productoId);
-            if (productoIngrediente && productoIngrediente.costoUnitario) {
-                costoTotalInsumos += productoIngrediente.costoUnitario * ing.cantidad;
-            }
+            // Los ingredientes ahora tienen su propio precio guardado en la receta
+            costoTotalInsumos += (ing.precioUnitario || 0) * ing.cantidad;
         });
 
-        const costoPorUnidad = costoTotalInsumos / receta.rinde;
+        const costoPorUnidad = costoTotalInsumos / (receta.rinde || 1);
         
         return {
             costoTotalInsumos: costoTotalInsumos,
@@ -128,157 +125,133 @@ class InvPlanetApp {
 
         const faltantes = [];
         
-        for (let i = 0; i < cantidadSolicitada; i++) {
-            receta.ingredientes.forEach(ing => {
-                const ingrediente = storage.getProducto(ing.productoId);
-                if (!ingrediente) {
-                    faltantes.push({ nombre: ing.nombre || 'Desconocido', cantidadRequerida: ing.cantidad, disponible: 0 });
-                } else if (ingrediente.unidades < ing.cantidad) {
-                    faltantes.push({ 
-                        nombre: ingrediente.nombre, 
-                        cantidadRequerida: ing.cantidad, 
-                        disponible: ingrediente.unidades 
-                    });
-                }
-            });
-        }
+        receta.ingredientes.forEach(ing => {
+            // Verificamos en inventario si el ingrediente existe como producto
+            const ingrediente = storage.getProducto(ing.productoId);
+            if (!ingrediente) {
+                // Si no existe en inventario, lo consideramos como insumo externo
+                // y asumimos que siempre hay disponible
+                return;
+            }
+            
+            const cantidadNecesaria = ing.cantidad * cantidadSolicitada;
+            if (ingrediente.unidades < cantidadNecesaria) {
+                faltantes.push({ 
+                    nombre: ing.nombre, 
+                    cantidadRequerida: cantidadNecesaria, 
+                    disponible: ingrediente.unidades 
+                });
+            }
+        });
 
         return { 
             suficiente: faltantes.length === 0, 
-            faltantes: [...new Map(faltantes.map(item => [item.nombre, item])).values()] // Eliminar duplicados
+            faltantes: faltantes
         };
     }
 
-    mostrarModalNuevaReceta(productoVentaId = null) {
-        const inventario = storage.getInventario();
-        const ingredientesDisponibles = inventario.filter(p => !p.esKit && p.activo);
-        
-        let productoSeleccionado = null;
-        if (productoVentaId) {
-            productoSeleccionado = inventario.find(p => p.id === productoVentaId);
-        }
-
-        let productosVentaOptions = '<option value="">Selecciona un producto de venta</option>';
-        inventario.filter(p => p.esKit && p.activo).forEach(p => {
-            const selected = (productoSeleccionado && productoSeleccionado.id === p.id) ? 'selected' : '';
-            productosVentaOptions += `<option value="${p.id}" ${selected}>${p.nombre}</option>`;
-        });
-
-        let ingredientesOptions = '';
-        ingredientesDisponibles.forEach(i => {
-            ingredientesOptions += `<option value="${i.id}" data-nombre="${i.nombre}" data-costo="${i.costoUnitario || 0}">${i.nombre} (Stock: ${i.unidades} | Costo: $${i.costoUnitario || 0})</option>`;
-        });
-
-        const recetaExistente = productoVentaId ? this.recetas.find(r => r.productoId === productoVentaId) : null;
-
-        const modalHTML = `
-            <div class="modal-overlay active" id="modalNuevaReceta">
-                <div class="modal-content" style="max-width: 900px; max-height: 90vh; overflow-y: auto;">
-                    <div class="modal-header">
-                        <h3><i class="fas fa-utensils"></i> ${recetaExistente ? 'Editar Receta: ' + productoSeleccionado?.nombre : 'Nueva Receta'}</h3>
-                        <button class="close-modal" onclick="window.app.cerrarModal('modalNuevaReceta')">&times;</button>
-                    </div>
-                    <div class="modal-body">
-                        <form id="formReceta" onsubmit="return false;">
-                            <div class="form-group">
-                                <label>Producto a preparar *</label>
-                                <select id="recetaProductoId" class="form-control" required>
-                                    ${productosVentaOptions}
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label>Rinde para (cantidad de productos finales)</label>
-                                <input type="number" id="recetaRinde" class="form-control" value="${recetaExistente ? recetaExistente.rinde : 1}" min="1">
-                                <small>Ej: 1 = para 1 unidad, 10 = para 10 unidades (bandeja, lote, etc.)</small>
-                            </div>
-                            
-                            <h4>Ingredientes</h4>
-                            <div id="listaIngredientesReceta" class="mb-3">
-                                <!-- Los ingredientes se cargarán aquí -->
-                            </div>
-                            
-                            <button type="button" class="btn btn-secondary mb-3" onclick="window.app.agregarIngredienteAReceta()">
-                                <i class="fas fa-plus"></i> Agregar Ingrediente
-                            </button>
-
-                            <div class="card mt-3 p-3 bg-light">
-                                <h5>📊 Resumen de Costos</h5>
-                                <p><strong>Costo Total de Insumos:</strong> $<span id="costoTotalInsumos">0</span></p>
-                                <p><strong>Costo por Unidad:</strong> $<span id="costoPorUnidad">0</span></p>
-                                <div id="margenGanancia" class="mt-2 p-2" style="border-radius: 5px;"></div>
-                            </div>
-
-                            <div class="form-actions mt-4">
-                                <button type="button" class="btn btn-secondary" onclick="window.app.cerrarModal('modalNuevaReceta')">Cancelar</button>
-                                <button type="button" class="btn btn-primary" onclick="window.app.guardarReceta()">Guardar Receta</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        `;
-
-        document.getElementById('modalContainer').innerHTML = modalHTML;
-        this.modalOpen = true;
-
-        // Cargar ingredientes si existe la receta
-        setTimeout(() => {
-            if (recetaExistente) {
-                recetaExistente.ingredientes.forEach(ing => {
-                    this.agregarIngredienteAReceta(ing.productoId, ing.cantidad);
-                });
-            }
-            
-            document.getElementById('recetaProductoId')?.addEventListener('change', () => this.calcularCostosReceta());
-            document.getElementById('recetaRinde')?.addEventListener('input', () => this.calcularCostosReceta());
-        }, 100);
-    }
-
-    agregarIngredienteAReceta(productoIdPreseleccionado = null, cantidadPreseleccionada = 1) {
+    // NUEVA FUNCIÓN: Agregar ingrediente manual
+    agregarIngredienteManual(ingredienteData = null) {
         const container = document.getElementById('listaIngredientesReceta');
         if (!container) return;
 
-        const inventario = storage.getInventario();
-        const ingredientesDisponibles = inventario.filter(p => !p.esKit && p.activo);
-        
-        let ingredientesOptions = '';
-        ingredientesDisponibles.forEach(i => {
-            const selected = (productoIdPreseleccionado && i.id === productoIdPreseleccionado) ? 'selected' : '';
-            ingredientesOptions += `<option value="${i.id}" data-nombre="${i.nombre}" data-costo="${i.costoUnitario || 0}" ${selected}>${i.nombre} (Stock: ${i.unidades} | Costo: $${i.costoUnitario || 0})</option>`;
-        });
-
         const ingredientRow = document.createElement('div');
-        ingredientRow.className = 'ingrediente-row mb-2 p-2 border rounded';
-        ingredientRow.style.display = 'flex';
-        ingredientRow.style.gap = '10px';
-        ingredientRow.style.alignItems = 'center';
-        ingredientRow.style.flexWrap = 'wrap';
+        ingredientRow.className = 'ingrediente-row mb-3 p-3 border rounded';
+        ingredientRow.style.backgroundColor = '#f9f9f9';
+        ingredientRow.style.borderLeft = '4px solid #27ae60';
+        
+        // Si viene con datos, es para editar
+        const nombre = ingredienteData ? ingredienteData.nombre : '';
+        const precio = ingredienteData ? ingredienteData.precioUnitario : '';
+        const cantidad = ingredienteData ? ingredienteData.cantidad : '1';
+        const productoId = ingredienteData ? ingredienteData.productoId || '' : '';
+
         ingredientRow.innerHTML = `
-            <select class="form-control ingrediente-select" style="flex: 3; min-width: 200px;" onchange="window.app.actualizarCostoIngrediente(this)">
-                ${ingredientesOptions}
-            </select>
-            <input type="number" class="form-control ingrediente-cantidad" placeholder="Cantidad" min="0" step="0.001" style="flex: 1; min-width: 100px;" value="${cantidadPreseleccionada}" oninput="window.app.calcularCostosReceta()">
-            <span class="ingrediente-costo" style="min-width: 100px; font-weight: bold;">$0</span>
-            <button type="button" class="btn btn-sm btn-danger" onclick="this.closest('.ingrediente-row').remove(); window.app.calcularCostosReceta();">
-                <i class="fas fa-trash"></i>
-            </button>
+            <div style="display: grid; grid-template-columns: 3fr 1fr 1fr 40px; gap: 10px; align-items: center;">
+                <div>
+                    <input type="text" class="form-control ingrediente-nombre" placeholder="Nombre del ingrediente (ej: Pan, Carne, Queso)" value="${nombre}" style="font-size: 14px;">
+                    <input type="hidden" class="ingrediente-productoid" value="${productoId}">
+                </div>
+                <div>
+                    <input type="number" class="form-control ingrediente-precio" placeholder="Precio unitario $" value="${precio}" min="0" step="100" style="font-size: 14px;" oninput="window.app.calcularCostosReceta()">
+                </div>
+                <div>
+                    <input type="number" class="form-control ingrediente-cantidad" placeholder="Cantidad" value="${cantidad}" min="0" step="0.001" style="font-size: 14px;" oninput="window.app.calcularCostosReceta()">
+                </div>
+                <div>
+                    <button type="button" class="btn btn-sm btn-danger" onclick="this.closest('.ingrediente-row').remove(); window.app.calcularCostosReceta();">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="ingrediente-subtotal" style="text-align: right; margin-top: 5px; font-size: 13px; color: #27ae60;">
+                Subtotal: $<span class="subtotal-valor">0</span>
+            </div>
         `;
+        
         container.appendChild(ingredientRow);
+        
+        // Si hay un productoId, buscar el nombre del producto en inventario
+        if (productoId) {
+            const producto = storage.getProducto(productoId);
+            if (producto) {
+                const nombreInput = ingredientRow.querySelector('.ingrediente-nombre');
+                if (nombreInput) nombreInput.value = producto.nombre;
+            }
+        }
+        
         this.calcularCostosReceta();
     }
 
-    actualizarCostoIngrediente(selectElement) {
-        const row = selectElement.closest('.ingrediente-row');
-        const selectedOption = selectElement.options[selectElement.selectedIndex];
-        const costo = parseFloat(selectedOption.getAttribute('data-costo')) || 0;
-        const cantidadInput = row.querySelector('.ingrediente-cantidad');
-        const costoSpan = row.querySelector('.ingrediente-costo');
+    // NUEVA FUNCIÓN: Buscar producto para ingrediente
+    buscarProductoParaIngrediente(inputElement) {
+        const query = inputElement.value.toLowerCase();
+        if (query.length < 2) return;
         
-        if (cantidadInput && costoSpan) {
-            const cantidad = parseFloat(cantidadInput.value) || 0;
-            costoSpan.textContent = `$${(costo * cantidad).toFixed(0)}`;
+        const inventario = storage.getInventario();
+        const productos = inventario.filter(p => 
+            p.nombre.toLowerCase().includes(query) && 
+            !p.esKit // Solo ingredientes, no kits
+        );
+        
+        // Crear un datalist o sugerencias
+        let suggestions = '';
+        productos.slice(0, 5).forEach(p => {
+            suggestions += `<div class="suggestion-item" onclick="window.app.seleccionarProductoIngrediente('${p.id}', '${p.nombre}', ${p.costoUnitario || 0})">${p.nombre} - $${p.costoUnitario || 0}</div>`;
+        });
+        
+        // Mostrar sugerencias (implementación simple)
+        const row = inputElement.closest('.ingrediente-row');
+        let suggestionsDiv = row.querySelector('.ingrediente-suggestions');
+        if (!suggestionsDiv) {
+            suggestionsDiv = document.createElement('div');
+            suggestionsDiv.className = 'ingrediente-suggestions';
+            suggestionsDiv.style.cssText = 'position: absolute; background: white; border: 1px solid #ddd; max-height: 200px; overflow-y: auto; z-index: 1000;';
+            row.style.position = 'relative';
+            row.appendChild(suggestionsDiv);
         }
-        this.calcularCostosReceta();
+        suggestionsDiv.innerHTML = suggestions;
+        suggestionsDiv.style.display = 'block';
+    }
+
+    seleccionarProductoIngrediente(productoId, nombre, precio) {
+        // Esta función se llamaría desde las sugerencias
+        const activeRow = document.querySelector('.ingrediente-row:hover');
+        if (activeRow) {
+            const nombreInput = activeRow.querySelector('.ingrediente-nombre');
+            const precioInput = activeRow.querySelector('.ingrediente-precio');
+            const productoIdInput = activeRow.querySelector('.ingrediente-productoid');
+            
+            if (nombreInput) nombreInput.value = nombre;
+            if (precioInput) precioInput.value = precio;
+            if (productoIdInput) productoIdInput.value = productoId;
+            
+            // Ocultar sugerencias
+            const suggestionsDiv = activeRow.querySelector('.ingrediente-suggestions');
+            if (suggestionsDiv) suggestionsDiv.style.display = 'none';
+            
+            this.calcularCostosReceta();
+        }
     }
 
     calcularCostosReceta() {
@@ -286,17 +259,28 @@ class InvPlanetApp {
         let costoTotal = 0;
         
         rows.forEach(row => {
-            const select = row.querySelector('.ingrediente-select');
+            const nombreInput = row.querySelector('.ingrediente-nombre');
+            const precioInput = row.querySelector('.ingrediente-precio');
             const cantidadInput = row.querySelector('.ingrediente-cantidad');
-            const costoSpan = row.querySelector('.ingrediente-costo');
+            const subtotalSpan = row.querySelector('.subtotal-valor');
             
-            if (select && cantidadInput && costoSpan && select.value) {
-                const selectedOption = select.options[select.selectedIndex];
-                const costoUnitario = parseFloat(selectedOption.getAttribute('data-costo')) || 0;
+            if (nombreInput && precioInput && cantidadInput) {
+                const nombre = nombreInput.value.trim();
+                const precio = parseFloat(precioInput.value) || 0;
                 const cantidad = parseFloat(cantidadInput.value) || 0;
-                const subtotal = costoUnitario * cantidad;
-                costoTotal += subtotal;
-                costoSpan.textContent = `$${subtotal.toFixed(0)}`;
+                
+                if (nombre && precio > 0 && cantidad > 0) {
+                    const subtotal = precio * cantidad;
+                    costoTotal += subtotal;
+                    if (subtotalSpan) subtotalSpan.textContent = subtotal.toFixed(0);
+                    
+                    // Resaltar si falta algún campo
+                    row.style.backgroundColor = '#f9f9f9';
+                } else {
+                    // Si falta algún campo, mostrar en color diferente
+                    row.style.backgroundColor = '#fff3cd';
+                    if (subtotalSpan) subtotalSpan.textContent = '0';
+                }
             }
         });
         
@@ -312,23 +296,202 @@ class InvPlanetApp {
             const producto = storage.getProducto(productoId);
             if (producto) {
                 const margen = producto.precioVenta - costoPorUnidad;
+                const margenPorcentaje = ((margen / producto.precioVenta) * 100).toFixed(1);
                 const margenDiv = document.getElementById('margenGanancia');
                 if (margenDiv) {
                     margenDiv.innerHTML = `
-                        <strong>Precio Venta:</strong> $${producto.precioVenta} | 
-                        <strong>Margen:</strong> <span class="${margen >= 0 ? 'text-success' : 'text-danger'}">$${margen.toFixed(0)} (${((margen / producto.precioVenta) * 100).toFixed(1)}%)</span>
+                        <div style="background: ${margen >= 0 ? '#d4edda' : '#f8d7da'}; padding: 15px; border-radius: 8px; margin-top: 15px;">
+                            <strong style="color: ${margen >= 0 ? '#155724' : '#721c24'}">
+                                Precio Venta: $${producto.precioVenta} | 
+                                Margen: $${margen.toFixed(0)} (${margenPorcentaje}%)
+                            </strong>
+                        </div>
                     `;
                 }
             }
         }
     }
 
-    guardarReceta() {
+    mostrarModalNuevaReceta(productoVentaId = null) {
+        console.log('🍳 Abriendo modal de receta manual...');
+        
+        const inventario = storage.getInventario();
+        // Mostrar todos los productos activos, pero marcar los que son kits
+        const productosVenta = inventario.filter(p => p.activo);
+        
+        let productoSeleccionado = null;
+        if (productoVentaId) {
+            productoSeleccionado = inventario.find(p => p.id === productoVentaId);
+        }
+
+        // Opciones para el select de productos de venta
+        let productosVentaOptions = '<option value="">🔍 Selecciona un producto del inventario</option>';
+        productosVenta.sort((a, b) => a.nombre.localeCompare(b.nombre)).forEach(p => {
+            const selected = (productoSeleccionado && productoSeleccionado.id === p.id) ? 'selected' : '';
+            const tipoIcono = p.esKit ? '🍳' : '📦';
+            productosVentaOptions += `<option value="${p.id}" data-precio="${p.precioVenta}" ${selected}>${tipoIcono} ${p.nombre} - $${p.precioVenta}</option>`;
+        });
+
+        const recetaExistente = productoVentaId ? this.recetas.find(r => r.productoId === productoVentaId) : null;
+
+        const modalHTML = `
+            <div class="modal-overlay active" id="modalNuevaReceta">
+                <div class="modal-content" style="max-width: 1000px; max-height: 90vh; overflow-y: auto;">
+                    <div class="modal-header" style="background: linear-gradient(135deg, #9b59b6, #8e44ad); color: white;">
+                        <h3 style="color: white;"><i class="fas fa-utensils"></i> ${recetaExistente ? '✏️ Editar Receta: ' + productoSeleccionado?.nombre : '🍳 Crear Nueva Receta'}</h3>
+                        <button class="close-modal" onclick="window.app.cerrarModal('modalNuevaReceta')" style="color: white;">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="formReceta" onsubmit="return false;">
+                            <!-- PASO 1: Seleccionar el producto -->
+                            <div class="card mb-4 p-4" style="background: #f0f7ff; border-left: 4px solid #3498db; border-radius: 8px;">
+                                <h4 style="margin-top:0; color:#2980b9;"><i class="fas fa-shopping-cart"></i> Paso 1: ¿Qué producto preparas?</h4>
+                                <div class="form-group">
+                                    <label>Producto *</label>
+                                    <select id="recetaProductoId" class="form-control" required onchange="window.app.calcularCostosReceta()">
+                                        ${productosVentaOptions}
+                                    </select>
+                                    <small class="text-muted">Selecciona el producto que aparece en tu menú</small>
+                                </div>
+                            </div>
+
+                            <!-- PASO 2: Cantidad que produce -->
+                            <div class="card mb-4 p-4" style="background: #f5f0ff; border-left: 4px solid #9b59b6; border-radius: 8px;">
+                                <h4 style="margin-top:0; color:#8e44ad;"><i class="fas fa-cubes"></i> Paso 2: ¿Cuánto produces?</h4>
+                                <div class="form-group">
+                                    <label>Rinde para (cantidad de productos finales)</label>
+                                    <input type="number" id="recetaRinde" class="form-control" value="${recetaExistente ? recetaExistente.rinde : 1}" min="1" oninput="window.app.calcularCostosReceta()">
+                                    <small class="text-muted">Ej: 1 = para 1 unidad, 10 = para 10 unidades (lote, bandeja)</small>
+                                </div>
+                            </div>
+
+                            <!-- PASO 3: Ingredientes manuales -->
+                            <div class="card mb-4 p-4" style="background: #f0fff0; border-left: 4px solid #27ae60; border-radius: 8px;">
+                                <h4 style="margin-top:0; color:#27ae60;"><i class="fas fa-carrot"></i> Paso 3: Agrega los ingredientes manualmente</h4>
+                                <p class="text-muted mb-3">Escribe el nombre del ingrediente, su costo unitario y la cantidad que usas</p>
+                                
+                                <div id="listaIngredientesReceta" class="mb-3">
+                                    <!-- Los ingredientes se cargarán aquí -->
+                                    ${recetaExistente ? '' : '<p class="text-center text-muted py-4">Haz clic en "Agregar Ingrediente" para comenzar</p>'}
+                                </div>
+                                
+                                <button type="button" class="btn btn-success" onclick="window.app.agregarIngredienteManual()">
+                                    <i class="fas fa-plus-circle"></i> Agregar Ingrediente
+                                </button>
+                                
+                                <button type="button" class="btn btn-info ml-2" onclick="window.app.cargarIngredientesDesdeInventario()">
+                                    <i class="fas fa-box"></i> Cargar desde Inventario
+                                </button>
+                            </div>
+
+                            <!-- PASO 4: Resumen de costos -->
+                            <div class="card mb-4 p-4" style="background: linear-gradient(135deg, #2c3e50, #34495e); color: white; border-radius: 8px;">
+                                <h4 style="margin-top:0; color: white;"><i class="fas fa-chart-line"></i> 📊 Resumen de Costos</h4>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 15px;">
+                                    <div style="background: rgba(255,255,255,0.1); padding: 20px; border-radius: 8px;">
+                                        <p style="margin:0; opacity:0.8; font-size: 14px;">Costo Total de Insumos:</p>
+                                        <h2 style="margin:5px 0 0; font-size: 32px; font-weight: bold;" id="costoTotalInsumos">$0</h2>
+                                    </div>
+                                    <div style="background: rgba(255,255,255,0.1); padding: 20px; border-radius: 8px;">
+                                        <p style="margin:0; opacity:0.8; font-size: 14px;">Costo por Unidad:</p>
+                                        <h2 style="margin:5px 0 0; font-size: 32px; font-weight: bold;" id="costoPorUnidad">$0</h2>
+                                    </div>
+                                </div>
+                                <div id="margenGanancia" class="mt-3"></div>
+                            </div>
+
+                            <div class="form-actions mt-4">
+                                <button type="button" class="btn btn-secondary" onclick="window.app.cerrarModal('modalNuevaReceta')">
+                                    <i class="fas fa-times"></i> Cancelar
+                                </button>
+                                <button type="button" class="btn btn-primary" onclick="window.app.guardarRecetaManual()">
+                                    <i class="fas fa-save"></i> Guardar Receta
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.getElementById('modalContainer').innerHTML = modalHTML;
+        this.modalOpen = true;
+
+        // Si existe una receta, cargar sus ingredientes
+        setTimeout(() => {
+            if (recetaExistente) {
+                recetaExistente.ingredientes.forEach(ing => {
+                    this.agregarIngredienteManual({
+                        nombre: ing.nombre,
+                        precioUnitario: ing.precioUnitario,
+                        cantidad: ing.cantidad,
+                        productoId: ing.productoId || ''
+                    });
+                });
+            }
+            
+            document.getElementById('recetaProductoId')?.addEventListener('change', () => this.calcularCostosReceta());
+            document.getElementById('recetaRinde')?.addEventListener('input', () => this.calcularCostosReceta());
+            
+            // Calcular costos iniciales si hay ingredientes
+            this.calcularCostosReceta();
+        }, 100);
+    }
+
+    // NUEVA FUNCIÓN: Cargar ingredientes desde inventario
+    cargarIngredientesDesdeInventario() {
+        const inventario = storage.getInventario();
+        const ingredientes = inventario.filter(p => !p.esKit && p.activo);
+        
+        if (ingredientes.length === 0) {
+            this.mostrarMensaje('No hay ingredientes en el inventario', 'warning');
+            return;
+        }
+        
+        // Crear un modal simple para seleccionar ingredientes
+        let ingredientesHTML = '<div style="max-height: 400px; overflow-y: auto;">';
+        ingredientes.forEach(ing => {
+            ingredientesHTML += `
+                <div class="p-2 border-bottom" style="cursor: pointer;" onclick="window.app.seleccionarIngredienteInventario('${ing.id}', '${ing.nombre}', ${ing.costoUnitario || 0})">
+                    <strong>${ing.nombre}</strong> - $${ing.costoUnitario || 0} (Stock: ${ing.unidades})
+                </div>
+            `;
+        });
+        ingredientesHTML += '</div>';
+        
+        const modalHTML = `
+            <div class="modal-overlay active" id="modalSeleccionarIngrediente">
+                <div class="modal-content" style="max-width: 500px;">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-box"></i> Seleccionar Ingrediente</h3>
+                        <button class="close-modal" onclick="window.app.cerrarModal('modalSeleccionarIngrediente')">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        ${ingredientesHTML}
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('modalContainer').innerHTML += modalHTML;
+    }
+
+    seleccionarIngredienteInventario(id, nombre, precio) {
+        this.cerrarModal('modalSeleccionarIngrediente');
+        this.agregarIngredienteManual({
+            nombre: nombre,
+            precioUnitario: precio,
+            cantidad: 1,
+            productoId: id
+        });
+    }
+
+    guardarRecetaManual() {
         const productoId = document.getElementById('recetaProductoId')?.value;
         const rinde = parseInt(document.getElementById('recetaRinde')?.value) || 1;
 
         if (!productoId) {
-            this.mostrarMensaje('❌ Debes seleccionar un producto de venta', 'error');
+            this.mostrarMensaje('❌ Debes seleccionar un producto', 'error');
             return;
         }
 
@@ -336,21 +499,28 @@ class InvPlanetApp {
         const rows = document.querySelectorAll('.ingrediente-row');
         
         for (const row of rows) {
-            const select = row.querySelector('.ingrediente-select');
-            const cantidad = parseFloat(row.querySelector('.ingrediente-cantidad')?.value);
+            const nombreInput = row.querySelector('.ingrediente-nombre');
+            const precioInput = row.querySelector('.ingrediente-precio');
+            const cantidadInput = row.querySelector('.ingrediente-cantidad');
+            const productoIdInput = row.querySelector('.ingrediente-productoid');
             
-            if (select.value && cantidad > 0) {
-                const selectedOption = select.options[select.selectedIndex];
+            const nombre = nombreInput?.value.trim();
+            const precio = parseFloat(precioInput?.value);
+            const cantidad = parseFloat(cantidadInput?.value);
+            const prodId = productoIdInput?.value || '';
+            
+            if (nombre && precio > 0 && cantidad > 0) {
                 ingredientes.push({
-                    productoId: select.value,
-                    nombre: selectedOption.getAttribute('data-nombre'),
+                    productoId: prodId,
+                    nombre: nombre,
+                    precioUnitario: precio,
                     cantidad: cantidad
                 });
             }
         }
 
         if (ingredientes.length === 0) {
-            this.mostrarMensaje('❌ La receta debe tener al menos un ingrediente', 'error');
+            this.mostrarMensaje('❌ La receta debe tener al menos un ingrediente válido', 'error');
             return;
         }
 
@@ -366,14 +536,19 @@ class InvPlanetApp {
 
         if (indexExistente > -1) {
             this.recetas[indexExistente] = nuevaReceta;
-            this.mostrarMensaje('✅ Receta actualizada', 'success');
+            this.mostrarMensaje('✅ Receta actualizada correctamente', 'success');
         } else {
             this.recetas.push(nuevaReceta);
-            this.mostrarMensaje('✅ Receta guardada', 'success');
+            this.mostrarMensaje('✅ Receta guardada correctamente', 'success');
         }
 
         this.guardarRecetas();
         this.cerrarModal('modalNuevaReceta');
+        
+        // Actualizar la vista si estamos en inventario
+        if (this.currentView === 'inventario') {
+            this.loadInventarioView();
+        }
     }
 
     // ============================================
@@ -547,16 +722,6 @@ class InvPlanetApp {
         this.mostrarModalUsuarios();
     }
 
-    editarUsuario(id) {
-        // Implementar según necesidad
-    }
-
-    eliminarUsuario(id) {
-        if (confirm('¿Eliminar usuario?')) {
-            // Implementar según necesidad
-        }
-    }
-
     // ============================================
     // CLIENTES
     // ============================================
@@ -585,7 +750,7 @@ class InvPlanetApp {
                     <td>${c.telefono || ''}</td>
                     <td>${c.email || ''}</td>
                     <td>${c.direccion || ''}</td>
-                    <td><span class="badge badge-success">${c.puntos || 0} pts</span></td>
+                    <td><span class="badge badge-points">${c.puntos || 0} pts</span></td>
                     <td>$${(c.totalCompras || 0).toLocaleString()}</td>
                     <td>
                         <button class="btn btn-sm btn-primary" onclick="window.app.editarCliente('${c.id}')">
@@ -657,7 +822,7 @@ class InvPlanetApp {
                     <td>${c.telefono || ''}</td>
                     <td>${c.email || ''}</td>
                     <td>${c.direccion || ''}</td>
-                    <td><span class="badge badge-success">${c.puntos || 0} pts</span></td>
+                    <td><span class="badge badge-points">${c.puntos || 0} pts</span></td>
                     <td>$${(c.totalCompras || 0).toLocaleString()}</td>
                     <td>
                         <button class="btn btn-sm btn-primary" onclick="window.app.editarCliente('${c.id}')">
@@ -826,6 +991,15 @@ class InvPlanetApp {
         localStorage.setItem('invplanet_proveedores', JSON.stringify(this.proveedores));
     }
 
+    mostrarModalProveedores() {
+        // Implementación similar a clientes
+        this.mostrarMensaje('Función de proveedores - implementar según necesidad', 'info');
+    }
+
+    mostrarModalNuevoProveedor() {
+        this.mostrarMensaje('Función de nuevo proveedor - implementar según necesidad', 'info');
+    }
+
     // ============================================
     // PROMOCIONES
     // ============================================
@@ -839,16 +1013,22 @@ class InvPlanetApp {
         localStorage.setItem('invplanet_promociones', JSON.stringify(this.promociones));
     }
 
+    mostrarModalPromociones() {
+        this.mostrarMensaje('Función de promociones - implementar según necesidad', 'info');
+    }
+
+    mostrarModalNuevaPromocion() {
+        this.mostrarMensaje('Función de nueva promoción - implementar según necesidad', 'info');
+    }
+
     aplicarPromociones(precio, productoId, categoriaId, cantidad) {
         let precioFinal = precio;
         const ahora = new Date();
 
         for (const p of this.promociones) {
             if (!p.activa) continue;
-
             if (p.fechaInicio && new Date(p.fechaInicio) > ahora) continue;
             if (p.fechaFin && new Date(p.fechaFin) < ahora) continue;
-
             if (p.aplica === 'producto' && p.productoId !== productoId) continue;
             if (p.aplica === 'categoria' && p.categoriaId !== categoriaId) continue;
 
@@ -858,8 +1038,6 @@ class InvPlanetApp {
             } else if (p.tipo === 'monto') {
                 const descuento = parseFloat(p.valor);
                 precioFinal = precio - descuento;
-            } else if (p.tipo === '2x1' && cantidad >= 2) {
-                return { promocion: p, aplica: true };
             }
         }
 
@@ -892,20 +1070,57 @@ class InvPlanetApp {
         localStorage.setItem('invplanet_mesas', JSON.stringify(this.mesas));
     }
 
+    mostrarMapaMesas() {
+        let mesasHTML = '';
+        this.mesas.forEach(mesa => {
+            const estadoColor = mesa.estado === 'disponible' ? 'success' : 
+                               mesa.estado === 'ocupada' ? 'warning' : 'danger';
+            mesasHTML += `
+                <div class="mesa-card" style="border: 2px solid var(--${estadoColor}); padding: 15px; border-radius: 8px; text-align: center; cursor: pointer;" onclick="window.app.abrirMesa('${mesa.id}')">
+                    <i class="fas fa-utensils"></i>
+                    <h4>Mesa ${mesa.numero}</h4>
+                    <span class="badge badge-${estadoColor}">${mesa.estado}</span>
+                    ${mesa.comensales > 0 ? `<p>${mesa.comensales} comensales</p>` : ''}
+                </div>
+            `;
+        });
+
+        const modalHTML = `
+            <div class="modal-overlay active" id="modalMapaMesas">
+                <div class="modal-content" style="max-width: 900px;">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-utensils"></i> Mapa de Mesas</h3>
+                        <button class="close-modal" onclick="window.app.cerrarModal('modalMapaMesas')">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 15px;">
+                            ${mesasHTML}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.getElementById('modalContainer').innerHTML = modalHTML;
+        this.modalOpen = true;
+    }
+
     abrirMesa(id) {
         const mesa = this.mesas.find(m => m.id === id);
         if (mesa) {
-            const numComensales = prompt(`¿Cuántos comensales en mesa ${mesa.numero}?`, '2');
-            if (numComensales) {
-                this.mostrarModalNuevaVenta();
-                setTimeout(() => {
-                    const radioMesa = document.querySelector('input[name="tipoEntrega"][value="mesa"]');
-                    if (radioMesa) {
-                        radioMesa.click();
-                    }
-                    document.getElementById('mesaNumero').value = mesa.numero;
-                    document.getElementById('comensalesMesa').value = numComensales;
-                }, 500);
+            if (mesa.estado === 'disponible') {
+                const numComensales = prompt(`¿Cuántos comensales en mesa ${mesa.numero}?`, '2');
+                if (numComensales) {
+                    this.mostrarModalNuevaVenta();
+                    setTimeout(() => {
+                        const radioMesa = document.querySelector('input[name="tipoEntrega"][value="mesa"]');
+                        if (radioMesa) radioMesa.click();
+                        document.getElementById('mesaNumero').value = mesa.numero;
+                        document.getElementById('comensalesMesa').value = numComensales;
+                    }, 500);
+                }
+            } else {
+                this.mostrarMensaje(`La mesa ${mesa.numero} está ${mesa.estado}`, 'warning');
             }
         }
     }
@@ -1288,6 +1503,9 @@ class InvPlanetApp {
                             <button class="btn btn-success btn-block" onclick="window.app.mostrarModalNuevaVenta()">
                                 <i class="fas fa-cash-register"></i> Nueva Venta
                             </button>
+                            <button class="btn btn-recipe btn-block mt-2" onclick="window.app.mostrarModalNuevaReceta()">
+                                <i class="fas fa-utensils"></i> Nueva Receta
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -1325,7 +1543,7 @@ class InvPlanetApp {
     }
 
     // ============================================
-    // INVENTARIO
+    // INVENTARIO (ACTUALIZADO CON RECETAS)
     // ============================================
 
     loadInventarioView() {
@@ -1348,8 +1566,8 @@ class InvPlanetApp {
                         <button class="btn btn-primary" onclick="window.app.mostrarModalNuevoProducto()">
                             <i class="fas fa-plus"></i> Nuevo Producto
                         </button>
-                        <button class="btn btn-info" onclick="window.app.mostrarModalNuevoKit()">
-                            <i class="fas fa-boxes"></i> Nuevo Kit
+                        <button class="btn btn-recipe" onclick="window.app.mostrarModalNuevaReceta()">
+                            <i class="fas fa-utensils"></i> Nueva Receta
                         </button>
                         <button class="btn btn-success" onclick="window.app.exportarInventario()">
                             <i class="fas fa-file-export"></i> Exportar
@@ -1386,8 +1604,8 @@ class InvPlanetApp {
                                 <th>Categoría</th>
                                 <th>Stock</th>
                                 <th>Precio Venta</th>
-                                <th>Tipo</th>
-                                <th>Estado</th>
+                                <th>Costo Prod.</th>
+                                <th>Margen</th>
                                 <th>Acciones</th>
                             </tr>
                         </thead>
@@ -1437,26 +1655,41 @@ class InvPlanetApp {
                               estado === 'Bajo' ? 'badge-warning' :
                               estado === 'Inactivo' ? 'badge-secondary' : 'badge-success';
 
-            const tipo = p.esKit ? '🎁 Kit' : '📦 Producto';
+            const tipo = p.esKit ? '🍳 Kit' : '📦 Producto';
+            
+            // Calcular costo de producción si tiene receta
+            const costoProduccion = this.calcularCostoProduccion(p.id);
+            let costoDisplay = '-';
+            let margenDisplay = '-';
+            let margenClass = '';
+            
+            if (costoProduccion) {
+                costoDisplay = `$${costoProduccion.costoPorUnidad.toFixed(0)}`;
+                const margen = p.precioVenta - costoProduccion.costoPorUnidad;
+                const margenPorcentaje = ((margen / p.precioVenta) * 100).toFixed(1);
+                margenDisplay = `$${margen.toFixed(0)} (${margenPorcentaje}%)`;
+                margenClass = margen >= 0 ? 'text-success' : 'text-danger';
+            }
 
             html += `
                 <tr>
                     <td>${p.codigo || 'N/A'}</td>
-                    <td>${p.nombre}</td>
+                    <td>
+                        ${p.nombre}
+                        ${this.recetas.some(r => r.productoId === p.id) ? '<span class="badge badge-recipe ml-2">🍳 Receta</span>' : ''}
+                    </td>
                     <td>${categoria ? categoria.nombre : 'Sin categoría'}</td>
                     <td>${p.unidades}</td>
                     <td>$${p.precioVenta || 0}</td>
-                    <td>${tipo}</td>
-                    <td><span class="badge ${badgeClass}">${estado}</span></td>
+                    <td>${costoDisplay}</td>
+                    <td class="${margenClass}">${margenDisplay}</td>
                     <td>
                         <button class="btn btn-sm btn-primary" onclick="window.app.mostrarModalEditarProducto('${p.id}')">
                             <i class="fas fa-edit"></i>
                         </button>
-                        ${p.esKit ? `
-                        <button class="btn btn-sm btn-info" onclick="window.app.mostrarModalNuevaReceta('${p.id}')">
+                        <button class="btn btn-sm btn-recipe" onclick="window.app.mostrarModalNuevaReceta('${p.id}')">
                             <i class="fas fa-utensils"></i>
                         </button>
-                        ` : ''}
                         <button class="btn btn-sm btn-danger" onclick="window.app.eliminarProducto('${p.id}')">
                             <i class="fas fa-trash"></i>
                         </button>
@@ -1533,36 +1766,25 @@ class InvPlanetApp {
             proveedoresOptions += `<option value="${p.id}" ${selected}>${p.nombre}</option>`;
         });
 
-        // Calcular costo de producción si es kit
+        // Calcular costo de producción si tiene receta
         let costoProduccionHTML = '';
-        if (producto.esKit) {
-            const costo = this.calcularCostoProduccion(producto.id);
-            if (costo) {
-                const margen = producto.precioVenta - costo.costoPorUnidad;
-                const margenPorcentaje = ((margen / producto.precioVenta) * 100).toFixed(1);
-                costoProduccionHTML = `
-                    <div class="alert alert-info mt-3">
-                        <p><strong>📝 Costo de Producción:</strong></p>
-                        <p>Costo Insumos: $${costo.costoTotalInsumos.toFixed(0)} (rinde para ${costo.receta.rinde} uds)</p>
-                        <p><strong>Costo por Unidad: $${costo.costoPorUnidad.toFixed(0)}</strong></p>
-                        <p class="${margen >= 0 ? 'text-success' : 'text-danger'}">
-                            Margen Bruto: $${margen.toFixed(0)} (${margenPorcentaje}%)
-                        </p>
-                        <button class="btn btn-sm btn-primary" onclick="window.app.mostrarModalNuevaReceta('${producto.id}')">
-                            <i class="fas fa-edit"></i> Editar Receta
-                        </button>
-                    </div>
-                `;
-            } else {
-                costoProduccionHTML = `
-                    <div class="alert alert-warning mt-3">
-                        <p>⚠️ Este producto no tiene una receta asociada.</p>
-                        <button class="btn btn-sm btn-primary" onclick="window.app.mostrarModalNuevaReceta('${producto.id}')">
-                            <i class="fas fa-plus"></i> Crear Receta
-                        </button>
-                    </div>
-                `;
-            }
+        const costo = this.calcularCostoProduccion(producto.id);
+        if (costo) {
+            const margen = producto.precioVenta - costo.costoPorUnidad;
+            const margenPorcentaje = ((margen / producto.precioVenta) * 100).toFixed(1);
+            costoProduccionHTML = `
+                <div class="alert alert-recipe mt-3">
+                    <p><strong>🍳 Costo de Producción (según receta):</strong></p>
+                    <p>Costo Insumos: $${costo.costoTotalInsumos.toFixed(0)} (rinde para ${costo.receta.rinde} uds)</p>
+                    <p><strong>Costo por Unidad: $${costo.costoPorUnidad.toFixed(0)}</strong></p>
+                    <p class="${margen >= 0 ? 'text-success' : 'text-danger'}">
+                        Margen Bruto: $${margen.toFixed(0)} (${margenPorcentaje}%)
+                    </p>
+                    <button class="btn btn-sm btn-recipe" onclick="window.app.mostrarModalNuevaReceta('${producto.id}')">
+                        <i class="fas fa-edit"></i> Editar Receta
+                    </button>
+                </div>
+            `;
         }
 
         const modalHTML = `
@@ -1692,52 +1914,6 @@ class InvPlanetApp {
         }
     }
 
-    verComponentesKit(id) {
-        const producto = storage.getProducto(id);
-        if (!producto || !producto.esKit) return;
-
-        let componentesHTML = '';
-        producto.componentes.forEach(c => {
-            componentesHTML += `
-                <tr>
-                    <td>${c.nombre}</td>
-                    <td>${c.cantidad}</td>
-                    <td>$${c.precioUnitario}</td>
-                    <td>$${c.precioUnitario * c.cantidad}</td>
-                </tr>
-            `;
-        });
-
-        const modalHTML = `
-            <div class="modal-overlay active" id="modalComponentesKit">
-                <div class="modal-content" style="max-width: 600px;">
-                    <div class="modal-header">
-                        <h3><i class="fas fa-boxes"></i> Componentes del Kit: ${producto.nombre}</h3>
-                        <button class="close-modal" onclick="window.app.cerrarModal('modalComponentesKit')">&times;</button>
-                    </div>
-                    <div class="modal-body">
-                        <table class="table">
-                            <thead>
-                                <tr>
-                                    <th>Producto</th>
-                                    <th>Cantidad</th>
-                                    <th>Precio Unit.</th>
-                                    <th>Subtotal</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${componentesHTML}
-                            </tbody>
-                        </table>
-                        <p><strong>Precio del Kit:</strong> $${producto.precioVenta}</p>
-                    </div>
-                </div>
-            </div>
-        `;
-
-        document.getElementById('modalContainer').innerHTML = modalHTML;
-    }
-
     // ============================================
     // PRODUCTOS - CRUD
     // ============================================
@@ -1813,6 +1989,10 @@ class InvPlanetApp {
                                 <label>Descripción</label>
                                 <textarea id="productoDescripcion" class="form-control" rows="2" placeholder="Descripción..."></textarea>
                             </div>
+                            <div class="form-check mb-3">
+                                <input type="checkbox" id="productoEsKit" class="form-check-input">
+                                <label class="form-check-label">Es un kit (producto compuesto por varios ingredientes)</label>
+                            </div>
                             <div class="form-actions" style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
                                 <button type="button" class="btn btn-secondary" onclick="window.app.cerrarModal('modalNuevoProducto')">
                                     Cancelar
@@ -1863,7 +2043,7 @@ class InvPlanetApp {
             precioVenta: parseFloat(precio),
             descripcion: document.getElementById('productoDescripcion')?.value || '',
             activo: true,
-            esKit: false,
+            esKit: document.getElementById('productoEsKit')?.checked || false,
             fechaCreacion: new Date().toISOString()
         };
 
@@ -1881,13 +2061,16 @@ class InvPlanetApp {
         }
     }
 
-    mostrarModalNuevoKit() {
-        // Implementación existente para kits
-        alert('Función para crear kits - implementar según necesidad');
-    }
-
     eliminarProducto(id) {
         if (confirm('¿Estás seguro de eliminar este producto? Esta acción no se puede deshacer.')) {
+            // Verificar si tiene receta asociada
+            const tieneReceta = this.recetas.some(r => r.productoId === id);
+            if (tieneReceta) {
+                if (confirm('Este producto tiene una receta asociada. ¿Eliminar también la receta?')) {
+                    this.recetas = this.recetas.filter(r => r.productoId !== id);
+                    this.guardarRecetas();
+                }
+            }
             storage.deleteProducto(id);
             this.loadInventarioView();
             this.mostrarMensaje('✅ Producto eliminado', 'success');
@@ -2434,7 +2617,6 @@ class InvPlanetApp {
                     </div>
                     <div class="modal-body" style="height: calc(95vh - 80px); padding: 25px; overflow-y: auto;">
                         <div style="display: flex; gap: 30px; height: 100%;">
-                            <!-- COLUMNA IZQUIERDA - PRODUCTOS -->
                             <div style="flex: 1.5; display: flex; flex-direction: column; height: 100%; border-right: 2px solid #ecf0f1; padding-right: 25px;">
                                 <h4 style="margin-bottom: 20px;">Agregar Productos</h4>
                                 <div style="margin-bottom: 15px;">
@@ -2448,37 +2630,25 @@ class InvPlanetApp {
                                     ${productosHTML}
                                 </div>
                             </div>
-
-                            <!-- COLUMNA DERECHA - CARRITO MODIFICACIÓN -->
                             <div style="flex: 1.5; display: flex; flex-direction: column; height: 100%;">
                                 <div style="flex: 1; display: flex; flex-direction: column;">
                                     <h4>Carrito de Modificación</h4>
                                     <div id="carritoModificacionItems" style="flex: 1; overflow-y: auto; background: #f8fafc; border-radius: 12px; padding: 20px; margin: 20px 0;">
                                         ${this.renderCarritoModificacion()}
                                     </div>
-
                                     <div style="background: linear-gradient(135deg, #2c3e50, #34495e); color: white; padding: 25px; border-radius: 16px; margin-bottom: 20px;">
                                         <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
                                             <span>Subtotal:</span>
                                             <span style="font-weight: bold;" id="subtotalModificacion">$${this.calcularSubtotalModificacion().toLocaleString()}</span>
-                                        </div>
-                                        <div style="display: flex; justify-content: space-between; margin-bottom: 15px; opacity: 0.9;">
-                                            <span>Domicilio:</span>
-                                            <span id="domicilioModificacion">$${(this.ventaEnModificacion.valorDomicilio || 0).toLocaleString()}</span>
                                         </div>
                                         <div style="display: flex; justify-content: space-between; font-size: 1.5em; font-weight: bold; border-top: 2px solid rgba(255,255,255,0.2); padding-top: 20px;">
                                             <span>TOTAL:</span>
                                             <span id="totalModificacion">$${this.calcularTotalModificacion().toLocaleString()}</span>
                                         </div>
                                     </div>
-
                                     <div style="display: flex; gap: 15px;">
-                                        <button class="btn btn-secondary" style="flex: 1;" onclick="window.app.cancelarModificacion()">
-                                            Cancelar
-                                        </button>
-                                        <button class="btn btn-success" style="flex: 2;" onclick="window.app.guardarModificacionVenta()">
-                                            <i class="fas fa-save"></i> Guardar Cambios
-                                        </button>
+                                        <button class="btn btn-secondary" style="flex: 1;" onclick="window.app.cancelarModificacion()">Cancelar</button>
+                                        <button class="btn btn-success" style="flex: 2;" onclick="window.app.guardarModificacionVenta()">Guardar Cambios</button>
                                     </div>
                                 </div>
                             </div>
@@ -2508,7 +2678,7 @@ class InvPlanetApp {
 
         let html = '';
         this.carritoModificacion.forEach((item, i) => {
-            let canjeHTML = item.esCanjePuntos ? '<span class="badge badge-info ml-2">🎁 Canje</span>' : '';
+            let canjeHTML = item.esCanjePuntos ? '<span class="badge badge-points ml-2">🎁 Canje</span>' : '';
 
             html += `
                 <div style="background: white; border-radius: 10px; padding: 15px; margin-bottom: 10px; border: 1px solid #ecf0f1;">
@@ -2664,7 +2834,6 @@ class InvPlanetApp {
         const productosOriginales = ventaOriginal.productos || [];
         const productosNuevos = this.carritoModificacion;
 
-        // Crear mapas de cantidades
         const cantidadesOriginales = {};
         productosOriginales.forEach(p => {
             cantidadesOriginales[p.productoId] = p.cantidad;
@@ -2675,77 +2844,39 @@ class InvPlanetApp {
             cantidadesNuevas[item.productoId] = (cantidadesNuevas[item.productoId] || 0) + item.cantidad;
         });
 
-        // Procesar productos que son kits (con receta)
-        const procesarProductoConReceta = (productoId, cantidad, operacion) => {
-            const producto = storage.getProducto(productoId);
-            if (!producto) return true;
-
-            if (producto.esKit) {
-                const receta = this.recetas.find(r => r.productoId === productoId);
-                if (receta) {
-                    for (let i = 0; i < cantidad; i++) {
-                        for (const ing of receta.ingredientes) {
-                            const ingrediente = storage.getProducto(ing.productoId);
-                            if (!ingrediente) return false;
-
-                            if (operacion === 'restar') {
-                                if (ingrediente.unidades < ing.cantidad) {
-                                    this.mostrarMensaje(`❌ Stock insuficiente de ${ingrediente.nombre} para ${producto.nombre}`, 'error');
-                                    return false;
-                                }
-                                ingrediente.unidades -= ing.cantidad;
-                            } else if (operacion === 'sumar') {
-                                ingrediente.unidades += ing.cantidad;
-                            }
-                            
-                            storage.updateProducto(ingrediente.id, { unidades: ingrediente.unidades });
-                        }
-                    }
-                }
-            } else {
-                // Producto simple
-                const ingrediente = storage.getProducto(productoId);
-                if (!ingrediente) return false;
-                
-                if (operacion === 'restar') {
-                    if (ingrediente.unidades < cantidad) {
-                        this.mostrarMensaje(`❌ Stock insuficiente de ${ingrediente.nombre}`, 'error');
-                        return false;
-                    }
-                    ingrediente.unidades -= cantidad;
-                } else if (operacion === 'sumar') {
-                    ingrediente.unidades += cantidad;
-                }
-                
-                storage.updateProducto(ingrediente.id, { unidades: ingrediente.unidades });
-            }
-            return true;
-        };
-
-        // Primero verificar stock para productos nuevos o aumentados
+        // Procesar cambios en stock
         for (const productoId in cantidadesNuevas) {
             const cantidadNueva = cantidadesNuevas[productoId];
             const cantidadOriginal = cantidadesOriginales[productoId] || 0;
             
             if (cantidadNueva > cantidadOriginal) {
                 const diferencia = cantidadNueva - cantidadOriginal;
-                const resultado = procesarProductoConReceta(productoId, diferencia, 'restar');
-                if (!resultado) return;
+                const producto = storage.getProducto(productoId);
+                if (producto) {
+                    if (producto.unidades < diferencia) {
+                        this.mostrarMensaje(`❌ Stock insuficiente de ${producto.nombre}`, 'error');
+                        return;
+                    }
+                    producto.unidades -= diferencia;
+                    storage.updateProducto(producto.id, { unidades: producto.unidades });
+                }
             }
         }
 
-        // Devolver stock de productos eliminados o disminuidos
         for (const productoId in cantidadesOriginales) {
             const cantidadOriginal = cantidadesOriginales[productoId];
             const cantidadNueva = cantidadesNuevas[productoId] || 0;
             
             if (cantidadNueva < cantidadOriginal) {
                 const diferencia = cantidadOriginal - cantidadNueva;
-                procesarProductoConReceta(productoId, diferencia, 'sumar');
+                const producto = storage.getProducto(productoId);
+                if (producto) {
+                    producto.unidades += diferencia;
+                    storage.updateProducto(producto.id, { unidades: producto.unidades });
+                }
             }
         }
 
-        // Crear nueva venta modificada
         const ventaModificada = {
             ...ventaOriginal,
             productos: this.carritoModificacion.map(item => ({
@@ -2774,7 +2905,6 @@ class InvPlanetApp {
             fecha: new Date().toISOString()
         };
 
-        // Actualizar venta original y agregar nueva
         storage.updateVenta?.(ventaOriginal.id, {
             estado: 'modificada',
             modificadaPor: nuevaVenta.id
@@ -2818,25 +2948,10 @@ class InvPlanetApp {
             return;
         }
 
-        // Devolver stock usando el sistema de recetas
+        // Devolver stock
         venta.productos?.forEach(item => {
             const producto = storage.getProducto(item.productoId);
-            if (!producto) return;
-
-            if (producto.esKit) {
-                const receta = this.recetas.find(r => r.productoId === item.productoId);
-                if (receta) {
-                    for (let i = 0; i < item.cantidad; i++) {
-                        receta.ingredientes.forEach(ing => {
-                            const ingrediente = storage.getProducto(ing.productoId);
-                            if (ingrediente) {
-                                ingrediente.unidades += ing.cantidad;
-                                storage.updateProducto(ingrediente.id, { unidades: ingrediente.unidades });
-                            }
-                        });
-                    }
-                }
-            } else {
+            if (producto) {
                 producto.unidades += item.cantidad;
                 storage.updateProducto(producto.id, { unidades: producto.unidades });
             }
@@ -2946,7 +3061,7 @@ class InvPlanetApp {
     }
 
     // ============================================
-    // MODAL NUEVA VENTA (con verificación de recetas)
+    // MODAL NUEVA VENTA
     // ============================================
 
     mostrarModalNuevaVenta() {
@@ -2966,57 +3081,42 @@ class InvPlanetApp {
         });
         clientesOptions += '<option value="nuevo">-- Crear nuevo cliente --</option>';
 
-        let productosHTML = '';
+        let productosHTML = '<div style="display: flex; flex-direction: column; gap: 15px;">';
 
-        if (productosDisponibles.length === 0) {
-            productosHTML = `
-                <div style="text-align: center; padding: 40px; background: #fff3cd; border-radius: 12px;">
-                    <i class="fas fa-exclamation-triangle" style="font-size: 48px; color: #856404;"></i>
-                    <h3>No hay productos disponibles</h3>
-                    <p>Crea productos en Inventario primero</p>
-                    <button class="btn btn-primary" onclick="window.app.cerrarModal('modalNuevaVenta'); window.app.loadView('inventario')">
-                        Ir a Inventario
-                    </button>
-                </div>
-            `;
-        } else {
-            productosHTML = '<div style="display: flex; flex-direction: column; gap: 15px;">';
+        productosDisponibles.forEach((producto, index) => {
+            let stockColor = '#27ae60';
+            let stockText = `${producto.unidades} disponibles`;
+            let advertenciaReceta = '';
 
-            productosDisponibles.forEach((producto, index) => {
-                let stockColor = '#27ae60';
-                let stockText = `${producto.unidades} disponibles`;
-                let advertenciaReceta = '';
-
-                // Verificar si es kit y tiene receta
-                if (producto.esKit) {
-                    const verif = this.verificarStockIngredientes(producto.id, 1);
-                    if (!verif.suficiente) {
-                        stockColor = '#e74c3c';
-                        stockText = `⚠️ Faltan ingredientes`;
-                        advertenciaReceta = `<br><small class="text-danger">Falta: ${verif.faltantes.map(f => f.nombre).join(', ')}</small>`;
-                    }
+            // Verificar si es kit y tiene receta
+            if (producto.esKit) {
+                const tieneReceta = this.recetas.some(r => r.productoId === producto.id);
+                if (!tieneReceta) {
+                    stockColor = '#e74c3c';
+                    stockText = `⚠️ Sin receta`;
+                    advertenciaReceta = `<br><small class="text-danger">No tiene receta definida</small>`;
                 }
+            }
 
-                productosHTML += `
-                    <div style="background: white; border: 2px solid #27ae60; border-radius: 12px; padding: 20px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <div>
-                                <h4 style="margin:0;">${producto.nombre}</h4>
-                                <small>Código: ${producto.codigo} | <span style="color: ${stockColor};">${stockText}</span>${advertenciaReceta}</small>
-                            </div>
-                            <div style="text-align: right;">
-                                <div style="font-size: 1.3em; color: #27ae60;">$${producto.precioVenta}</div>
-                                <button class="btn btn-sm btn-success" onclick="window.app.agregarAlCarrito('${producto.id}')">
-                                    Agregar
-                                </button>
-                            </div>
+            productosHTML += `
+                <div style="background: white; border: 2px solid #27ae60; border-radius: 12px; padding: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <h4 style="margin:0;">${producto.nombre}</h4>
+                            <small>Código: ${producto.codigo} | <span style="color: ${stockColor};">${stockText}</span>${advertenciaReceta}</small>
+                        </div>
+                        <div style="text-align: right;">
+                            <div style="font-size: 1.3em; color: #27ae60;">$${producto.precioVenta}</div>
+                            <button class="btn btn-sm btn-success" onclick="window.app.agregarAlCarrito('${producto.id}')">
+                                Agregar
+                            </button>
                         </div>
                     </div>
-                `;
-            });
+                </div>
+            `;
+        });
 
-            productosHTML += '</div>';
-        }
+        productosHTML += '</div>';
 
         const config = storage.getConfig?.() || {};
         const impuesto = config.impuesto || 0;
@@ -3030,8 +3130,6 @@ class InvPlanetApp {
                     </div>
                     <div class="modal-body" style="height: calc(95vh - 80px); padding: 25px; overflow-y: auto;">
                         <div style="display: flex; gap: 30px; height: 100%;">
-
-                            <!-- COLUMNA IZQUIERDA - PRODUCTOS -->
                             <div style="flex: 1.5; display: flex; flex-direction: column; height: 100%; border-right: 2px solid #ecf0f1; padding-right: 25px;">
                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                                     <h4 style="margin:0;">Productos Disponibles</h4>
@@ -3053,10 +3151,7 @@ class InvPlanetApp {
                                 </div>
                             </div>
 
-                            <!-- COLUMNA DERECHA - CARRITO Y DATOS -->
                             <div style="flex: 1.5; display: flex; flex-direction: column; height: 100%;">
-
-                                <!-- SELECCIÓN DE CLIENTE Y BENEFICIOS -->
                                 <div style="margin-bottom: 20px;">
                                     <h4 style="margin:0 0 15px 0;">Cliente</h4>
                                     <div class="form-group">
@@ -3079,19 +3174,16 @@ class InvPlanetApp {
                                         </div>
                                     </div>
                                     
-                                    <div id="beneficiosClienteSection" style="margin-top: 15px; background: #f0f8ff; padding: 15px; border-radius: 10px; display: none;">
-                                        <h5><i class="fas fa-gift"></i> Beneficios del Cliente</h5>
+                                    <div id="beneficiosClienteSection" style="margin-top: 15px; background: var(--points-50); padding: 15px; border-radius: 10px; display: none;">
+                                        <h5 style="color: var(--points-700);"><i class="fas fa-gift"></i> Beneficios del Cliente</h5>
                                         <p><strong>Puntos disponibles:</strong> <span id="puntosClienteDisplay">0</span></p>
-                                        <p><small>Cada 100 puntos = $10,000 descuento</small></p>
                                         <div class="form-group" style="display: flex; gap: 10px;">
-                                            <input type="number" id="puntosACanjearInput" class="form-control" placeholder="Puntos a canjear" min="0" step="100">
-                                            <button class="btn btn-sm btn-warning" onclick="window.app.canjearPuntos()">Aplicar Descuento</button>
+                                            <input type="number" id="puntosACanjearInput" class="form-control" placeholder="Puntos a canjear" min="0">
+                                            <button class="btn btn-sm btn-points" onclick="window.app.canjearPuntos()">Aplicar</button>
                                         </div>
-                                        <div id="productosGratisList" style="margin-top: 10px;"></div>
                                     </div>
                                 </div>
 
-                                <!-- TIPO DE ENTREGA -->
                                 <div style="margin-bottom: 20px;">
                                     <h4 style="margin:0 0 15px 0;">Tipo de Entrega</h4>
                                     <div style="display: flex; gap: 20px;">
@@ -3108,7 +3200,6 @@ class InvPlanetApp {
                                     </div>
                                 </div>
 
-                                <!-- CAMPOS DINÁMICOS SEGÚN TIPO -->
                                 <div id="camposEntrega">
                                     <div id="camposMesa" style="margin-bottom: 20px;">
                                         <div class="form-group">
@@ -3140,17 +3231,15 @@ class InvPlanetApp {
                                     </div>
                                 </div>
 
-                                <!-- NOTA GENERAL -->
                                 <div style="margin-bottom: 20px;">
-                                    <label>Nota General para la Orden</label>
-                                    <textarea id="notaGeneral" class="form-control" rows="2" placeholder="Ej: Sin cebolla, salsa aparte, etc..."></textarea>
+                                    <label>Nota General</label>
+                                    <textarea id="notaGeneral" class="form-control" rows="2" placeholder="Ej: Sin cebolla, salsa aparte..."></textarea>
                                 </div>
 
-                                <!-- CARRITO -->
-                                <div style="flex: 1; display: flex; flex-direction: column; min-height: 300px;">
+                                <div style="flex: 1; display: flex; flex-direction: column;">
                                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                                        <h4 style="margin:0;">Carrito de Venta</h4>
-                                        <span class="badge badge-success" id="carritoItemsCount" style="font-size: 1.1em; padding: 8px 20px;">0</span>
+                                        <h4 style="margin:0;">Carrito</h4>
+                                        <span class="badge badge-success" id="carritoItemsCount">0</span>
                                     </div>
 
                                     <div id="carritoItems" style="flex: 1; overflow-y: auto; background: #f8fafc; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
@@ -3172,12 +3261,8 @@ class InvPlanetApp {
                                         </div>
                                         ` : ''}
                                         <div style="display: flex; justify-content: space-between; margin-bottom: 15px; opacity: 0.9;">
-                                            <span>Descuento por puntos:</span>
+                                            <span>Descuento puntos:</span>
                                             <span id="descuentoPuntosDisplay">-$0</span>
-                                        </div>
-                                        <div style="display: flex; justify-content: space-between; margin-bottom: 15px; opacity: 0.9;">
-                                            <span>Domicilio:</span>
-                                            <span id="domicilioCarrito">$0</span>
                                         </div>
                                         <div style="display: flex; justify-content: space-between; font-size: 1.5em; font-weight: bold; border-top: 2px solid rgba(255,255,255,0.2); padding-top: 20px;">
                                             <span>TOTAL:</span>
@@ -3191,7 +3276,6 @@ class InvPlanetApp {
                                             <option value="tarjeta">Tarjeta</option>
                                             <option value="transferencia">Transferencia</option>
                                         </select>
-                                        <input type="email" id="clienteEmail" class="form-control" placeholder="Email para factura" style="flex: 1;">
                                     </div>
 
                                     <div style="display: flex; gap: 15px;">
@@ -3239,25 +3323,7 @@ class InvPlanetApp {
         const puntos = cliente.puntos || 0;
         document.getElementById('puntosClienteDisplay').textContent = puntos;
         document.getElementById('puntosACanjearInput').value = '';
-        document.getElementById('puntosACanjearInput').max = Math.floor(puntos / 100) * 100;
-
-        const productosGratisDiv = document.getElementById('productosGratisList');
-        if (this.configFidelizacion.productosGratis.length > 0) {
-            let gratisHTML = '<p><strong>Productos gratis disponibles:</strong></p>';
-            this.configFidelizacion.productosGratis.forEach((pg, index) => {
-                if (puntos >= pg.puntosNecesarios) {
-                    gratisHTML += `
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-                            <span>${pg.nombre} (${pg.puntosNecesarios} pts)</span>
-                            <button class="btn btn-sm btn-info" onclick="window.app.canjearProductoGratis(${index})">Canjear</button>
-                        </div>
-                    `;
-                }
-            });
-            productosGratisDiv.innerHTML = gratisHTML;
-        } else {
-            productosGratisDiv.innerHTML = '<p>No hay productos gratis configurados.</p>';
-        }
+        document.getElementById('puntosACanjearInput').max = puntos;
 
         document.getElementById('beneficiosClienteSection').style.display = 'block';
     }
@@ -3283,63 +3349,12 @@ class InvPlanetApp {
             return;
         }
 
-        if (puntosACanjear % 100 !== 0) {
-            this.mostrarMensaje('❌ Los puntos deben canjearse en múltiplos de 100', 'error');
-            return;
-        }
-
         this.puntosACanjear = puntosACanjear;
-        const descuento = (puntosACanjear / 100) * 10000;
+        const descuento = puntosACanjear * this.configFidelizacion.valorPuntoEnPesos;
         document.getElementById('descuentoPuntosDisplay').textContent = `-$${descuento.toLocaleString()}`;
 
         this.actualizarCarrito();
         this.mostrarMensaje(`🎉 Descuento de $${descuento.toLocaleString()} aplicado`, 'success');
-    }
-
-    canjearProductoGratis(index) {
-        const productoGratis = this.configFidelizacion.productosGratis[index];
-        if (!productoGratis) return;
-
-        const clienteSelect = document.getElementById('clienteVentaSelect');
-        const clienteId = clienteSelect.value;
-        const cliente = this.clientes.find(c => c.id === clienteId);
-        if (!cliente) {
-            this.mostrarMensaje('❌ Selecciona un cliente primero', 'error');
-            return;
-        }
-
-        if ((cliente.puntos || 0) < productoGratis.puntosNecesarios) {
-            this.mostrarMensaje('❌ El cliente no tiene suficientes puntos', 'error');
-            return;
-        }
-
-        const producto = storage.getProducto(productoGratis.productoId);
-        if (!producto || producto.unidades <= 0) {
-            this.mostrarMensaje('❌ Producto gratis no disponible en inventario', 'error');
-            return;
-        }
-
-        const existe = this.carritoVenta.findIndex(i => i.productoId === productoGratis.productoId && i.esCanjePuntos === true);
-        if (existe !== -1) {
-            this.carritoVenta[existe].cantidad++;
-            this.carritoVenta[existe].subtotal = 0;
-        } else {
-            this.carritoVenta.push({
-                productoId: productoGratis.productoId,
-                nombre: productoGratis.nombre,
-                codigo: producto.codigo,
-                precioUnitario: 0,
-                cantidad: 1,
-                subtotal: 0,
-                stockDisponible: producto.unidades,
-                nota: 'Producto canjeado por puntos',
-                esCanjePuntos: true,
-                puntosCanjeados: productoGratis.puntosNecesarios
-            });
-        }
-
-        this.actualizarCarrito();
-        this.mostrarMensaje(`🎁 Producto gratis "${productoGratis.nombre}" agregado al carrito`, 'success');
     }
 
     buscarPorCodigoBarras() {
@@ -3386,61 +3401,44 @@ class InvPlanetApp {
             return;
         }
 
-        // Verificar stock de ingredientes si es kit
-        if (producto.esKit) {
-            const verif = this.verificarStockIngredientes(productoId, 1);
-            if (!verif.suficiente) {
-                this.mostrarMensaje(`❌ No hay suficientes ingredientes: ${verif.faltantes.map(f => f.nombre).join(', ')}`, 'error');
-                return;
-            }
-        } else if (producto.unidades <= 0) {
+        // Verificar stock
+        if (producto.unidades <= 0) {
             this.mostrarMensaje('❌ Producto agotado', 'error');
             return;
         }
 
-        const promocion = this.aplicarPromociones(producto.precioVenta, producto.id, producto.categoriaId, 1);
-        let precioFinal = producto.precioVenta;
-
-        if (promocion.promocion && promocion.promocion.tipo === 'porcentaje') {
-            precioFinal = promocion.precioFinal;
-            this.mostrarMensaje(`🎁 Promoción aplicada: ${promocion.promocion.nombre}`, 'info');
+        // Verificar si es kit y tiene receta
+        if (producto.esKit) {
+            const tieneReceta = this.recetas.some(r => r.productoId === producto.id);
+            if (!tieneReceta) {
+                this.mostrarMensaje('⚠️ Este producto no tiene receta definida', 'warning');
+            }
         }
 
-        const nota = prompt(`¿Nota para ${producto.nombre}? (Ej: Sin cebolla, bien asado, etc)`, '');
-        const adiciones = prompt(`¿Adiciones para ${producto.nombre}? (Ej: Queso extra, tocineta, etc - separado por comas)`, '');
+        const nota = prompt(`¿Nota para ${producto.nombre}?`, '');
 
         const existe = this.carritoVenta.findIndex(i => i.productoId === productoId);
 
         if (existe !== -1) {
-            // Verificar stock para kits o productos simples
-            if (producto.esKit) {
-                const verif = this.verificarStockIngredientes(productoId, this.carritoVenta[existe].cantidad + 1);
-                if (!verif.suficiente) {
-                    this.mostrarMensaje('❌ No hay suficientes ingredientes para agregar más', 'error');
-                    return;
-                }
-            } else if (this.carritoVenta[existe].cantidad >= producto.unidades) {
+            if (this.carritoVenta[existe].cantidad >= producto.unidades) {
                 this.mostrarMensaje('⚠️ Stock máximo alcanzado', 'warning');
                 return;
             }
-            
             this.carritoVenta[existe].cantidad++;
             this.carritoVenta[existe].subtotal = this.carritoVenta[existe].cantidad * this.carritoVenta[existe].precioUnitario;
             if (nota) this.carritoVenta[existe].nota = nota;
-            if (adiciones) this.carritoVenta[existe].adiciones = adiciones.split(',').map(a => a.trim());
             this.mostrarMensaje(`✓ +1 ${producto.nombre}`, 'success');
         } else {
             this.carritoVenta.push({
                 productoId: producto.id,
                 nombre: producto.nombre,
                 codigo: producto.codigo,
-                precioUnitario: precioFinal,
+                precioUnitario: producto.precioVenta,
                 cantidad: 1,
-                subtotal: precioFinal,
+                subtotal: producto.precioVenta,
                 stockDisponible: producto.unidades,
                 esKit: producto.esKit || false,
                 nota: nota || '',
-                adiciones: adiciones ? adiciones.split(',').map(a => a.trim()) : [],
                 esCanjePuntos: false
             });
             this.mostrarMensaje(`✓ ${producto.nombre} agregado`, 'success');
@@ -3454,7 +3452,6 @@ class InvPlanetApp {
         const carritoCount = document.getElementById('carritoItemsCount');
         const subtotalEl = document.getElementById('subtotalCarrito');
         const impuestoEl = document.getElementById('impuestoCarrito');
-        const domicilioEl = document.getElementById('domicilioCarrito');
         const descuentoPuntosEl = document.getElementById('descuentoPuntosDisplay');
         const totalEl = document.getElementById('totalCarrito');
 
@@ -3473,7 +3470,6 @@ class InvPlanetApp {
             `;
             if (subtotalEl) subtotalEl.textContent = '$0';
             if (impuestoEl) impuestoEl.textContent = '$0';
-            if (domicilioEl) domicilioEl.textContent = '$0';
             if (descuentoPuntosEl) descuentoPuntosEl.textContent = '-$0';
             if (totalEl) totalEl.textContent = '$0';
             return;
@@ -3485,54 +3481,26 @@ class InvPlanetApp {
         this.carritoVenta.forEach((item, i) => {
             subtotal += item.subtotal;
 
-            let adicionesHTML = '';
-            if (item.adiciones && item.adiciones.length > 0) {
-                adicionesHTML = `<div style="font-size: 0.85em; color: #e67e22; margin-top: 5px;">
-                    <i class="fas fa-plus-circle"></i> Adiciones: ${item.adiciones.join(', ')}
-                </div>`;
-            }
-
-            let notaHTML = '';
-            if (item.nota) {
-                notaHTML = `<div style="font-size: 0.85em; color: #3498db; margin-top: 5px;">
-                    <i class="fas fa-sticky-note"></i> Nota: ${item.nota}
-                </div>`;
-            }
-
-            let canjeHTML = '';
-            if (item.esCanjePuntos) {
-                canjeHTML = `<span class="badge badge-info" style="margin-left: 5px;">🎁 Canje</span>`;
-            }
-
             html += `
                 <div style="background: white; border-radius: 10px; padding: 15px; margin-bottom: 10px; border: 1px solid #ecf0f1;">
                     <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                         <div style="flex: 2;">
-                            <strong style="font-size: 1.1em;">${item.nombre} ${canjeHTML}</strong><br>
+                            <strong style="font-size: 1.1em;">${item.nombre}</strong><br>
                             <small style="color: #7f8c8d;">$${item.precioUnitario} c/u</small>
-                            ${notaHTML}
-                            ${adicionesHTML}
+                            ${item.nota ? `<div style="font-size: 0.85em; color: #3498db;">📝 ${item.nota}</div>` : ''}
                         </div>
                         <div style="display: flex; align-items: center; gap: 15px;">
-                            <button class="btn btn-sm btn-outline-secondary"
-                                    onclick="window.app.disminuirCantidad(${i})"
-                                    style="width: 35px; height: 35px; border-radius: 8px;"
-                                    ${item.cantidad <= 1 ? 'disabled' : ''}>
+                            <button class="btn btn-sm btn-outline-secondary" onclick="window.app.disminuirCantidad(${i})" style="width: 35px; height: 35px;" ${item.cantidad <= 1 ? 'disabled' : ''}>
                                 <i class="fas fa-minus"></i>
                             </button>
-                            <span style="font-weight: bold; min-width: 30px; text-align: center; font-size: 1.2em;">${item.cantidad}</span>
-                            <button class="btn btn-sm btn-outline-primary"
-                                    onclick="window.app.aumentarCantidad(${i})"
-                                    style="width: 35px; height: 35px; border-radius: 8px;"
-                                    ${item.cantidad >= item.stockDisponible ? 'disabled' : ''}>
+                            <span style="font-weight: bold; min-width: 30px; text-align: center;">${item.cantidad}</span>
+                            <button class="btn btn-sm btn-outline-primary" onclick="window.app.aumentarCantidad(${i})" style="width: 35px; height: 35px;" ${item.cantidad >= item.stockDisponible ? 'disabled' : ''}>
                                 <i class="fas fa-plus"></i>
                             </button>
                         </div>
                         <div style="text-align: right; min-width: 100px;">
                             <strong style="font-size: 1.2em; color: #27ae60;">$${item.subtotal}</strong>
-                            <button class="btn btn-sm btn-link text-danger"
-                                    onclick="window.app.eliminarDelCarrito(${i})"
-                                    style="margin-left: 10px;">
+                            <button class="btn btn-sm btn-link text-danger" onclick="window.app.eliminarDelCarrito(${i})">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </div>
@@ -3547,42 +3515,22 @@ class InvPlanetApp {
         const impuestoPorcentaje = (config.impuesto || 0) / 100;
         const impuesto = subtotal * impuestoPorcentaje;
 
-        let valorDomicilio = 0;
-        const tipoEntrega = document.querySelector('input[name="tipoEntrega"]:checked')?.value;
-        if (tipoEntrega === 'domicilio') {
-            valorDomicilio = parseFloat(document.getElementById('valorDomicilio')?.value) || 0;
-        }
-
-        const descuentoPuntos = (this.puntosACanjear / 100) * 10000;
-        const total = subtotal + impuesto + valorDomicilio - descuentoPuntos;
+        const descuentoPuntos = this.puntosACanjear * (this.configFidelizacion.valorPuntoEnPesos || 100);
+        const total = subtotal + impuesto - descuentoPuntos;
 
         if (subtotalEl) subtotalEl.textContent = `$${subtotal.toLocaleString()}`;
         if (impuestoEl) impuestoEl.textContent = `$${impuesto.toLocaleString()}`;
-        if (domicilioEl) domicilioEl.textContent = `$${valorDomicilio.toLocaleString()}`;
         if (descuentoPuntosEl) descuentoPuntosEl.textContent = `-$${descuentoPuntos.toLocaleString()}`;
         if (totalEl) totalEl.textContent = `$${total.toLocaleString()}`;
     }
 
     aumentarCantidad(index) {
         const item = this.carritoVenta[index];
-        const producto = storage.getProducto(item.productoId);
-        
-        if (!producto) return;
-
-        if (producto.esKit) {
-            const verif = this.verificarStockIngredientes(item.productoId, item.cantidad + 1);
-            if (!verif.suficiente) {
-                this.mostrarMensaje('❌ No hay suficientes ingredientes', 'error');
-                return;
-            }
-        } else if (item.cantidad >= producto.unidades) {
-            this.mostrarMensaje('⚠️ Stock máximo alcanzado', 'warning');
-            return;
+        if (item.cantidad < item.stockDisponible) {
+            item.cantidad++;
+            item.subtotal = item.cantidad * item.precioUnitario;
+            this.actualizarCarrito();
         }
-
-        item.cantidad++;
-        item.subtotal = item.cantidad * item.precioUnitario;
-        this.actualizarCarrito();
     }
 
     disminuirCantidad(index) {
@@ -3616,37 +3564,13 @@ class InvPlanetApp {
             return;
         }
 
-        // Verificar stock de todos los kits antes de finalizar
-        for (const item of this.carritoVenta) {
-            if (item.esKit && !item.esCanjePuntos) {
-                const verif = this.verificarStockIngredientes(item.productoId, item.cantidad);
-                if (!verif.suficiente) {
-                    this.mostrarMensaje(`❌ No hay suficientes ingredientes para ${item.nombre}`, 'error');
-                    return;
-                }
-            } else if (!item.esKit && !item.esCanjePuntos) {
-                const producto = storage.getProducto(item.productoId);
-                if (!producto || producto.unidades < item.cantidad) {
-                    this.mostrarMensaje(`❌ Stock insuficiente para ${item.nombre}`, 'error');
-                    return;
-                }
-            }
-        }
-
         const tipoEntrega = document.querySelector('input[name="tipoEntrega"]:checked')?.value || 'mesa';
 
         if (tipoEntrega === 'domicilio') {
             const direccion = document.getElementById('domicilioDireccion')?.value;
             const telefono = document.getElementById('domicilioTelefono')?.value;
-
             if (!direccion || !telefono) {
                 this.mostrarMensaje('❌ Completa los campos obligatorios del domicilio', 'error');
-                return;
-            }
-        } else {
-            const mesaNumero = document.getElementById('mesaNumero')?.value;
-            if (!mesaNumero) {
-                this.mostrarMensaje('❌ Ingresa el número de mesa', 'error');
                 return;
             }
         }
@@ -3690,43 +3614,13 @@ class InvPlanetApp {
         const config = storage.getConfig?.() || {};
         const impuestoPorcentaje = (config.impuesto || 0) / 100;
 
-        const clienteEmail = document.getElementById('clienteEmail')?.value || '';
         const metodoPago = document.getElementById('metodoPago')?.value || 'efectivo';
         const notaGeneral = document.getElementById('notaGeneral')?.value || '';
-        const valorDomicilio = tipoEntrega === 'domicilio' ? (parseFloat(document.getElementById('valorDomicilio')?.value) || 0) : 0;
 
         const subtotal = this.carritoVenta.reduce((sum, item) => sum + item.subtotal, 0);
         const impuesto = subtotal * impuestoPorcentaje;
-        const descuentoPuntos = (this.puntosACanjear / 100) * 10000;
-        const total = subtotal + impuesto + valorDomicilio - descuentoPuntos;
-
-        let datosEntrega = {};
-        let mesaId = null;
-        if (tipoEntrega === 'mesa') {
-            const mesaNumero = document.getElementById('mesaNumero')?.value;
-            const mesa = this.mesas.find(m => m.numero == mesaNumero);
-            if (mesa) {
-                mesaId = mesa.id;
-                mesa.estado = 'ocupada';
-                mesa.comensales = parseInt(document.getElementById('comensalesMesa')?.value) || 2;
-                mesa.pedidoActual = { id: Date.now().toString(), productos: this.carritoVenta };
-                this.guardarMesas();
-            }
-            datosEntrega = {
-                tipoEntrega: 'mesa',
-                mesa: mesaNumero,
-                mesaId: mesaId,
-                comensales: parseInt(document.getElementById('comensalesMesa')?.value) || 2
-            };
-        } else {
-            datosEntrega = {
-                tipoEntrega: 'domicilio',
-                direccion: document.getElementById('domicilioDireccion')?.value,
-                referencia: document.getElementById('domicilioReferencia')?.value || '',
-                telefono: document.getElementById('domicilioTelefono')?.value,
-                valorDomicilio: valorDomicilio
-            };
-        }
+        const descuentoPuntos = this.puntosACanjear * (this.configFidelizacion.valorPuntoEnPesos || 100);
+        const total = subtotal + impuesto - descuentoPuntos;
 
         const venta = {
             id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
@@ -3734,8 +3628,7 @@ class InvPlanetApp {
             fecha: new Date().toISOString(),
             cliente: clienteNombre,
             clienteId: clienteId,
-            ...datosEntrega,
-            email: clienteEmail,
+            tipoEntrega: tipoEntrega,
             productos: this.carritoVenta.map(item => ({
                 productoId: item.productoId,
                 nombre: item.nombre,
@@ -3744,13 +3637,11 @@ class InvPlanetApp {
                 precioUnitario: item.precioUnitario,
                 subtotal: item.subtotal,
                 nota: item.nota || '',
-                adiciones: item.adiciones || [],
                 esCanjePuntos: item.esCanjePuntos || false
             })),
             notaGeneral: notaGeneral,
             subtotal: subtotal,
             impuesto: impuesto,
-            valorDomicilio: valorDomicilio,
             descuentoPuntos: descuentoPuntos,
             puntosCanjeados: this.puntosACanjear,
             total: total,
@@ -3758,27 +3649,11 @@ class InvPlanetApp {
             estado: 'completada'
         };
 
-        // Descontar stock usando recetas
+        // Descontar stock
         this.carritoVenta.forEach(item => {
             if (item.esCanjePuntos) return;
-
             const producto = storage.getProducto(item.productoId);
-            if (!producto) return;
-
-            if (producto.esKit) {
-                const receta = this.recetas.find(r => r.productoId === item.productoId);
-                if (receta) {
-                    for (let i = 0; i < item.cantidad; i++) {
-                        receta.ingredientes.forEach(ing => {
-                            const ingrediente = storage.getProducto(ing.productoId);
-                            if (ingrediente) {
-                                ingrediente.unidades -= ing.cantidad;
-                                storage.updateProducto(ingrediente.id, { unidades: ingrediente.unidades });
-                            }
-                        });
-                    }
-                }
-            } else {
+            if (producto) {
                 producto.unidades -= item.cantidad;
                 storage.updateProducto(producto.id, { unidades: producto.unidades });
             }
@@ -3788,27 +3663,19 @@ class InvPlanetApp {
         ventas.push(venta);
         storage.saveVentas?.(ventas);
 
+        // Actualizar puntos del cliente
         if (clienteId) {
             const cliente = this.clientes.find(c => c.id === clienteId);
             if (cliente) {
                 const puntosGanados = Math.floor(total / this.configFidelizacion.puntosPorCada);
                 cliente.puntos = (cliente.puntos || 0) + puntosGanados;
-
                 if (this.puntosACanjear > 0) {
                     cliente.puntos -= this.puntosACanjear;
                 }
-
-                this.carritoVenta.forEach(item => {
-                    if (item.esCanjePuntos && item.puntosCanjeados) {
-                        cliente.puntos -= item.puntosCanjeados;
-                    }
-                });
-
                 cliente.totalCompras = (cliente.totalCompras || 0) + total;
                 cliente.ultimaCompra = new Date().toISOString();
-
                 this.guardarClientes();
-                this.mostrarMensaje(`🎉 ¡Ganaste ${puntosGanados} puntos! Total acumulado: ${cliente.puntos} puntos`, 'success');
+                this.mostrarMensaje(`🎉 ¡Ganaste ${puntosGanados} puntos! Total: ${cliente.puntos} puntos`, 'success');
             }
         }
 
@@ -3818,8 +3685,6 @@ class InvPlanetApp {
             if (confirm('¿Enviar orden por WhatsApp?')) {
                 this.enviarWhatsApp(venta.id);
             }
-        } else {
-            alert('Venta finalizada. (Simulación: Conectar con impresora térmica)');
         }
 
         setTimeout(() => {
@@ -3846,23 +3711,6 @@ class InvPlanetApp {
         const config = storage.getConfig?.() || {};
         const nombreNegocio = config.nombreNegocio || 'Mi Negocio';
 
-        let entregaInfo = '';
-        if (venta.tipoEntrega === 'domicilio') {
-            entregaInfo = `
-                <p><strong>Tipo:</strong> Domicilio 🛵</p>
-                <p><strong>Dirección:</strong> ${venta.direccion}</p>
-                <p><strong>Referencia:</strong> ${venta.referencia || 'N/A'}</p>
-                <p><strong>Teléfono:</strong> ${venta.telefono}</p>
-                <p><strong>Valor Domicilio:</strong> $${(venta.valorDomicilio || 0).toLocaleString()}</p>
-            `;
-        } else {
-            entregaInfo = `
-                <p><strong>Tipo:</strong> Mesa 🍽️</p>
-                <p><strong>Mesa:</strong> ${venta.mesa || 'No especificada'}</p>
-                <p><strong>Comensales:</strong> ${venta.comensales || 'N/A'}</p>
-            `;
-        }
-
         const modalHTML = `
             <div class="modal-overlay active" id="modalDetalleVenta">
                 <div class="modal-content" style="max-width: 900px;">
@@ -3878,38 +3726,26 @@ class InvPlanetApp {
                             <h4>${venta.numero}</h4>
                             <p><strong>Fecha:</strong> ${fecha.toLocaleDateString()} ${fecha.toLocaleTimeString()}</p>
                             <p><strong>Cliente:</strong> ${venta.cliente}</p>
-                            ${entregaInfo}
-                            <p><strong>Email:</strong> ${venta.email || 'No registrado'}</p>
-                            <p><strong>Método de Pago:</strong> ${venta.metodoPago}</p>
-                            <p><strong>Estado:</strong> <span class="badge ${venta.estado === 'anulada' ? 'badge-danger' : venta.estado === 'modificada' ? 'badge-warning' : 'badge-success'}">${venta.estado}</span></p>
-                            ${venta.notaGeneral ? `<p><strong>Nota General:</strong> ${venta.notaGeneral}</p>` : ''}
+                            <p><strong>Estado:</strong> <span class="badge badge-${venta.estado}">${venta.estado}</span></p>
                             ${venta.descuentoPuntos > 0 ? `<p><strong>Descuento por puntos:</strong> $${venta.descuentoPuntos.toLocaleString()}</p>` : ''}
                         </div>
 
                         <table class="table">
                             <thead>
                                 <tr>
-                                    <th>Código</th>
                                     <th>Producto</th>
                                     <th>Cantidad</th>
                                     <th>Precio Unit.</th>
                                     <th>Subtotal</th>
-                                    <th>Notas</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 ${venta.productos.map(p => `
                                     <tr>
-                                        <td>${p.codigo || 'N/A'}</td>
                                         <td>${p.nombre} ${p.esCanjePuntos ? '🎁' : ''}</td>
                                         <td>${p.cantidad}</td>
                                         <td>$${p.precioUnitario}</td>
                                         <td>$${p.subtotal}</td>
-                                        <td>
-                                            ${p.nota ? `<small>📝 ${p.nota}</small>` : ''}
-                                            ${p.adiciones?.length ? `<br><small>➕ ${p.adiciones.join(', ')}</small>` : ''}
-                                            ${p.esCanjePuntos ? `<br><small>🎁 Canje por puntos</small>` : ''}
-                                        </td>
                                     </tr>
                                 `).join('')}
                             </tbody>
@@ -3917,22 +3753,9 @@ class InvPlanetApp {
 
                         <div style="margin-top: 20px; text-align: right;">
                             <p><strong>Subtotal:</strong> $${venta.subtotal.toLocaleString()}</p>
-                            ${venta.impuesto > 0 ? `<p><strong>Impuesto (${config.impuesto || 0}%):</strong> $${venta.impuesto.toLocaleString()}</p>` : ''}
-                            ${venta.valorDomicilio > 0 ? `<p><strong>Valor Domicilio:</strong> $${venta.valorDomicilio.toLocaleString()}</p>` : ''}
+                            ${venta.impuesto > 0 ? `<p><strong>Impuesto:</strong> $${venta.impuesto.toLocaleString()}</p>` : ''}
                             ${venta.descuentoPuntos > 0 ? `<p><strong>Descuento por puntos:</strong> $${venta.descuentoPuntos.toLocaleString()}</p>` : ''}
                             <h3><strong>TOTAL:</strong> $${venta.total.toLocaleString()}</h3>
-                        </div>
-
-                        <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
-                            <button class="btn btn-success" onclick="window.app.enviarWhatsApp('${venta.id}')">
-                                <i class="fab fa-whatsapp"></i> WhatsApp
-                            </button>
-                            <button class="btn btn-primary" onclick="window.app.imprimirFactura('${venta.id}')">
-                                <i class="fas fa-print"></i> Imprimir Factura
-                            </button>
-                            <button class="btn btn-info" onclick="window.app.enviarFacturaEmail('${venta.id}')">
-                                <i class="fas fa-envelope"></i> Enviar por Email
-                            </button>
                         </div>
                     </div>
                 </div>
@@ -3953,27 +3776,6 @@ class InvPlanetApp {
         const fecha = new Date(venta.fecha);
         const config = storage.getConfig?.() || {};
         const nombreNegocio = config.nombreNegocio || 'Mi Negocio';
-        const direccion = config.direccion || '';
-        const telefono = config.telefono || '';
-        const email = config.email || '';
-        const impuestoPorcentaje = config.impuesto || 0;
-
-        let entregaInfo = '';
-        if (venta.tipoEntrega === 'domicilio') {
-            entregaInfo = `
-                <p><strong>Tipo:</strong> Domicilio</p>
-                <p><strong>Dirección:</strong> ${venta.direccion}</p>
-                <p><strong>Referencia:</strong> ${venta.referencia || 'N/A'}</p>
-                <p><strong>Teléfono:</strong> ${venta.telefono}</p>
-                <p><strong>Valor Domicilio:</strong> $${(venta.valorDomicilio || 0).toLocaleString()}</p>
-            `;
-        } else {
-            entregaInfo = `
-                <p><strong>Tipo:</strong> Mesa</p>
-                <p><strong>Mesa:</strong> ${venta.mesa || 'No especificada'}</p>
-                <p><strong>Comensales:</strong> ${venta.comensales || 'N/A'}</p>
-            `;
-        }
 
         const facturaHTML = `
             <!DOCTYPE html>
@@ -3985,43 +3787,26 @@ class InvPlanetApp {
                     .header { text-align: center; margin-bottom: 30px; }
                     .empresa { font-size: 24px; font-weight: bold; color: #27ae60; }
                     .factura-info { margin-bottom: 20px; }
-                    .cliente-info { margin-bottom: 20px; }
                     table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
                     th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
                     th { background-color: #f2f2f2; }
-                    .nota-producto { font-size: 0.9em; color: #666; font-style: italic; }
                     .totales { text-align: right; }
                     .footer { margin-top: 40px; text-align: center; font-size: 12px; color: #666; }
-                    @media print {
-                        .no-print { display: none; }
-                    }
                 </style>
             </head>
             <body>
                 <div class="header">
                     <div class="empresa">${nombreNegocio}</div>
-                    <div>${direccion}</div>
-                    <div>${telefono}</div>
-                    <div>${email}</div>
                 </div>
-
                 <div class="factura-info">
-                    <h2>FACTURA ELECTRÓNICA</h2>
+                    <h2>FACTURA</h2>
                     <p><strong>Número:</strong> ${venta.numero}</p>
                     <p><strong>Fecha:</strong> ${fecha.toLocaleDateString()} ${fecha.toLocaleTimeString()}</p>
+                    <p><strong>Cliente:</strong> ${venta.cliente}</p>
                 </div>
-
-                <div class="cliente-info">
-                    <h3>DATOS DEL CLIENTE</h3>
-                    <p><strong>Nombre:</strong> ${venta.cliente}</p>
-                    ${entregaInfo}
-                    <p><strong>Email:</strong> ${venta.email || 'No registrado'}</p>
-                </div>
-
                 <table>
                     <thead>
                         <tr>
-                            <th>Código</th>
                             <th>Producto</th>
                             <th>Cantidad</th>
                             <th>Precio Unit.</th>
@@ -4031,39 +3816,22 @@ class InvPlanetApp {
                     <tbody>
                         ${venta.productos.map(p => `
                             <tr>
-                                <td>${p.codigo || 'N/A'}</td>
-                                <td>
-                                    ${p.nombre} ${p.esCanjePuntos ? '🎁' : ''}
-                                    ${p.nota ? `<div class="nota-producto">📝 ${p.nota}</div>` : ''}
-                                    ${p.adiciones?.length ? `<div class="nota-producto">➕ ${p.adiciones.join(', ')}</div>` : ''}
-                                </td>
+                                <td>${p.nombre}</td>
                                 <td>${p.cantidad}</td>
-                                <td>$${p.precioUnitario.toLocaleString()}</td>
-                                <td>$${p.subtotal.toLocaleString()}</td>
+                                <td>$${p.precioUnitario}</td>
+                                <td>$${p.subtotal}</td>
                             </tr>
                         `).join('')}
                     </tbody>
                 </table>
-
-                ${venta.notaGeneral ? `<p><strong>Nota General:</strong> ${venta.notaGeneral}</p>` : ''}
-
                 <div class="totales">
                     <p><strong>Subtotal:</strong> $${venta.subtotal.toLocaleString()}</p>
-                    ${venta.impuesto > 0 ? `<p><strong>Impuesto (${impuestoPorcentaje}%):</strong> $${venta.impuesto.toLocaleString()}</p>` : ''}
-                    ${venta.valorDomicilio > 0 ? `<p><strong>Valor Domicilio:</strong> $${venta.valorDomicilio.toLocaleString()}</p>` : ''}
+                    ${venta.impuesto > 0 ? `<p><strong>Impuesto:</strong> $${venta.impuesto.toLocaleString()}</p>` : ''}
                     ${venta.descuentoPuntos > 0 ? `<p><strong>Descuento por puntos:</strong> $${venta.descuentoPuntos.toLocaleString()}</p>` : ''}
                     <h2><strong>TOTAL:</strong> $${venta.total.toLocaleString()}</h2>
                 </div>
-
                 <div class="footer">
                     <p>¡Gracias por su compra!</p>
-                    <p>Puntos acumulados en esta compra: ${Math.floor(venta.total / this.configFidelizacion.puntosPorCada)}</p>
-                    <p>Esta factura se asimila en todos sus efectos legales a una factura de venta</p>
-                </div>
-
-                <div class="no-print" style="text-align: center; margin-top: 20px;">
-                    <button onclick="window.print()">Imprimir</button>
-                    <button onclick="window.close()">Cerrar</button>
                 </div>
             </body>
             </html>
@@ -4080,13 +3848,7 @@ class InvPlanetApp {
             this.mostrarMensaje('❌ Venta no encontrada', 'error');
             return;
         }
-
-        if (!venta.email) {
-            this.mostrarMensaje('❌ El cliente no tiene email registrado', 'error');
-            return;
-        }
-
-        this.mostrarMensaje(`📧 Factura enviada a ${venta.email}`, 'success');
+        this.mostrarMensaje(`📧 Factura enviada (simulación)`, 'success');
     }
 
     generarFactura(venta) {
@@ -4152,7 +3914,6 @@ class InvPlanetApp {
                                 <th>Descripción</th>
                                 <th>Categoría</th>
                                 <th>Monto</th>
-                                <th>Comentarios</th>
                                 <th>Acciones</th>
                             </tr>
                         </thead>
@@ -4174,9 +3935,6 @@ class InvPlanetApp {
         const hoy = new Date().toDateString();
         const gastosHoy = gastos.filter(g => new Date(g.fecha).toDateString() === hoy);
         const totalHoy = gastosHoy.reduce((sum, g) => sum + (g.monto || 0), 0);
-        const mesActual = new Date().getMonth();
-        const gastosMes = gastos.filter(g => new Date(g.fecha).getMonth() === mesActual);
-        const totalMes = gastosMes.reduce((sum, g) => sum + (g.monto || 0), 0);
 
         return `
             <div class="resumen-card">
@@ -4200,13 +3958,6 @@ class InvPlanetApp {
                     <p>Gastos Hoy</p>
                 </div>
             </div>
-            <div class="resumen-card">
-                <i class="fas fa-calendar-alt"></i>
-                <div>
-                    <h4>$${totalMes.toLocaleString()}</h4>
-                    <p>Gastos del Mes</p>
-                </div>
-            </div>
         `;
     }
 
@@ -4214,10 +3965,9 @@ class InvPlanetApp {
         if (gastos.length === 0) {
             return `
                 <tr>
-                    <td colspan="6" class="text-center">
+                    <td colspan="5" class="text-center">
                         <i class="fas fa-money-bill-wave fa-3x mb-3" style="color: #ddd;"></i>
                         <h4>No hay gastos registrados</h4>
-                        <p>¡Comienza agregando tu primer gasto!</p>
                         <button class="btn btn-primary" onclick="window.app.mostrarModalNuevoGasto()">
                             <i class="fas fa-plus"></i> Nuevo Gasto
                         </button>
@@ -4226,15 +3976,6 @@ class InvPlanetApp {
             `;
         }
 
-        const categorias = {
-            'alquiler': 'Alquiler',
-            'servicios': 'Servicios',
-            'nomina': 'Nómina',
-            'insumos': 'Insumos',
-            'mantenimiento': 'Mantenimiento',
-            'otros': 'Otros'
-        };
-
         let html = '';
         gastos.sort((a, b) => new Date(b.fecha) - new Date(a.fecha)).forEach(g => {
             const fecha = new Date(g.fecha);
@@ -4242,9 +3983,8 @@ class InvPlanetApp {
                 <tr>
                     <td>${fecha.toLocaleDateString()}</td>
                     <td>${g.descripcion}</td>
-                    <td><span class="badge badge-info">${categorias[g.categoria] || g.categoria}</span></td>
+                    <td><span class="badge badge-info">${g.categoria}</span></td>
                     <td>$${g.monto.toLocaleString()}</td>
-                    <td>${g.comentarios || ''}</td>
                     <td>
                         <button class="btn btn-sm btn-primary" onclick="window.app.mostrarModalEditarGasto('${g.id}')">
                             <i class="fas fa-edit"></i>
@@ -4264,8 +4004,7 @@ class InvPlanetApp {
         const query = document.getElementById('searchGasto')?.value.toLowerCase() || '';
         const gastos = storage.getGastos?.() || [];
         const filtrados = gastos.filter(g =>
-            g.descripcion?.toLowerCase().includes(query) ||
-            g.comentarios?.toLowerCase().includes(query)
+            g.descripcion?.toLowerCase().includes(query)
         );
         document.getElementById('tablaGastos').innerHTML = this.renderTablaGastos(filtrados);
     }
@@ -4305,7 +4044,7 @@ class InvPlanetApp {
                             </div>
                             <div class="form-group">
                                 <label>Descripción *</label>
-                                <input type="text" id="gastoDescripcion" class="form-control" required placeholder="Ej: Pago de servicios">
+                                <input type="text" id="gastoDescripcion" class="form-control" required>
                             </div>
                             <div class="form-group">
                                 <label>Categoría</label>
@@ -4322,17 +4061,9 @@ class InvPlanetApp {
                                 <label>Monto *</label>
                                 <input type="number" id="gastoMonto" class="form-control" required min="0" step="100">
                             </div>
-                            <div class="form-group">
-                                <label>Comentarios</label>
-                                <textarea id="gastoComentarios" class="form-control" rows="3"></textarea>
-                            </div>
-                            <div class="form-actions" style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
-                                <button type="button" class="btn btn-secondary" onclick="window.app.cerrarModal('modalNuevoGasto')">
-                                    Cancelar
-                                </button>
-                                <button type="button" class="btn btn-primary" onclick="window.app.guardarNuevoGasto()">
-                                    <i class="fas fa-save"></i> Guardar Gasto
-                                </button>
+                            <div class="form-actions">
+                                <button type="button" class="btn btn-secondary" onclick="window.app.cerrarModal('modalNuevoGasto')">Cancelar</button>
+                                <button type="button" class="btn btn-primary" onclick="window.app.guardarNuevoGasto()">Guardar</button>
                             </div>
                         </form>
                     </div>
@@ -4359,22 +4090,13 @@ class InvPlanetApp {
             descripcion: descripcion,
             categoria: document.getElementById('gastoCategoria')?.value || 'otros',
             monto: parseFloat(monto),
-            comentarios: document.getElementById('gastoComentarios')?.value || '',
             fechaRegistro: new Date().toISOString()
         };
 
-        try {
-            const guardado = storage.addGasto?.(nuevoGasto);
-
-            if (guardado) {
-                this.mostrarMensaje('✅ Gasto registrado', 'success');
-                this.cerrarModal('modalNuevoGasto');
-                setTimeout(() => this.loadGastosView(), 300);
-            }
-        } catch (error) {
-            console.error('❌ Error:', error);
-            this.mostrarMensaje('❌ Error al guardar', 'error');
-        }
+        storage.addGasto?.(nuevoGasto);
+        this.mostrarMensaje('✅ Gasto registrado', 'success');
+        this.cerrarModal('modalNuevoGasto');
+        setTimeout(() => this.loadGastosView(), 300);
     }
 
     mostrarModalEditarGasto(id) {
@@ -4417,17 +4139,9 @@ class InvPlanetApp {
                                 <label>Monto *</label>
                                 <input type="number" id="editGastoMonto" class="form-control" value="${gasto.monto}" required min="0" step="100">
                             </div>
-                            <div class="form-group">
-                                <label>Comentarios</label>
-                                <textarea id="editGastoComentarios" class="form-control" rows="3">${gasto.comentarios || ''}</textarea>
-                            </div>
-                            <div class="form-actions" style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
-                                <button type="button" class="btn btn-secondary" onclick="window.app.cerrarModal('modalEditarGasto')">
-                                    Cancelar
-                                </button>
-                                <button type="button" class="btn btn-primary" onclick="window.app.guardarEdicionGasto()">
-                                    <i class="fas fa-save"></i> Guardar Cambios
-                                </button>
+                            <div class="form-actions">
+                                <button type="button" class="btn btn-secondary" onclick="window.app.cerrarModal('modalEditarGasto')">Cancelar</button>
+                                <button type="button" class="btn btn-primary" onclick="window.app.guardarEdicionGasto()">Guardar Cambios</button>
                             </div>
                         </form>
                     </div>
@@ -4454,22 +4168,13 @@ class InvPlanetApp {
             descripcion: descripcion,
             categoria: document.getElementById('editGastoCategoria')?.value,
             monto: parseFloat(monto),
-            comentarios: document.getElementById('editGastoComentarios')?.value || '',
             fechaActualizacion: new Date().toISOString()
         };
 
-        try {
-            const actualizado = storage.updateGasto?.(id, gastoActualizado);
-
-            if (actualizado) {
-                this.mostrarMensaje('✅ Gasto actualizado', 'success');
-                this.cerrarModal('modalEditarGasto');
-                setTimeout(() => this.loadGastosView(), 300);
-            }
-        } catch (error) {
-            console.error('❌ Error:', error);
-            this.mostrarMensaje('❌ Error al actualizar', 'error');
-        }
+        storage.updateGasto?.(id, gastoActualizado);
+        this.mostrarMensaje('✅ Gasto actualizado', 'success');
+        this.cerrarModal('modalEditarGasto');
+        setTimeout(() => this.loadGastosView(), 300);
     }
 
     eliminarGasto(id) {
@@ -4488,7 +4193,7 @@ class InvPlanetApp {
     }
 
     // ============================================
-    // REPORTES
+    // REPORTES (actualizado con recetas)
     // ============================================
 
     loadReportesView() {
@@ -4498,16 +4203,55 @@ class InvPlanetApp {
 
         const ventasCompletadas = ventas.filter(v => v.estado === 'completada');
         const ventasModificadas = ventas.filter(v => v.estado === 'modificada');
-        const ventasPorMes = this.agruparPorMes([...ventasCompletadas, ...ventasModificadas], 'total');
-        const gastosPorMes = this.agruparPorMes(gastos, 'monto');
-        const productosMasVendidos = this.obtenerProductosMasVendidos([...ventasCompletadas, ...ventasModificadas]);
-
+        
         const totalVentas = [...ventasCompletadas, ...ventasModificadas].reduce((s, v) => s + (v.total || 0), 0);
         const totalGastos = gastos.reduce((s, g) => s + (g.monto || 0), 0);
         const utilidad = totalVentas - totalGastos;
 
-        const domicilios = ventas.filter(v => v.tipoEntrega === 'domicilio' && (v.estado === 'completada' || v.estado === 'modificada')).length;
-        const mesas = ventas.filter(v => v.tipoEntrega === 'mesa' && (v.estado === 'completada' || v.estado === 'modificada')).length;
+        // Calcular márgenes de recetas
+        let recetasHTML = '';
+        this.recetas.forEach(receta => {
+            const producto = storage.getProducto(receta.productoId);
+            if (!producto) return;
+            
+            const costo = this.calcularCostoProduccion(receta.productoId);
+            if (!costo) return;
+            
+            const margen = producto.precioVenta - costo.costoPorUnidad;
+            const margenPorcentaje = ((margen / producto.precioVenta) * 100).toFixed(1);
+            
+            recetasHTML += `
+                <div class="receta-reporte-card">
+                    <div class="receta-reporte-header">
+                        <div class="receta-reporte-icon">
+                            <i class="fas fa-utensils"></i>
+                        </div>
+                        <div class="receta-reporte-info">
+                            <h4>${producto.nombre}</h4>
+                            <small>${receta.ingredientes.length} ingredientes</small>
+                        </div>
+                    </div>
+                    <div class="receta-reporte-stats">
+                        <div class="stat-item">
+                            <span class="label">Precio Venta</span>
+                            <span class="value">$${producto.precioVenta}</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="label">Costo Unit.</span>
+                            <span class="value">$${costo.costoPorUnidad.toFixed(0)}</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="label">Margen</span>
+                            <span class="value ${margen >= 0 ? 'positive' : 'negative'}">$${margen.toFixed(0)}</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="label">% Margen</span>
+                            <span class="value ${margen >= 0 ? 'positive' : 'negative'}">${margenPorcentaje}%</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
 
         const contentArea = document.getElementById('mainContent');
         contentArea.innerHTML = `
@@ -4516,198 +4260,44 @@ class InvPlanetApp {
                     <i class="fas fa-chart-line"></i> Reportes
                 </h2>
 
-                <div class="reportes-grid">
-                    <div class="reporte-card">
-                        <h3><i class="fas fa-chart-bar"></i> Resumen General</h3>
-                        <div class="resumen-stats">
-                            <div class="stat-item">
-                                <label>Total Ventas:</label>
-                                <span>$${totalVentas.toLocaleString()}</span>
-                            </div>
-                            <div class="stat-item">
-                                <label>Total Gastos:</label>
-                                <span>$${totalGastos.toLocaleString()}</span>
-                            </div>
-                            <div class="stat-item">
-                                <label>Utilidad Bruta:</label>
-                                <span class="${utilidad >= 0 ? 'text-success' : 'text-danger'}">$${utilidad.toLocaleString()}</span>
-                            </div>
-                            <div class="stat-item">
-                                <label>Valor Inventario:</label>
-                                <span>$${inventario.reduce((s, p) => s + ((p.costoUnitario || 0) * (p.unidades || 0)), 0).toLocaleString()}</span>
-                            </div>
-                            <div class="stat-item">
-                                <label>Domicilios:</label>
-                                <span>${domicilios}</span>
-                            </div>
-                            <div class="stat-item">
-                                <label>Mesas:</label>
-                                <span>${mesas}</span>
-                            </div>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: #3498db;">
+                            <i class="fas fa-dollar-sign"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3>$${totalVentas.toLocaleString()}</h3>
+                            <p>Total Ventas</p>
                         </div>
                     </div>
-
-                    <div class="reporte-card">
-                        <h3><i class="fas fa-calendar-alt"></i> Ventas por Mes</h3>
-                        <div class="grafico-barras" id="ventasPorMes">
-                            ${this.renderGraficoBarras(ventasPorMes)}
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: #e74c3c;">
+                            <i class="fas fa-money-bill-wave"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3>$${totalGastos.toLocaleString()}</h3>
+                            <p>Total Gastos</p>
                         </div>
                     </div>
-
-                    <div class="reporte-card">
-                        <h3><i class="fas fa-calendar-alt"></i> Gastos por Mes</h3>
-                        <div class="grafico-barras" id="gastosPorMes">
-                            ${this.renderGraficoBarras(gastosPorMes)}
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: ${utilidad >= 0 ? '#2ecc71' : '#e74c3c'};">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3>$${utilidad.toLocaleString()}</h3>
+                            <p>Utilidad Neta</p>
                         </div>
                     </div>
+                </div>
 
-                    <div class="reporte-card">
-                        <h3><i class="fas fa-chart-pie"></i> Productos Más Vendidos</h3>
-                        <table class="table table-sm">
-                            <thead>
-                                <tr>
-                                    <th>Producto</th>
-                                    <th>Cantidad</th>
-                                    <th>Total</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${productosMasVendidos.map(p => `
-                                    <tr>
-                                        <td>${p.nombre}</td>
-                                        <td>${p.cantidad}</td>
-                                        <td>$${p.total.toLocaleString()}</td>
-                                    </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <div class="reporte-card">
-                        <h3><i class="fas fa-file-pdf"></i> Exportar Reportes</h3>
-                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                            <button class="btn btn-primary" onclick="window.app.exportarReporteVentas()">
-                                <i class="fas fa-file-excel"></i> Ventas
-                            </button>
-                            <button class="btn btn-success" onclick="window.app.exportarReporteGastos()">
-                                <i class="fas fa-file-excel"></i> Gastos
-                            </button>
-                            <button class="btn btn-info" onclick="window.app.exportarReporteInventario()">
-                                <i class="fas fa-file-excel"></i> Inventario
-                            </button>
-                        </div>
+                <div class="dashboard-section">
+                    <h3><i class="fas fa-utensils" style="color: #9b59b6;"></i> Análisis de Recetas</h3>
+                    <div class="recetas-reporte">
+                        ${recetasHTML || '<p class="text-center">No hay recetas registradas</p>'}
                     </div>
                 </div>
             </div>
         `;
-    }
-
-    agruparPorMes(items, campo) {
-        const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-        const resultado = new Array(12).fill(0);
-
-        items.forEach(item => {
-            const fecha = new Date(item.fecha);
-            const mes = fecha.getMonth();
-            resultado[mes] += item[campo] || 0;
-        });
-
-        return resultado.map((valor, i) => ({ mes: meses[i], valor }));
-    }
-
-    renderGraficoBarras(datos) {
-        const maxValor = Math.max(...datos.map(d => d.valor), 1);
-
-        return datos.map(d => {
-            const altura = (d.valor / maxValor) * 100;
-            return `
-                <div class="barra-container">
-                    <div class="barra" style="height: ${altura}%; background: #3498db;"></div>
-                    <div class="barra-label">${d.mes}</div>
-                    <div class="barra-valor">$${d.valor.toLocaleString()}</div>
-                </div>
-            `;
-        }).join('');
-    }
-
-    obtenerProductosMasVendidos(ventas) {
-        const productos = {};
-
-        ventas.forEach(v => {
-            v.productos?.forEach(p => {
-                if (!productos[p.productoId]) {
-                    productos[p.productoId] = {
-                        nombre: p.nombre,
-                        cantidad: 0,
-                        total: 0
-                    };
-                }
-                productos[p.productoId].cantidad += p.cantidad;
-                productos[p.productoId].total += p.subtotal;
-            });
-        });
-
-        return Object.values(productos)
-            .sort((a, b) => b.cantidad - a.cantidad)
-            .slice(0, 5);
-    }
-
-    exportarReporteVentas() {
-        const ventas = storage.getVentas?.() || [];
-        if (storage.exportToCSV) {
-            const data = ventas.map(v => ({
-                Numero: v.numero,
-                Fecha: new Date(v.fecha).toLocaleDateString(),
-                Cliente: v.cliente,
-                Tipo: v.tipoEntrega === 'domicilio' ? 'Domicilio' : 'Mesa ' + (v.mesa || ''),
-                Direccion: v.direccion || '',
-                Telefono: v.telefono || '',
-                ValorDomicilio: v.valorDomicilio || 0,
-                Productos: v.productos?.length || 0,
-                Subtotal: v.subtotal,
-                Impuesto: v.impuesto,
-                DescuentoPuntos: v.descuentoPuntos || 0,
-                Total: v.total,
-                MetodoPago: v.metodoPago,
-                Estado: v.estado
-            }));
-            storage.exportToCSV(data, 'reporte_ventas');
-        }
-        this.mostrarMensaje('📊 Reporte de ventas exportado', 'success');
-    }
-
-    exportarReporteGastos() {
-        const gastos = storage.getGastos?.() || [];
-        if (storage.exportToCSV) {
-            const data = gastos.map(g => ({
-                Fecha: new Date(g.fecha).toLocaleDateString(),
-                Descripcion: g.descripcion,
-                Categoria: g.categoria,
-                Monto: g.monto,
-                Comentarios: g.comentarios
-            }));
-            storage.exportToCSV(data, 'reporte_gastos');
-        }
-        this.mostrarMensaje('📊 Reporte de gastos exportado', 'success');
-    }
-
-    exportarReporteInventario() {
-        const inventario = storage.getInventario();
-        if (storage.exportToCSV) {
-            const data = inventario.map(p => ({
-                Codigo: p.codigo,
-                Nombre: p.nombre,
-                Categoria: p.categoriaId,
-                Stock: p.unidades,
-                StockMinimo: p.stockMinimo,
-                PrecioVenta: p.precioVenta,
-                CostoUnitario: p.costoUnitario,
-                ValorTotal: (p.costoUnitario || 0) * (p.unidades || 0),
-                Activo: p.activo ? 'Sí' : 'No'
-            }));
-            storage.exportToCSV(data, 'reporte_inventario');
-        }
-        this.mostrarMensaje('📊 Reporte de inventario exportado', 'success');
     }
 
     // ============================================
@@ -4715,35 +4305,7 @@ class InvPlanetApp {
     // ============================================
 
     loadConfiguracionView() {
-        const user = this.getUsuarioActual();
-        if (user?.role !== 'admin') {
-            this.mostrarMensaje('⛔ Acceso denegado. Solo administradores.', 'error');
-            this.loadView('dashboard');
-            return;
-        }
-
         const config = storage.getConfig?.() || {};
-        const productos = storage.getInventario().filter(p => p.activo);
-
-        let productosOptions = '<option value="">Seleccionar producto gratis</option>';
-        productos.forEach(p => {
-            productosOptions += `<option value="${p.id}">${p.nombre} - $${p.precioVenta}</option>`;
-        });
-
-        let productosGratisHTML = '';
-        this.configFidelizacion.productosGratis.forEach((pg, index) => {
-            productosGratisHTML += `
-                <tr>
-                    <td>${pg.nombre}</td>
-                    <td>${pg.puntosNecesarios}</td>
-                    <td>
-                        <button class="btn btn-sm btn-danger" onclick="window.app.eliminarProductoGratisConfig(${index})">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </td>
-                </tr>
-            `;
-        });
 
         const contentArea = document.getElementById('mainContent');
         contentArea.innerHTML = `
@@ -4754,276 +4316,73 @@ class InvPlanetApp {
 
                 <div class="config-grid">
                     <div class="config-card">
-                        <h3><i class="fas fa-store"></i> Información del Negocio</h3>
-                        <form id="formConfigNegocio" onsubmit="return false;">
-                            <div class="form-group">
-                                <label>Nombre del Negocio</label>
-                                <input type="text" id="configNombre" class="form-control" value="${config.nombreNegocio || ''}">
-                            </div>
-                            <div class="form-group">
-                                <label>Dirección</label>
-                                <input type="text" id="configDireccion" class="form-control" value="${config.direccion || ''}">
-                            </div>
-                            <div class="form-group">
-                                <label>Teléfono</label>
-                                <input type="text" id="configTelefono" class="form-control" value="${config.telefono || ''}">
-                            </div>
-                            <div class="form-group">
-                                <label>Email</label>
-                                <input type="email" id="configEmail" class="form-control" value="${config.email || ''}">
-                            </div>
-                            <button type="button" class="btn btn-primary" onclick="window.app.guardarConfigNegocio()">
-                                Guardar Cambios
-                            </button>
-                        </form>
-                    </div>
-
-                    <div class="config-card">
-                        <h3><i class="fas fa-dollar-sign"></i> Configuración Financiera</h3>
-                        <form id="formConfigFinanzas" onsubmit="return false;">
-                            <div class="form-group">
-                                <label>Moneda</label>
-                                <select id="configMoneda" class="form-control">
-                                    <option value="COP" ${config.moneda === 'COP' ? 'selected' : ''}>COP - Peso Colombiano</option>
-                                    <option value="USD" ${config.moneda === 'USD' ? 'selected' : ''}>USD - Dólar Americano</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label>Impuesto (%)</label>
-                                <input type="number" id="configImpuesto" class="form-control" value="${config.impuesto || 0}" min="0" max="100" step="1">
-                                <small class="text-muted">Puede ser 0% si no aplica impuesto</small>
-                            </div>
-                            <div class="form-group">
-                                <label>Stock Mínimo por Defecto</label>
-                                <input type="number" id="configStockMinimo" class="form-control" value="${config.stockMinimoDefault || 10}" min="0">
-                            </div>
-                            <button type="button" class="btn btn-primary" onclick="window.app.guardarConfigFinanzas()">
-                                Guardar Cambios
-                            </button>
-                        </form>
-                    </div>
-
-                    <div class="config-card">
-                        <h3><i class="fas fa-gift"></i> Sistema de Puntos y Fidelización</h3>
-                        <form id="formConfigFidelizacion" onsubmit="return false;">
-                            <div class="form-group">
-                                <label>Puntos por cada $</label>
-                                <input type="number" id="configPuntosPorCada" class="form-control" value="${this.configFidelizacion.puntosPorCada}" min="100" step="100">
-                                <small class="text-muted">Ej: 1000 = 1 punto por cada $1000 gastados</small>
-                            </div>
-                            <div class="form-group">
-                                <label>Valor de cada punto en descuento ($)</label>
-                                <input type="number" id="configValorPunto" class="form-control" value="${this.configFidelizacion.valorPuntoEnPesos}" min="10" step="10">
-                                <small class="text-muted">Ej: 100 = cada punto vale $100 de descuento</small>
-                            </div>
-                            <h5>Productos Gratis por Puntos</h5>
-                            <table class="table table-sm">
-                                <thead>
-                                    <tr>
-                                        <th>Producto</th>
-                                        <th>Puntos Necesarios</th>
-                                        <th></th>
-                                    </tr>
-                                </thead>
-                                <tbody id="tablaProductosGratis">
-                                    ${productosGratisHTML || '<tr><td colspan="3" class="text-center">No hay productos gratis configurados</td></tr>'}
-                                </tbody>
-                            </table>
-                            <div class="row" style="display: flex; gap: 10px;">
-                                <div style="flex:2;">
-                                    <select id="nuevoProductoGratisId" class="form-control">
-                                        ${productosOptions}
-                                    </select>
-                                </div>
-                                <div style="flex:1;">
-                                    <input type="number" id="nuevoProductoGratisPuntos" class="form-control" placeholder="Puntos" min="0">
-                                </div>
-                                <div>
-                                    <button type="button" class="btn btn-success" onclick="window.app.agregarProductoGratisDesdeConfig()">
-                                        <i class="fas fa-plus"></i>
-                                    </button>
-                                </div>
-                            </div>
-                            <button type="button" class="btn btn-primary mt-3" onclick="window.app.guardarConfigFidelizacionDesdeForm()">
-                                Guardar Configuración de Puntos
-                            </button>
-                        </form>
-                    </div>
-
-                    <div class="config-card">
-                        <h3><i class="fas fa-clock"></i> Horario de Atención</h3>
-                        <form id="formConfigHorario" onsubmit="return false;">
-                            <div class="form-group">
-                                <label>Hora de Apertura</label>
-                                <input type="time" id="configHoraApertura" class="form-control" value="${config.horaApertura || '08:00'}">
-                            </div>
-                            <div class="form-group">
-                                <label>Hora de Cierre</label>
-                                <input type="time" id="configHoraCierre" class="form-control" value="${config.horaCierre || '22:00'}">
-                            </div>
-                            <button type="button" class="btn btn-primary" onclick="window.app.guardarConfigHorario()">
-                                Guardar Cambios
-                            </button>
-                        </form>
-                    </div>
-
-                    <div class="config-card">
-                        <h3><i class="fas fa-credit-card"></i> Métodos de Pago</h3>
-                        <form id="formConfigPagos" onsubmit="return false;">
-                            <div class="form-check">
-                                <input type="checkbox" id="configPagoEfectivo" class="form-check-input" ${config.metodosPago?.efectivo ? 'checked' : ''}>
-                                <label class="form-check-label">Efectivo</label>
-                            </div>
-                            <div class="form-check">
-                                <input type="checkbox" id="configPagoTarjeta" class="form-check-input" ${config.metodosPago?.tarjeta ? 'checked' : ''}>
-                                <label class="form-check-label">Tarjeta</label>
-                            </div>
-                            <div class="form-check">
-                                <input type="checkbox" id="configPagoTransferencia" class="form-check-input" ${config.metodosPago?.transferencia ? 'checked' : ''}>
-                                <label class="form-check-label">Transferencia</label>
-                            </div>
-                            <button type="button" class="btn btn-primary mt-3" onclick="window.app.guardarConfigPagos()">
-                                Guardar Cambios
-                            </button>
-                        </form>
-                    </div>
-
-                    <div class="config-card">
-                        <h3><i class="fas fa-paper-plane"></i> Envío de Pedidos</h3>
-                        <form id="formConfigEnvio" onsubmit="return false;">
-                            <div class="form-group">
-                                <label>Método de envío</label>
-                                <div style="display: flex; gap: 20px; margin-bottom: 15px;">
-                                    <label style="flex:1; padding: 10px; border: 2px solid ${this.configEnvio.metodo === 'whatsapp' ? '#25D366' : '#ddd'}; border-radius: 10px; text-align: center; cursor: pointer;" id="metodoWhatsAppLabel" onclick="window.app.seleccionarMetodoEnvio('whatsapp')">
-                                        <input type="radio" name="metodoEnvio" value="whatsapp" ${this.configEnvio.metodo === 'whatsapp' ? 'checked' : ''} style="display: none;">
-                                        <i class="fab fa-whatsapp" style="font-size: 24px; display: block; margin-bottom: 5px; color: #25D366;"></i>
-                                        <strong>WhatsApp</strong>
-                                    </label>
-                                    <label style="flex:1; padding: 10px; border: 2px solid ${this.configEnvio.metodo === 'impresora' ? '#3498db' : '#ddd'}; border-radius: 10px; text-align: center; cursor: pointer;" id="metodoImpresoraLabel" onclick="window.app.seleccionarMetodoEnvio('impresora')">
-                                        <input type="radio" name="metodoEnvio" value="impresora" ${this.configEnvio.metodo === 'impresora' ? 'checked' : ''} style="display: none;">
-                                        <i class="fas fa-print" style="font-size: 24px; display: block; margin-bottom: 5px; color: #3498db;"></i>
-                                        <strong>Impresora Térmica</strong>
-                                    </label>
-                                </div>
-                            </div>
-                            <div id="campoNumeroWhatsApp" style="display: ${this.configEnvio.metodo === 'whatsapp' ? 'block' : 'none'};">
-                                <div class="form-group">
-                                    <label>Número de WhatsApp para envío *</label>
-                                    <input type="text" id="configNumeroWhatsApp" class="form-control" value="${this.configEnvio.numeroWhatsApp || ''}" placeholder="Ej: +573243898130">
-                                    <small class="text-muted">Las órdenes se enviarán a este número</small>
-                                </div>
-                            </div>
-                            <button type="button" class="btn btn-primary" onclick="window.app.guardarConfigEnvio()">
-                                Guardar Configuración de Envío
-                            </button>
-                        </form>
-                    </div>
-
-                    <div class="config-card">
-                        <h3><i class="fas fa-database"></i> Gestión de Datos</h3>
-                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                            <button class="btn btn-info" onclick="window.app.crearBackup()">
-                                <i class="fas fa-download"></i> Crear Backup
-                            </button>
-                            <button class="btn btn-warning" onclick="window.app.restaurarBackup()">
-                                <i class="fas fa-upload"></i> Restaurar Backup
-                            </button>
-                            <button class="btn btn-danger" onclick="window.app.resetearDatos()">
-                                <i class="fas fa-trash"></i> Resetear Datos
-                            </button>
+                        <h3><i class="fas fa-store"></i> Negocio</h3>
+                        <div class="form-group">
+                            <label>Nombre</label>
+                            <input type="text" id="configNombre" class="form-control" value="${config.nombreNegocio || ''}">
                         </div>
-                        <div class="mt-3">
-                            <p><strong>Información del Storage:</strong></p>
-                            <pre id="storageInfo" style="background: #f8f9fa; padding: 10px; border-radius: 5px;">Cargando...</pre>
+                        <div class="form-group">
+                            <label>Dirección</label>
+                            <input type="text" id="configDireccion" class="form-control" value="${config.direccion || ''}">
                         </div>
+                        <div class="form-group">
+                            <label>Teléfono</label>
+                            <input type="text" id="configTelefono" class="form-control" value="${config.telefono || ''}">
+                        </div>
+                        <button class="btn btn-primary" onclick="window.app.guardarConfigNegocio()">Guardar</button>
                     </div>
 
                     <div class="config-card">
-                        <h3><i class="fas fa-bell"></i> Notificaciones</h3>
-                        <form id="formConfigNotificaciones" onsubmit="return false;">
-                            <div class="form-check">
-                                <input type="checkbox" id="configNotifStockBajo" class="form-check-input" ${config.notificaciones?.stockBajo ? 'checked' : ''}>
-                                <label class="form-check-label">Alertas de Stock Bajo</label>
-                            </div>
-                            <div class="form-check">
-                                <input type="checkbox" id="configNotifVentas" class="form-check-input" ${config.notificaciones?.ventas ? 'checked' : ''}>
-                                <label class="form-check-label">Notificaciones de Ventas</label>
-                            </div>
-                            <button type="button" class="btn btn-primary mt-3" onclick="window.app.guardarConfigNotificaciones()">
-                                Guardar Cambios
-                            </button>
-                        </form>
+                        <h3><i class="fas fa-dollar-sign"></i> Finanzas</h3>
+                        <div class="form-group">
+                            <label>Impuesto (%)</label>
+                            <input type="number" id="configImpuesto" class="form-control" value="${config.impuesto || 0}">
+                        </div>
+                        <div class="form-group">
+                            <label>Stock Mínimo</label>
+                            <input type="number" id="configStockMinimo" class="form-control" value="${config.stockMinimoDefault || 10}">
+                        </div>
+                        <button class="btn btn-primary" onclick="window.app.guardarConfigFinanzas()">Guardar</button>
+                    </div>
+
+                    <div class="config-card">
+                        <h3><i class="fas fa-gift" style="color: var(--points-500);"></i> Puntos</h3>
+                        <div class="form-group">
+                            <label>Puntos por cada $</label>
+                            <input type="number" id="configPuntosPorCada" class="form-control" value="${this.configFidelizacion.puntosPorCada}">
+                        </div>
+                        <div class="form-group">
+                            <label>Valor por punto ($)</label>
+                            <input type="number" id="configValorPunto" class="form-control" value="${this.configFidelizacion.valorPuntoEnPesos}">
+                        </div>
+                        <button class="btn btn-points" onclick="window.app.guardarConfigFidelizacion()">Guardar Puntos</button>
+                    </div>
+
+                    <div class="config-card">
+                        <h3><i class="fas fa-paper-plane"></i> Envío</h3>
+                        <div class="form-group">
+                            <label>Método</label>
+                            <select id="configMetodoEnvio" class="form-control">
+                                <option value="whatsapp" ${this.configEnvio.metodo === 'whatsapp' ? 'selected' : ''}>WhatsApp</option>
+                                <option value="impresora" ${this.configEnvio.metodo === 'impresora' ? 'selected' : ''}>Impresora</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Número WhatsApp</label>
+                            <input type="text" id="configNumeroWhatsApp" class="form-control" value="${this.configEnvio.numeroWhatsApp || ''}">
+                        </div>
+                        <button class="btn btn-primary" onclick="window.app.guardarConfigEnvio()">Guardar</button>
                     </div>
                 </div>
             </div>
         `;
-
-        this.mostrarInfoStorage();
-    }
-
-    agregarProductoGratisDesdeConfig() {
-        const productoId = document.getElementById('nuevoProductoGratisId')?.value;
-        const puntos = parseInt(document.getElementById('nuevoProductoGratisPuntos')?.value);
-
-        if (!productoId || !puntos || puntos <= 0) {
-            this.mostrarMensaje('❌ Selecciona un producto y ingresa puntos válidos', 'error');
-            return;
-        }
-
-        this.agregarProductoGratisConfig(productoId, puntos);
-        this.loadConfiguracionView();
-    }
-
-    guardarConfigFidelizacionDesdeForm() {
-        const puntosPorCada = parseInt(document.getElementById('configPuntosPorCada')?.value) || 1000;
-        const valorPunto = parseInt(document.getElementById('configValorPunto')?.value) || 100;
-
-        this.guardarConfiguracionFidelizacion(puntosPorCada, valorPunto, this.configFidelizacion.productosGratis);
-        this.mostrarMensaje('✅ Configuración de puntos guardada', 'success');
-    }
-
-    seleccionarMetodoEnvio(metodo) {
-        const labelWhatsApp = document.getElementById('metodoWhatsAppLabel');
-        const labelImpresora = document.getElementById('metodoImpresoraLabel');
-        const campoNumero = document.getElementById('campoNumeroWhatsApp');
-
-        if (metodo === 'whatsapp') {
-            labelWhatsApp.style.borderColor = '#25D366';
-            labelImpresora.style.borderColor = '#ddd';
-            campoNumero.style.display = 'block';
-        } else {
-            labelWhatsApp.style.borderColor = '#ddd';
-            labelImpresora.style.borderColor = '#3498db';
-            campoNumero.style.display = 'none';
-        }
-    }
-
-    guardarConfigEnvio() {
-        const metodo = document.querySelector('input[name="metodoEnvio"]:checked')?.value || 'whatsapp';
-        const numeroWhatsApp = document.getElementById('configNumeroWhatsApp')?.value;
-
-        if (metodo === 'whatsapp' && !numeroWhatsApp) {
-            this.mostrarMensaje('❌ Ingresa el número de WhatsApp', 'error');
-            return;
-        }
-
-        this.guardarConfiguracionEnvio(metodo, numeroWhatsApp);
-    }
-
-    mostrarInfoStorage() {
-        const info = storage.getStorageInfo?.() || { items: 0, totalSize: '0 KB', timestamp: new Date().toLocaleString() };
-        const pre = document.getElementById('storageInfo');
-        if (pre) {
-            pre.textContent = JSON.stringify(info, null, 2);
-        }
     }
 
     guardarConfigNegocio() {
         const config = {
             nombreNegocio: document.getElementById('configNombre')?.value,
             direccion: document.getElementById('configDireccion')?.value,
-            telefono: document.getElementById('configTelefono')?.value,
-            email: document.getElementById('configEmail')?.value,
+            telefono: document.getElementById('configTelefono')?.value
         };
         storage.updateConfig?.(config);
         this.cargarNombreNegocio();
@@ -5032,86 +4391,27 @@ class InvPlanetApp {
 
     guardarConfigFinanzas() {
         const config = {
-            moneda: document.getElementById('configMoneda')?.value,
             impuesto: parseInt(document.getElementById('configImpuesto')?.value) || 0,
-            stockMinimoDefault: parseInt(document.getElementById('configStockMinimo')?.value) || 10,
+            stockMinimoDefault: parseInt(document.getElementById('configStockMinimo')?.value) || 10
         };
         storage.updateConfig?.(config);
         this.mostrarMensaje('✅ Configuración financiera guardada', 'success');
     }
 
-    guardarConfigHorario() {
-        const config = {
-            horaApertura: document.getElementById('configHoraApertura')?.value,
-            horaCierre: document.getElementById('configHoraCierre')?.value
-        };
-        storage.updateConfig?.(config);
-        this.mostrarMensaje('✅ Horario guardado', 'success');
+    guardarConfigFidelizacion() {
+        const puntosPorCada = parseInt(document.getElementById('configPuntosPorCada')?.value) || 1000;
+        const valorPunto = parseInt(document.getElementById('configValorPunto')?.value) || 100;
+        this.guardarConfiguracionFidelizacion(puntosPorCada, valorPunto, this.configFidelizacion.productosGratis);
     }
 
-    guardarConfigPagos() {
-        const config = {
-            metodosPago: {
-                efectivo: document.getElementById('configPagoEfectivo')?.checked || false,
-                tarjeta: document.getElementById('configPagoTarjeta')?.checked || false,
-                transferencia: document.getElementById('configPagoTransferencia')?.checked || false
-            }
-        };
-        storage.updateConfig?.(config);
-        this.mostrarMensaje('✅ Métodos de pago guardados', 'success');
-    }
-
-    guardarConfigNotificaciones() {
-        const config = {
-            notificaciones: {
-                stockBajo: document.getElementById('configNotifStockBajo')?.checked || false,
-                ventas: document.getElementById('configNotifVentas')?.checked || false,
-            }
-        };
-        storage.updateConfig?.(config);
-        this.mostrarMensaje('✅ Notificaciones guardadas', 'success');
-    }
-
-    crearBackup() {
-        if (storage.createBackup) {
-            storage.createBackup();
-            this.mostrarMensaje('✅ Backup creado exitosamente', 'success');
-        }
-    }
-
-    restaurarBackup() {
-        const backups = storage.getBackups?.() || [];
-        if (backups.length === 0) {
-            this.mostrarMensaje('❌ No hay backups disponibles', 'error');
-            return;
-        }
-
-        let mensaje = 'Backups disponibles:\n';
-        backups.forEach((b, i) => {
-            mensaje += `${i+1}. ${b.nombre} (${new Date(b.fecha).toLocaleString()})\n`;
-        });
-        mensaje += '\nIngresa el número del backup a restaurar:';
-
-        const num = prompt(mensaje);
-        if (num && backups[num-1]) {
-            storage.restoreBackup(backups[num-1].id);
-            this.mostrarMensaje('✅ Backup restaurado. Recarga la página.', 'success');
-            setTimeout(() => location.reload(), 2000);
-        }
-    }
-
-    resetearDatos() {
-        if (confirm('⚠️ ¿Estás seguro? Esto borrará TODOS los datos. Esta acción no se puede deshacer.')) {
-            if (storage.clearAll) {
-                storage.clearAll();
-                this.mostrarMensaje('✅ Datos reseteados. Recarga la página.', 'success');
-                setTimeout(() => location.reload(), 2000);
-            }
-        }
+    guardarConfigEnvio() {
+        const metodo = document.getElementById('configMetodoEnvio')?.value || 'whatsapp';
+        const numeroWhatsApp = document.getElementById('configNumeroWhatsApp')?.value;
+        this.guardarConfiguracionEnvio(metodo, numeroWhatsApp);
     }
 
     // ============================================
-    // MÉTODOS DE VENTAS (EXPORTACIÓN)
+    // MÉTODOS AUXILIARES
     // ============================================
 
     exportarVentas() {
@@ -5122,15 +4422,7 @@ class InvPlanetApp {
     }
 
     mostrarAyudaLectorBarra() {
-        alert('Coloca el cursor en el campo de código de barras y escanea el producto. Se agregará automáticamente al carrito.');
-    }
-
-    // ============================================
-    // MÉTODOS AUXILIARES
-    // ============================================
-
-    formatCurrency(amount) {
-        return `$${parseInt(amount || 0).toLocaleString()}`;
+        alert('Coloca el cursor en el campo de código de barras y escanea el producto.');
     }
 
     mostrarMensaje(mensaje, tipo = 'info') {
@@ -5140,25 +4432,11 @@ class InvPlanetApp {
         anteriores.forEach(a => a.remove());
 
         const div = document.createElement('div');
-        div.className = 'mensaje-flotante';
-        div.style.cssText = `
-            position: fixed; top: 20px; right: 20px; z-index: 10000;
-            padding: 15px 25px; border-radius: 10px; color: white;
-            font-weight: 600; display: flex; align-items: center; gap: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-            animation: slideInRight 0.3s ease;
+        div.className = `mensaje-flotante ${tipo}`;
+        div.innerHTML = `
+            <i class="fas fa-${tipo === 'success' ? 'check-circle' : tipo === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
+            <span>${mensaje}</span>
         `;
-
-        if (tipo === 'success') {
-            div.style.background = 'linear-gradient(135deg, #27ae60, #2ecc71)';
-            div.innerHTML = `<i class="fas fa-check-circle"></i> ${mensaje}`;
-        } else if (tipo === 'error') {
-            div.style.background = 'linear-gradient(135deg, #c0392b, #e74c3c)';
-            div.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${mensaje}`;
-        } else {
-            div.style.background = 'linear-gradient(135deg, #2980b9, #3498db)';
-            div.innerHTML = `<i class="fas fa-info-circle"></i> ${mensaje}`;
-        }
 
         document.body.appendChild(div);
         setTimeout(() => div.remove(), 3000);
@@ -5197,44 +4475,24 @@ function initializeApp() {
     return app.initializeApp();
 }
 
-function cargarVista(view) {
-    if (app?.loadView) {
-        app.loadView(view);
-        return true;
-    }
-    return false;
-}
-
 window.initializeApp = initializeApp;
-window.cargarVista = cargarVista;
 
-// ============================================
-// EXPORTAR FUNCIONES GLOBALES PARA BOTONES
-// ============================================
-
+// Funciones globales
 window.mostrarModalNuevoProducto = () => app.mostrarModalNuevoProducto();
 window.mostrarModalEditarProducto = (id) => app.mostrarModalEditarProducto(id);
-window.mostrarModalNuevoKit = () => app.mostrarModalNuevoKit();
 window.mostrarModalNuevaCategoria = () => app.mostrarModalNuevaCategoria();
 window.mostrarModalEditarCategoria = (id) => app.mostrarModalEditarCategoria(id);
 window.mostrarModalNuevaVenta = () => app.mostrarModalNuevaVenta();
 window.mostrarModalNuevoGasto = () => app.mostrarModalNuevoGasto();
 window.mostrarModalEditarGasto = (id) => app.mostrarModalEditarGasto(id);
-window.mostrarAyudaLectorBarra = () => app.mostrarAyudaLectorBarra();
-window.buscarPorCodigoBarras = () => app.buscarPorCodigoBarras();
-window.modificarVenta = (id) => app.modificarVenta(id);
-window.cancelarModificacion = () => app.cancelarModificacion();
-window.buscarPorCodigoBarrasModificacion = () => app.buscarPorCodigoBarrasModificacion();
-
-// Recetas
-window.mostrarModalNuevaReceta = (productoId) => app.mostrarModalNuevaReceta(productoId);
-
-// Usuarios
 window.mostrarModalUsuarios = () => app.mostrarModalUsuarios();
-
-// Clientes
 window.mostrarModalClientes = () => app.mostrarModalClientes();
 window.mostrarModalNuevoCliente = () => app.mostrarModalNuevoCliente();
+window.mostrarModalProveedores = () => app.mostrarModalProveedores();
+window.mostrarModalNuevoProveedor = () => app.mostrarModalNuevoProveedor();
+window.mostrarModalPromociones = () => app.mostrarModalPromociones();
+window.mostrarModalNuevaPromocion = () => app.mostrarModalNuevaPromocion();
+window.mostrarMapaMesas = () => app.mostrarMapaMesas();
+window.mostrarModalNuevaReceta = (productoId) => app.mostrarModalNuevaReceta(productoId);
 
-console.log('%c✅ InvPlanet App v18.0 - CON SISTEMA DE RECETAS Y FIDELIZACIÓN', 'background: #27ae60; color: white; padding: 10px 15px; border-radius: 5px; font-size: 14px; font-weight: bold;');
-console.log('📦 Módulos Activos: Dashboard, Inventario, Categorías, Ventas (con puntos y recetas), Gastos, Reportes, Configuración, Usuarios, Clientes, Proveedores, Mesas.');
+console.log('%c✅ InvPlanet App v4.0 - Sistema de Recetas Manuales', 'background: #9b59b6; color: white; padding: 10px; border-radius: 5px;');

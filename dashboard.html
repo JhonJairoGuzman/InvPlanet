@@ -3,615 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>InvPlanet - Dashboard (Recetas + Fidelización)</title>
+    <title>InvPlanet - Dashboard (Recetas Manuales + Fidelización)</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="css/auth.css">
     <link rel="icon" href="assets/favicon.ico" type="image/x-icon">
-    <style>
-        /* ============================================
-           ESTILOS MEJORADOS CON SOPORTE PARA RECETAS
-           ============================================ */
-        
-        /* Variables globales */
-        :root {
-            --primary: #3498db;
-            --primary-dark: #2980b9;
-            --success: #2ecc71;
-            --warning: #f39c12;
-            --danger: #e74c3c;
-            --dark: #2c3e50;
-            --gray: #7f8c8d;
-            --light: #ecf0f1;
-            --shadow: 0 4px 6px rgba(0,0,0,0.1);
-            --shadow-lg: 0 10px 15px rgba(0,0,0,0.1);
-            --radius: 10px;
-            --radius-sm: 5px;
-            --recipe-color: #9b59b6;
-            --points-color: #f1c40f;
-        }
-
-        /* Estilos de carga mejorados */
-        .loading-container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 60vh;
-            text-align: center;
-            animation: fadeIn 0.5s ease;
-        }
-
-        .loading-spinner {
-            width: 60px;
-            height: 60px;
-            border: 5px solid var(--light);
-            border-top-color: var(--primary);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-bottom: 20px;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        /* Error view */
-        .error-view {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 60vh;
-            text-align: center;
-            padding: 40px;
-            animation: fadeIn 0.5s ease;
-        }
-
-        .error-view i {
-            color: var(--danger);
-            margin-bottom: 20px;
-        }
-
-        /* Welcome message */
-        .welcome-message {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 60vh;
-            text-align: center;
-            padding: 40px;
-            background: linear-gradient(135deg, white, var(--light));
-            border-radius: var(--radius);
-            box-shadow: var(--shadow);
-        }
-
-        .welcome-message h2 {
-            color: var(--dark);
-            margin-bottom: 20px;
-            font-size: 2.5em;
-        }
-
-        .welcome-message p {
-            color: var(--gray);
-            font-size: 1.2em;
-        }
-
-        /* Section title */
-        .section-title {
-            color: var(--dark);
-            border-bottom: 3px solid var(--primary);
-            padding-bottom: 15px;
-            margin-bottom: 30px;
-            font-size: 1.8rem;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .section-title i {
-            color: var(--primary);
-        }
-
-        /* Stats Grid Mejorado */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 25px;
-            margin-bottom: 40px;
-        }
-
-        .stat-card {
-            background: white;
-            border-radius: var(--radius);
-            padding: 25px;
-            box-shadow: var(--shadow);
-            display: flex;
-            align-items: center;
-            gap: 20px;
-            transition: all 0.3s ease;
-            border: 1px solid rgba(0,0,0,0.05);
-        }
-
-        .stat-card:hover {
-            transform: translateY(-5px);
-            box-shadow: var(--shadow-lg);
-        }
-
-        .stat-icon {
-            width: 70px;
-            height: 70px;
-            border-radius: var(--radius);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 28px;
-        }
-
-        .stat-info h3 {
-            margin: 0;
-            font-size: 28px;
-            color: var(--dark);
-            font-weight: 700;
-        }
-
-        .stat-info p {
-            margin: 5px 0 0;
-            color: var(--gray);
-            font-size: 0.95em;
-        }
-
-        /* Dashboard Sections */
-        .dashboard-sections {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 25px;
-        }
-
-        .dashboard-section {
-            background: white;
-            border-radius: var(--radius);
-            padding: 25px;
-            box-shadow: var(--shadow);
-        }
-
-        .dashboard-section h3 {
-            margin-top: 0;
-            margin-bottom: 20px;
-            color: var(--dark);
-            font-size: 1.3rem;
-            border-bottom: 2px solid var(--light);
-            padding-bottom: 15px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .alertas-list, .ventas-list {
-            max-height: 300px;
-            overflow-y: auto;
-        }
-
-        .alerta-item, .venta-item {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            padding: 15px;
-            border-bottom: 1px solid var(--light);
-            transition: background 0.3s;
-        }
-
-        .alerta-item:hover, .venta-item:hover {
-            background: var(--light);
-            border-radius: var(--radius-sm);
-        }
-
-        .alerta-item:last-child, .venta-item:last-child {
-            border-bottom: none;
-        }
-
-        /* ============================================
-           ESTILOS PARA RECETAS Y FIDELIZACIÓN
-           ============================================ */
-        
-        .badge-recipe {
-            background: var(--recipe-color);
-            color: white;
-        }
-        
-        .badge-points {
-            background: var(--points-color);
-            color: var(--dark);
-        }
-        
-        .recipe-indicator {
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            padding: 4px 8px;
-            background: rgba(155, 89, 182, 0.1);
-            color: var(--recipe-color);
-            border-radius: 50px;
-            font-size: 0.8rem;
-            font-weight: 600;
-        }
-        
-        .points-indicator {
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            padding: 4px 8px;
-            background: rgba(241, 196, 15, 0.1);
-            color: var(--points-color);
-            border-radius: 50px;
-            font-size: 0.8rem;
-            font-weight: 600;
-        }
-        
-        .costo-produccion-card {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-            padding: 15px;
-            border-radius: var(--radius);
-            margin: 15px 0;
-        }
-        
-        .costo-produccion-card .margen-positivo {
-            color: #2ecc71;
-        }
-        
-        .costo-produccion-card .margen-negativo {
-            color: #e74c3c;
-        }
-
-        /* ============================================
-           ESTILOS PARA EL MENÚ SIMPLIFICADO
-           ============================================ */
-
-        /* Menú */
-        .nav-menu {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-
-        .nav-item {
-            margin-bottom: 5px;
-        }
-
-        .nav-link {
-            display: flex;
-            align-items: center;
-            padding: 12px 20px;
-            color: var(--dark);
-            text-decoration: none;
-            border-radius: var(--radius-sm);
-            transition: all 0.3s ease;
-            gap: 12px;
-        }
-
-        .nav-link i {
-            width: 20px;
-            text-align: center;
-            font-size: 1.1rem;
-        }
-
-        .nav-link:hover {
-            background: var(--light);
-            color: var(--primary);
-        }
-
-        .nav-link.active {
-            background: var(--primary);
-            color: white;
-        }
-
-        .nav-link.active i {
-            color: white;
-        }
-
-        .nav-divider {
-            height: 1px;
-            background: var(--light);
-            margin: 15px 0;
-        }
-
-        .nav-section-title {
-            padding: 10px 20px;
-            color: var(--gray);
-            font-size: 0.8rem;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        /* Tarjetas de módulos (para la pantalla de bienvenida) */
-        .modules-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin-top: 20px;
-            width: 100%;
-        }
-
-        .module-card {
-            background: white;
-            border-radius: var(--radius);
-            padding: 20px;
-            box-shadow: var(--shadow);
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            border: 1px solid rgba(0,0,0,0.05);
-        }
-
-        .module-card:hover {
-            transform: translateY(-5px);
-            box-shadow: var(--shadow-lg);
-        }
-
-        .module-card i {
-            font-size: 2.5rem;
-            color: var(--primary);
-            margin-bottom: 15px;
-        }
-
-        .module-card h4 {
-            margin: 0 0 10px 0;
-            color: var(--dark);
-        }
-
-        .module-card p {
-            margin: 0;
-            color: var(--gray);
-            font-size: 0.9rem;
-        }
-
-        /* Badges de estado */
-        .badge {
-            display: inline-block;
-            padding: 5px 12px;
-            border-radius: 50px;
-            font-size: 0.8rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .badge-primary {
-            background: var(--primary);
-            color: white;
-        }
-
-        .badge-success {
-            background: var(--success);
-            color: white;
-        }
-
-        .badge-warning {
-            background: var(--warning);
-            color: white;
-        }
-
-        .badge-danger {
-            background: var(--danger);
-            color: white;
-        }
-
-        .badge-info {
-            background: var(--primary-dark);
-            color: white;
-        }
-
-        .badge-purple {
-            background: #9b59b6;
-            color: white;
-        }
-
-        .badge-orange {
-            background: #e67e22;
-            color: white;
-        }
-
-        /* Botones de acción rápida */
-        .quick-actions {
-            position: fixed;
-            bottom: 30px;
-            right: 30px;
-            z-index: 1000;
-        }
-
-        .quick-actions-btn {
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            background: var(--primary);
-            color: white;
-            border: none;
-            cursor: pointer;
-            box-shadow: var(--shadow-lg);
-            font-size: 24px;
-            transition: all 0.3s ease;
-        }
-
-        .quick-actions-btn:hover {
-            transform: scale(1.1);
-            background: var(--primary-dark);
-        }
-
-        .quick-actions-menu {
-            position: absolute;
-            bottom: 70px;
-            right: 0;
-            background: white;
-            border-radius: var(--radius);
-            box-shadow: var(--shadow-lg);
-            padding: 15px;
-            min-width: 200px;
-            display: none;
-        }
-
-        .quick-actions-menu.show {
-            display: block;
-        }
-
-        .quick-actions-menu button {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            width: 100%;
-            padding: 12px 15px;
-            border: none;
-            background: none;
-            cursor: pointer;
-            border-radius: var(--radius-sm);
-            transition: background 0.3s;
-            color: var(--dark);
-            font-size: 14px;
-        }
-
-        .quick-actions-menu button:hover {
-            background: var(--light);
-        }
-
-        /* Responsive */
-        @media (max-width: 992px) {
-            .dashboard-sections {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        @media (max-width: 768px) {
-            .stats-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .modules-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
-            
-            .section-header {
-                flex-direction: column;
-                gap: 15px;
-            }
-            
-            .action-buttons {
-                width: 100%;
-            }
-            
-            .action-buttons .btn {
-                flex: 1;
-            }
-        }
-
-        @media (max-width: 576px) {
-            .modules-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .quick-actions-menu {
-                right: 0;
-                min-width: 180px;
-            }
-        }
-
-        /* Animaciones */
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
-        @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .fade-in {
-            animation: fadeIn 0.5s ease;
-        }
-
-        .slide-in {
-            animation: slideIn 0.5s ease;
-        }
-
-        /* Tooltips */
-        [data-tooltip] {
-            position: relative;
-            cursor: help;
-        }
-
-        [data-tooltip]:before {
-            content: attr(data-tooltip);
-            position: absolute;
-            bottom: 100%;
-            left: 50%;
-            transform: translateX(-50%);
-            padding: 8px 12px;
-            background: var(--dark);
-            color: white;
-            border-radius: var(--radius-sm);
-            font-size: 0.8rem;
-            white-space: nowrap;
-            opacity: 0;
-            visibility: hidden;
-            transition: all 0.3s ease;
-            pointer-events: none;
-            z-index: 1001;
-        }
-
-        [data-tooltip]:hover:before {
-            opacity: 1;
-            visibility: visible;
-            bottom: 120%;
-        }
-        
-        /* Estilos para mensajes flotantes */
-        .mensaje-flotante {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 10000;
-            padding: 15px 25px;
-            border-radius: 10px;
-            color: white;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            box-shadow: var(--shadow-lg);
-            animation: slideInRight 0.3s ease;
-        }
-        
-        @keyframes slideInRight {
-            from {
-                opacity: 0;
-                transform: translateX(100%);
-            }
-            to {
-                opacity: 1;
-                transform: translateX(0);
-            }
-        }
-        
-        .mensaje-flotante.success {
-            background: linear-gradient(135deg, #27ae60, #2ecc71);
-        }
-        
-        .mensaje-flotante.error {
-            background: linear-gradient(135deg, #c0392b, #e74c3c);
-        }
-        
-        .mensaje-flotante.info {
-            background: linear-gradient(135deg, #2980b9, #3498db);
-        }
-    </style>
 </head>
 <body>
     <!-- Header -->
@@ -620,7 +16,7 @@
             <div class="header-content">
                 <div class="logo">
                     <i class="fas fa-globe-americas"></i>
-                    <h1>InvPlanet <span class="badge badge-purple" style="margin-left: 10px; font-size: 12px;">v18.0</span></h1>
+                    <h1>InvPlanet <span class="badge badge-purple" style="margin-left: 10px; font-size: 12px;">v4.0</span></h1>
                 </div>
                 <div class="user-info">
                     <span id="userName">Cargando usuario...</span>
@@ -635,13 +31,12 @@
     <!-- Main Content -->
     <div class="container">
         <div class="main-content">
-            <!-- Sidebar SIMPLIFICADO CON NUEVAS OPCIONES -->
+            <!-- Sidebar -->
             <nav class="sidebar">
                 <div class="sidebar-header">
                     <h2><i class="fas fa-bars"></i> Menú Principal</h2>
                 </div>
                 <ul class="nav-menu">
-                    <!-- Módulos principales -->
                     <li class="nav-item">
                         <a href="#" class="nav-link active" data-view="dashboard">
                             <i class="fas fa-tachometer-alt"></i>
@@ -676,21 +71,20 @@
                     <li class="nav-divider"></li>
                     <li class="nav-section-title">Gestión</li>
                     
-                    <!-- Módulos de gestión que abren modales -->
                     <li class="nav-item">
-                        <a href="#" class="nav-link" onclick="window.app.mostrarModalUsuarios()">
+                        <a href="#" class="nav-link" onclick="window.app?.mostrarModalUsuarios()">
                             <i class="fas fa-users"></i>
                             <span>Usuarios</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a href="#" class="nav-link" onclick="window.app.mostrarModalClientes()">
+                        <a href="#" class="nav-link" onclick="window.app?.mostrarModalClientes()">
                             <i class="fas fa-user-tie"></i>
                             <span>Clientes</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a href="#" class="nav-link" onclick="window.app.mostrarModalProveedores()">
+                        <a href="#" class="nav-link" onclick="window.app?.mostrarModalProveedores()">
                             <i class="fas fa-truck"></i>
                             <span>Proveedores</span>
                         </a>
@@ -700,13 +94,13 @@
                     <li class="nav-section-title">Operaciones</li>
                     
                     <li class="nav-item">
-                        <a href="#" class="nav-link" onclick="window.app.mostrarModalPromociones()">
+                        <a href="#" class="nav-link" onclick="window.app?.mostrarModalPromociones()">
                             <i class="fas fa-tags"></i>
                             <span>Promociones</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a href="#" class="nav-link" onclick="window.app.mostrarMapaMesas()">
+                        <a href="#" class="nav-link" onclick="window.app?.mostrarMapaMesas()">
                             <i class="fas fa-utensils"></i>
                             <span>Mesas</span>
                         </a>
@@ -743,90 +137,39 @@
 
             <!-- Content Area -->
             <main class="content-area" id="mainContent">
-                <!-- El contenido se cargará aquí dinámicamente -->
-                <div class="welcome-message">
-                    <h2>🚀 InvPlanet v18.0</h2>
-                    <p>Sistema de gestión con Recetas y Fidelización</p>
-                    <div class="modules-grid">
-                        <div class="module-card" onclick="window.app.loadView('inventario')">
-                            <i class="fas fa-boxes"></i>
-                            <h4>Inventario</h4>
-                            <p>Gestiona productos y kits</p>
-                        </div>
-                        <div class="module-card" onclick="window.app.mostrarModalNuevaReceta()">
-                            <i class="fas fa-utensils" style="color: #9b59b6;"></i>
-                            <h4>Recetas</h4>
-                            <p>Crea recetas para tus kits</p>
-                            <span class="badge badge-purple" style="margin-top: 10px;">Nuevo</span>
-                        </div>
-                        <div class="module-card" onclick="window.app.loadView('ventas')">
-                            <i class="fas fa-cash-register"></i>
-                            <h4>Ventas</h4>
-                            <p>Registra nuevas ventas</p>
-                        </div>
-                        <div class="module-card" onclick="window.app.mostrarModalClientes()">
-                            <i class="fas fa-user-tie"></i>
-                            <h4>Clientes</h4>
-                            <p>Administra puntos y clientes</p>
-                        </div>
-                        <div class="module-card" onclick="window.app.mostrarMapaMesas()">
-                            <i class="fas fa-utensils"></i>
-                            <h4>Mesas</h4>
-                            <p>Gestiona el restaurante</p>
-                        </div>
-                        <div class="module-card" onclick="window.app.loadView('gastos')">
-                            <i class="fas fa-money-bill-wave"></i>
-                            <h4>Gastos</h4>
-                            <p>Controla tus gastos</p>
-                        </div>
-                        <div class="module-card" onclick="window.app.loadView('configuracion')">
-                            <i class="fas fa-cog"></i>
-                            <h4>Configuración</h4>
-                            <p>Puntos, envíos, negocio</p>
-                        </div>
-                        <div class="module-card" onclick="window.app.mostrarModalPromociones()">
-                            <i class="fas fa-tags"></i>
-                            <h4>Promociones</h4>
-                            <p>Crea ofertas especiales</p>
-                        </div>
-                    </div>
-                    <div class="loading-spinner" style="margin-top: 30px;" id="initialLoading"></div>
-                    <p style="margin-top: 20px; color: var(--gray);">Cargando aplicación... <span id="loadingStatus">Iniciando módulos</span></p>
-                    <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: center;">
-                        <span class="badge badge-purple">Recetas</span>
-                        <span class="badge badge-warning">Puntos</span>
-                        <span class="badge badge-success">Fidelización</span>
-                    </div>
+                <div class="loading-container">
+                    <div class="loading-spinner"></div>
+                    <p>Cargando aplicación...</p>
                 </div>
             </main>
         </div>
     </div>
 
-    <!-- Quick Actions CON NUEVAS OPCIONES -->
+    <!-- Quick Actions -->
     <div class="quick-actions">
         <button class="quick-actions-btn" id="quickActionsBtn" onclick="document.getElementById('quickActionsMenu').classList.toggle('show')">
             <i class="fas fa-plus"></i>
         </button>
         <div class="quick-actions-menu" id="quickActionsMenu">
-            <button onclick="window.app.mostrarModalNuevaVenta(); document.getElementById('quickActionsMenu').classList.remove('show')">
+            <button onclick="if(window.app) window.app.mostrarModalNuevaVenta(); document.getElementById('quickActionsMenu').classList.remove('show')">
                 <i class="fas fa-cash-register"></i> Nueva Venta
             </button>
-            <button onclick="window.app.mostrarModalNuevoProducto(); document.getElementById('quickActionsMenu').classList.remove('show')">
+            <button onclick="if(window.app) window.app.mostrarModalNuevoProducto(); document.getElementById('quickActionsMenu').classList.remove('show')">
                 <i class="fas fa-box"></i> Nuevo Producto
             </button>
-            <button onclick="window.app.mostrarModalNuevaReceta(); document.getElementById('quickActionsMenu').classList.remove('show')">
+            <button onclick="if(window.app) window.app.mostrarModalNuevaReceta(); document.getElementById('quickActionsMenu').classList.remove('show')">
                 <i class="fas fa-utensils" style="color: #9b59b6;"></i> Nueva Receta
             </button>
-            <button onclick="window.app.mostrarModalNuevoGasto(); document.getElementById('quickActionsMenu').classList.remove('show')">
+            <button onclick="if(window.app) window.app.mostrarModalNuevoGasto(); document.getElementById('quickActionsMenu').classList.remove('show')">
                 <i class="fas fa-money-bill"></i> Nuevo Gasto
             </button>
-            <button onclick="window.app.mostrarModalNuevoCliente(); document.getElementById('quickActionsMenu').classList.remove('show')">
+            <button onclick="if(window.app) window.app.mostrarModalNuevoCliente(); document.getElementById('quickActionsMenu').classList.remove('show')">
                 <i class="fas fa-user"></i> Nuevo Cliente
             </button>
-            <button onclick="window.app.mostrarModalNuevoProveedor(); document.getElementById('quickActionsMenu').classList.remove('show')">
+            <button onclick="if(window.app) window.app.mostrarModalNuevoProveedor(); document.getElementById('quickActionsMenu').classList.remove('show')">
                 <i class="fas fa-truck"></i> Nuevo Proveedor
             </button>
-            <button onclick="window.app.mostrarModalNuevaPromocion(); document.getElementById('quickActionsMenu').classList.remove('show')">
+            <button onclick="if(window.app) window.app.mostrarModalNuevaPromocion(); document.getElementById('quickActionsMenu').classList.remove('show')">
                 <i class="fas fa-tag"></i> Nueva Promoción
             </button>
         </div>
@@ -835,405 +178,230 @@
     <!-- Modal Container -->
     <div id="modalContainer"></div>
 
-    <!-- Scripts - ORDEN CRUCIAL -->
+    <!-- Scripts -->
     <script src="js/storage.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/app.js"></script>
     
     <script>
         // ============================================
-        // FUNCIONES AUXILIARES PARA DASHBOARD
+        // INICIALIZACIÓN MEJORADA - SIN CONFLICTOS
         // ============================================
         
-        // Función para mostrar mensajes (fallback)
-        function mostrarMensaje(mensaje, tipo = 'info') {
-            if (window.app && window.app.mostrarMensaje) {
-                window.app.mostrarMensaje(mensaje, tipo);
-                return;
-            }
+        (function() {
+            console.log('🚀 Iniciando InvPlanet v4.0...');
             
-            const mensajeDiv = document.createElement('div');
-            mensajeDiv.className = `mensaje-flotante ${tipo}`;
-            mensajeDiv.innerHTML = `
-                <i class="fas fa-${tipo === 'success' ? 'check-circle' : tipo === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
-                <span>${mensaje}</span>
-            `;
+            // Variables de control
+            let initialized = false;
+            let loadAttempts = 0;
+            const maxAttempts = 10;
             
-            document.body.appendChild(mensajeDiv);
-            
-            setTimeout(() => {
-                mensajeDiv.style.opacity = '1';
-                mensajeDiv.style.transform = 'translateY(0)';
-            }, 10);
-            
-            setTimeout(() => {
-                mensajeDiv.style.opacity = '0';
-                mensajeDiv.style.transform = 'translateY(-20px)';
-                setTimeout(() => {
-                    if (mensajeDiv.parentNode) mensajeDiv.remove();
-                }, 300);
-            }, 3000);
-        }
-        
-        function mostrarError(mensaje) {
-            const contentArea = document.getElementById('mainContent');
-            if (contentArea) {
-                contentArea.innerHTML = `
-                    <div class="error-view">
-                        <i class="fas fa-exclamation-triangle fa-3x"></i>
-                        <h3>Error</h3>
-                        <p>${mensaje}</p>
-                        <button class="btn btn-primary" onclick="location.reload()">
-                            <i class="fas fa-redo"></i> Recargar Página
-                        </button>
-                    </div>
+            // Función para mostrar mensajes
+            window.mostrarMensaje = function(mensaje, tipo = 'info') {
+                const mensajeDiv = document.createElement('div');
+                mensajeDiv.className = `mensaje-flotante ${tipo}`;
+                mensajeDiv.innerHTML = `
+                    <i class="fas fa-${tipo === 'success' ? 'check-circle' : tipo === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
+                    <span>${mensaje}</span>
                 `;
-            }
-        }
-        
-        function mostrarCarga(mensaje) {
-            const contentArea = document.getElementById('mainContent');
-            if (contentArea) {
-                contentArea.innerHTML = `
-                    <div class="loading-container">
-                        <div class="loading-spinner"></div>
-                        <p>${mensaje}</p>
-                    </div>
-                `;
-            }
-        }
-        
-        // ============================================
-        // VERIFICACIONES Y CONFIGURACIONES
-        // ============================================
-        
-        function verificarScriptsCriticos() {
-            console.log('=== Verificando scripts críticos ===');
+                document.body.appendChild(mensajeDiv);
+                setTimeout(() => mensajeDiv.remove(), 3000);
+            };
             
-            if (typeof storage === 'undefined') {
-                console.error('❌ ERROR: storage.js no se cargó');
-                return false;
-            }
-            console.log('✓ storage.js cargado');
-            
-            if (typeof checkSession === 'function') {
-                console.log('✓ auth.js cargado');
-            } else {
-                console.warn('⚠️ auth.js no completamente cargado');
-            }
-            
-            if (typeof app === 'undefined') {
-                console.error('❌ ERROR: app.js no se cargó');
-                return false;
-            }
-            console.log('✓ app.js cargado');
-            
-            if (typeof storage.getInventario !== 'function') {
-                console.error('❌ storage.js incompleto');
-                return false;
-            }
-            
-            if (typeof app.loadView !== 'function') {
-                console.error('❌ app.js incompleto');
-                return false;
-            }
-            
-            console.log('✅ Todos los scripts críticos verificados');
-            return true;
-        }
-        
-        function verificarSesionUsuario() {
-            console.log('Verificando sesión...');
-            
-            try {
-                if (typeof checkSession === 'function') {
-                    const tieneSesion = checkSession();
-                    console.log('checkSession():', tieneSesion);
-                    return tieneSesion;
-                }
-                
-                console.warn('checkSession() no disponible, verificando manualmente...');
-                const session = localStorage.getItem('invplanet_session');
-                return session !== null && session !== 'null' && session !== '';
-                
-            } catch (error) {
-                console.error('Error verificando sesión:', error);
-                return false;
-            }
-        }
-        
-        function obtenerInformacionUsuario() {
-            try {
-                if (typeof getCurrentUser === 'function') {
-                    const user = getCurrentUser();
-                    if (user) return user;
-                }
-                
-                const sessionStr = localStorage.getItem('invplanet_session');
-                if (sessionStr && sessionStr !== 'null') {
-                    try {
-                        const session = JSON.parse(sessionStr);
-                        return {
-                            nombre: session.nombre || session.userId || 'Usuario',
-                            username: session.userId || 'usuario',
-                            role: session.role || 'user'
-                        };
-                    } catch (e) {}
-                }
-                
-                return {
-                    nombre: 'Usuario Demo',
-                    username: 'demo',
-                    role: 'user'
+            // Verificar scripts
+            function verificarScripts() {
+                const checks = {
+                    storage: typeof storage !== 'undefined',
+                    auth: typeof checkSession === 'function',
+                    app: typeof app !== 'undefined'
                 };
                 
-            } catch (error) {
-                console.error('Error obteniendo usuario:', error);
-                return {
-                    nombre: 'Usuario',
-                    username: 'usuario',
-                    role: 'user'
-                };
-            }
-        }
-        
-        function actualizarFechaHora() {
-            const now = new Date();
-            const dateElement = document.getElementById('currentDate');
-            const timeElement = document.getElementById('currentTime');
-            
-            if (dateElement) {
-                dateElement.textContent = now.toLocaleDateString('es-ES', {
-                    weekday: 'long',
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
-                });
+                console.log('📋 Verificación de scripts:', checks);
+                return checks.storage && checks.auth && checks.app;
             }
             
-            if (timeElement) {
-                timeElement.textContent = now.toLocaleTimeString('es-ES', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    second: '2-digit'
-                });
-            }
-        }
-        
-        function configurarNavegacion() {
-            const navLinks = document.querySelectorAll('.nav-link[data-view]');
-            
-            navLinks.forEach(link => {
-                link.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    
-                    navLinks.forEach(l => l.classList.remove('active'));
-                    this.classList.add('active');
-                    
-                    const view = this.getAttribute('data-view');
-                    
-                    if (window.app && window.app.loadView) {
-                        window.app.loadView(view);
+            // Inicializar cuando todo esté listo
+            function intentarInicializar() {
+                if (initialized) return true;
+                
+                loadAttempts++;
+                console.log(`⏳ Intento ${loadAttempts} de inicialización...`);
+                
+                if (!verificarScripts()) {
+                    if (loadAttempts < maxAttempts) {
+                        setTimeout(intentarInicializar, 500);
+                        return false;
                     } else {
-                        mostrarError('Error: No se puede cargar la vista');
+                        document.getElementById('mainContent').innerHTML = `
+                            <div class="error-view">
+                                <i class="fas fa-exclamation-triangle fa-3x"></i>
+                                <h3>Error de Carga</h3>
+                                <p>No se pudieron cargar los scripts necesarios.</p>
+                                <button class="btn btn-primary" onclick="location.reload()">
+                                    <i class="fas fa-redo"></i> Recargar
+                                </button>
+                            </div>
+                        `;
+                        return false;
                     }
-                });
-            });
-        }
-        
-        function configurarLogout() {
-            const logoutBtn = document.getElementById('logoutBtn');
-            if (logoutBtn) {
-                logoutBtn.addEventListener('click', function(e) {
-                    e.preventDefault();
+                }
+                
+                try {
+                    // Verificar sesión
+                    const session = typeof checkSession === 'function' ? checkSession() : 
+                                   localStorage.getItem('invplanet_session') !== null;
                     
-                    if (confirm('¿Estás seguro que deseas salir?')) {
-                        if (typeof logout === 'function') {
-                            logout();
-                        } else {
-                            localStorage.removeItem('invplanet_session');
-                            localStorage.removeItem('invplanet_currentUser');
-                            window.location.href = 'index.html';
+                    if (!session) {
+                        window.location.href = 'index.html';
+                        return false;
+                    }
+                    
+                    // Actualizar información de usuario
+                    const user = typeof getCurrentUser === 'function' ? getCurrentUser() : 
+                                JSON.parse(localStorage.getItem('invplanet_session') || '{}');
+                    
+                    const userNameElement = document.getElementById('userName');
+                    if (userNameElement) {
+                        userNameElement.textContent = `Bienvenido, ${user.nombre || user.username || 'Usuario'}`;
+                    }
+                    
+                    // Actualizar fecha y hora
+                    function updateDateTime() {
+                        const now = new Date();
+                        const dateEl = document.getElementById('currentDate');
+                        const timeEl = document.getElementById('currentTime');
+                        if (dateEl) {
+                            dateEl.textContent = now.toLocaleDateString('es-ES', {
+                                weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+                            });
+                        }
+                        if (timeEl) {
+                            timeEl.textContent = now.toLocaleTimeString('es-ES', {
+                                hour: '2-digit', minute: '2-digit', second: '2-digit'
+                            });
                         }
                     }
-                });
-            }
-        }
-        
-        // ============================================
-        // INICIALIZACIÓN PRINCIPAL
-        // ============================================
-        
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('Dashboard HTML cargado - Iniciando inicialización...');
-            
-            if (!verificarScriptsCriticos()) {
-                mostrarError('Error: Los archivos necesarios no se cargaron correctamente. Recarga la página.');
-                return;
-            }
-            
-            if (!verificarSesionUsuario()) {
-                console.log('Sesión no válida, redirigiendo...');
-                mostrarMensaje('Sesión expirada. Redirigiendo...', 'info');
-                setTimeout(() => {
-                    window.location.href = 'index.html';
-                }, 1500);
-                return;
-            }
-            
-            const user = obtenerInformacionUsuario();
-            const userNameElement = document.getElementById('userName');
-            if (user && userNameElement) {
-                userNameElement.textContent = `Bienvenido, ${user.nombre || user.username || 'Usuario'}`;
-                document.title = `InvPlanet v18.0 - ${user.nombre || 'Dashboard'}`;
-            }
-            
-            actualizarFechaHora();
-            setInterval(actualizarFechaHora, 1000);
-            configurarNavegacion();
-            configurarLogout();
-            
-            // Cerrar menú de acciones rápidas al hacer clic fuera
-            document.addEventListener('click', function(e) {
-                const menu = document.getElementById('quickActionsMenu');
-                const btn = document.getElementById('quickActionsBtn');
-                if (btn && menu && !btn.contains(e.target) && !menu.contains(e.target)) {
-                    menu.classList.remove('show');
-                }
-            });
-            
-            // Actualizar estado de carga
-            const loadingStatus = document.getElementById('loadingStatus');
-            
-            setTimeout(() => {
-                try {
+                    updateDateTime();
+                    setInterval(updateDateTime, 1000);
+                    
+                    // Configurar navegación
+                    const navLinks = document.querySelectorAll('.nav-link[data-view]');
+                    navLinks.forEach(link => {
+                        link.addEventListener('click', function(e) {
+                            e.preventDefault();
+                            navLinks.forEach(l => l.classList.remove('active'));
+                            this.classList.add('active');
+                            const view = this.getAttribute('data-view');
+                            if (window.app && window.app.loadView) {
+                                window.app.loadView(view);
+                            }
+                        });
+                    });
+                    
+                    // Configurar logout
+                    document.getElementById('logoutBtn')?.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        if (confirm('¿Estás seguro que deseas salir?')) {
+                            if (typeof logout === 'function') {
+                                logout();
+                            } else {
+                                localStorage.removeItem('invplanet_session');
+                                window.location.href = 'index.html';
+                            }
+                        }
+                    });
+                    
+                    // Cerrar menú al hacer clic fuera
+                    document.addEventListener('click', function(e) {
+                        const menu = document.getElementById('quickActionsMenu');
+                        const btn = document.getElementById('quickActionsBtn');
+                        if (btn && menu && !btn.contains(e.target) && !menu.contains(e.target)) {
+                            menu.classList.remove('show');
+                        }
+                    });
+                    
+                    // Inicializar la aplicación
                     if (window.app && window.app.initializeApp) {
-                        if (loadingStatus) loadingStatus.textContent = 'Inicializando aplicación...';
-                        console.log('Inicializando app...');
+                        console.log('🔄 Inicializando app...');
                         const success = window.app.initializeApp();
                         
                         if (success) {
-                            if (loadingStatus) loadingStatus.textContent = '✓ Aplicación lista';
-                            console.log('✓ App inicializada');
+                            console.log('✅ App inicializada correctamente');
+                            initialized = true;
                             
-                            // Verificar si hay recetas cargadas
+                            // Cargar dashboard por defecto
                             setTimeout(() => {
-                                if (window.app.recetas && window.app.recetas.length > 0) {
-                                    console.log(`📝 ${window.app.recetas.length} recetas cargadas`);
+                                if (window.app && window.app.loadView) {
+                                    window.app.loadView('dashboard');
                                 }
-                            }, 500);
-                            
-                            // Cargar vista por defecto si es necesario
-                            if (!window.app.currentView || window.app.currentView === 'dashboard') {
-                                window.app.loadView('dashboard');
-                            }
-                            
-                            const loadingElement = document.getElementById('initialLoading');
-                            if (loadingElement) loadingElement.style.display = 'none';
+                            }, 100);
                         }
                     }
+                    
+                    return true;
+                    
                 } catch (error) {
-                    console.error('Error:', error);
-                    if (loadingStatus) loadingStatus.textContent = '❌ Error al inicializar';
-                    mostrarError(`Error al inicializar: ${error.message}`);
+                    console.error('❌ Error en inicialización:', error);
+                    document.getElementById('mainContent').innerHTML = `
+                        <div class="error-view">
+                            <i class="fas fa-exclamation-triangle fa-3x"></i>
+                            <h3>Error</h3>
+                            <p>${error.message}</p>
+                            <button class="btn btn-primary" onclick="location.reload()">
+                                <i class="fas fa-redo"></i> Recargar
+                            </button>
+                        </div>
+                    `;
+                    return false;
                 }
-            }, 500);
+            }
             
-            // Funciones globales para módulos activos
-            window.mostrarModalNuevoProducto = () => window.app?.mostrarModalNuevoProducto?.() || mostrarMensaje('Función no disponible', 'info');
-            window.mostrarModalNuevaCategoria = () => window.app?.mostrarModalNuevaCategoria?.() || mostrarMensaje('Función no disponible', 'info');
-            window.mostrarModalNuevaVenta = () => window.app?.mostrarModalNuevaVenta?.() || mostrarMensaje('Función no disponible', 'info');
-            window.mostrarModalNuevoGasto = () => window.app?.mostrarModalNuevoGasto?.() || mostrarMensaje('Función no disponible', 'info');
-            window.mostrarModalNuevoCliente = () => window.app?.mostrarModalNuevoCliente?.() || mostrarMensaje('Función no disponible', 'info');
-            window.mostrarModalNuevoProveedor = () => window.app?.mostrarModalNuevoProveedor?.() || mostrarMensaje('Función no disponible', 'info');
-            window.mostrarModalNuevaPromocion = () => window.app?.mostrarModalNuevaPromocion?.() || mostrarMensaje('Función no disponible', 'info');
-            window.mostrarMapaMesas = () => window.app?.mostrarMapaMesas?.() || mostrarMensaje('Función no disponible', 'info');
-            window.mostrarModalNuevaReceta = (productoId) => window.app?.mostrarModalNuevaReceta?.(productoId) || mostrarMensaje('Función de recetas no disponible', 'info');
+            // Iniciar cuando el DOM esté listo
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', () => setTimeout(intentarInicializar, 100));
+            } else {
+                setTimeout(intentarInicializar, 100);
+            }
+            
+            // Funciones globales (con verificación)
+            window.mostrarModalNuevoProducto = () => window.app?.mostrarModalNuevoProducto?.() || window.mostrarMensaje('Función no disponible', 'info');
+            window.mostrarModalNuevaCategoria = () => window.app?.mostrarModalNuevaCategoria?.() || window.mostrarMensaje('Función no disponible', 'info');
+            window.mostrarModalNuevaVenta = () => window.app?.mostrarModalNuevaVenta?.() || window.mostrarMensaje('Función no disponible', 'info');
+            window.mostrarModalNuevoGasto = () => window.app?.mostrarModalNuevoGasto?.() || window.mostrarMensaje('Función no disponible', 'info');
+            window.mostrarModalNuevoCliente = () => window.app?.mostrarModalNuevoCliente?.() || window.mostrarMensaje('Función no disponible', 'info');
+            window.mostrarModalNuevoProveedor = () => window.app?.mostrarModalNuevoProveedor?.() || window.mostrarMensaje('Función no disponible', 'info');
+            window.mostrarModalNuevaPromocion = () => window.app?.mostrarModalNuevaPromocion?.() || window.mostrarMensaje('Función no disponible', 'info');
+            window.mostrarMapaMesas = () => window.app?.mostrarMapaMesas?.() || window.mostrarMensaje('Función no disponible', 'info');
+            window.mostrarModalNuevaReceta = (id) => window.app?.mostrarModalNuevaReceta?.(id) || window.mostrarMensaje('Función de recetas no disponible', 'info');
             
             window.cerrarModal = (modalId) => {
                 const modal = document.getElementById(modalId);
                 if (modal) modal.remove();
             };
             
-            window.addEventListener('error', function(event) {
-                console.error('Error global:', event.error);
-            });
+            // Funciones de depuración
+            window.mostrarEstadoApp = function() {
+                console.log('=== ESTADO DE LA APP ===');
+                console.log('App:', !!window.app);
+                console.log('Storage:', !!window.storage);
+                console.log('Auth:', typeof checkSession === 'function');
+                console.log('Recetas:', window.app?.recetas?.length || 0);
+                console.log('Clientes:', window.app?.clientes?.length || 0);
+                console.log('Mesas:', window.app?.mesas?.length || 0);
+            };
             
-            console.log('✓ Inicialización completa');
-        });
-        
-        // Funciones de depuración mejoradas
-        window.mostrarEstadoApp = function() {
-            console.log('=== ESTADO DE LA APP (v18.0 - RECETAS) ===');
-            console.log('App:', !!window.app);
-            console.log('Storage:', !!window.storage);
-            console.log('Auth:', typeof checkSession === 'function');
-            console.log('📦 Inventario:', window.storage?.getInventario()?.length || 0);
-            console.log('📝 Recetas:', window.app?.recetas?.length || 0);
-            console.log('👥 Usuarios:', window.app?.usuarios?.length || 0);
-            console.log('👤 Clientes:', window.app?.clientes?.length || 0);
-            console.log('📦 Proveedores:', window.app?.proveedores?.length || 0);
-            console.log('🎁 Promociones:', window.app?.promociones?.length || 0);
-            console.log('🍽️ Mesas:', window.app?.mesas?.length || 0);
-            console.log('🎯 Config Fidelización:', window.app?.configFidelizacion || 'No disponible');
-            console.log('=======================');
-        };
-        
-        window.mostrarEstadoRecetas = function() {
-            console.log('=== ESTADO DE RECETAS ===');
-            if (!window.app?.recetas || window.app.recetas.length === 0) {
-                console.log('No hay recetas configuradas');
-                return;
-            }
-            window.app.recetas.forEach((receta, index) => {
-                console.log(`${index + 1}. Producto ID: ${receta.productoId}`);
-                console.log(`   Rinde: ${receta.rinde} unidades`);
-                console.log(`   Ingredientes: ${receta.ingredientes.length}`);
-                receta.ingredientes.forEach(ing => {
-                    console.log(`     - ${ing.nombre}: ${ing.cantidad}`);
-                });
-                // Calcular costo si es posible
-                if (window.app.calcularCostoProduccion) {
-                    const costo = window.app.calcularCostoProduccion(receta.productoId);
-                    if (costo) {
-                        console.log(`   💰 Costo total: $${costo.costoTotalInsumos}`);
-                        console.log(`   💰 Costo por unidad: $${costo.costoPorUnidad}`);
-                    }
+            window.mostrarRecetas = function() {
+                if (!window.app?.recetas?.length) {
+                    console.log('No hay recetas');
+                    return;
                 }
-            });
-            console.log('=======================');
-        };
-        
-        window.mostrarEstadoFidelizacion = function() {
-            console.log('=== ESTADO DE FIDELIZACIÓN ===');
-            console.log('Config:', window.app?.configFidelizacion);
-            console.log('Puntos a canjear en venta actual:', window.app?.puntosACanjear);
-            console.log('Productos gratis disponibles:', window.app?.configFidelizacion?.productosGratis);
-            console.log('===============================');
-        };
-        
-        window.reiniciarApp = function() {
-            console.log('Reiniciando app...');
-            document.getElementById('modalContainer').innerHTML = '';
-            if (window.app?.loadView) {
-                window.app.loadView('dashboard');
-                mostrarMensaje('✅ App reiniciada', 'success');
-            } else {
-                location.reload();
-            }
-        };
-        
-        window.limpiarCache = function() {
-            console.log('Limpiando localStorage...');
-            if (confirm('¿Limpiar todos los datos? Esta acción no se puede deshacer.')) {
-                localStorage.clear();
-                mostrarMensaje('✅ Cache limpiado. Recargando...', 'success');
-                setTimeout(() => location.reload(), 1500);
-            }
-        };
-        
-        console.log('Dashboard HTML listo - v18.0 con soporte para Recetas y Fidelización');
-        console.log('%c🚀 Usa window.mostrarEstadoRecetas() para ver las recetas cargadas', 'color: #9b59b6; font-weight: bold;');
+                window.app.recetas.forEach((r, i) => {
+                    console.log(`Receta ${i+1}:`, r);
+                });
+            };
+            
+            console.log('%c✅ Dashboard listo', 'color: #27ae60; font-weight: bold');
+        })();
     </script>
 </body>
 </html>
