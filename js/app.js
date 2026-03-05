@@ -1,4 +1,5 @@
 ﻿// js/app.js - VERSIÓN COMPLETA CON SISTEMA DE RECETAS MANUALES Y FIDELIZACIÓN
+// CORREGIDO: Cálculo de ventas y domicilio
 // ============================================
 // INCLUYE: Dashboard, Inventario, Categorías, Ventas (con puntos y canje),
 // Recetas MANUALES (ingredientes con nombre, precio y cantidad), Gastos, 
@@ -45,7 +46,7 @@ class InvPlanetApp {
         this.puntosACanjear = 0;
         this.productoGratisSeleccionado = null;
 
-        console.log('%c🔥 InvPlanet App v4.0 - CON SISTEMA DE RECETAS MANUALES', 'background: #9b59b6; color: white; padding: 5px 10px; border-radius: 5px;');
+        console.log('%c🔥 InvPlanet App v4.1 - CON SISTEMA DE RECETAS MANUALES (CORREGIDO)', 'background: #9b59b6; color: white; padding: 5px 10px; border-radius: 5px;');
         console.log('✅ Módulos Activos: Dashboard, Inventario, Categorías, Ventas, Recetas Manuales, Fidelización');
 
         this.verificarStorage();
@@ -106,7 +107,6 @@ class InvPlanetApp {
         let costoTotalInsumos = 0;
         
         receta.ingredientes.forEach(ing => {
-            // Los ingredientes ahora tienen su propio precio guardado en la receta
             costoTotalInsumos += (ing.precioUnitario || 0) * ing.cantidad;
         });
 
@@ -126,11 +126,8 @@ class InvPlanetApp {
         const faltantes = [];
         
         receta.ingredientes.forEach(ing => {
-            // Verificamos en inventario si el ingrediente existe como producto
             const ingrediente = storage.getProducto(ing.productoId);
             if (!ingrediente) {
-                // Si no existe en inventario, lo consideramos como insumo externo
-                // y asumimos que siempre hay disponible
                 return;
             }
             
@@ -150,7 +147,6 @@ class InvPlanetApp {
         };
     }
 
-    // NUEVA FUNCIÓN: Agregar ingrediente manual
     agregarIngredienteManual(ingredienteData = null) {
         const container = document.getElementById('listaIngredientesReceta');
         if (!container) return;
@@ -160,7 +156,6 @@ class InvPlanetApp {
         ingredientRow.style.backgroundColor = '#f9f9f9';
         ingredientRow.style.borderLeft = '4px solid #27ae60';
         
-        // Si viene con datos, es para editar
         const nombre = ingredienteData ? ingredienteData.nombre : '';
         const precio = ingredienteData ? ingredienteData.precioUnitario : '';
         const cantidad = ingredienteData ? ingredienteData.cantidad : '1';
@@ -169,7 +164,7 @@ class InvPlanetApp {
         ingredientRow.innerHTML = `
             <div style="display: grid; grid-template-columns: 3fr 1fr 1fr 40px; gap: 10px; align-items: center;">
                 <div>
-                    <input type="text" class="form-control ingrediente-nombre" placeholder="Nombre del ingrediente (ej: Pan, Carne, Queso)" value="${nombre}" style="font-size: 14px;">
+                    <input type="text" class="form-control ingrediente-nombre" placeholder="Nombre del ingrediente" value="${nombre}" style="font-size: 14px;">
                     <input type="hidden" class="ingrediente-productoid" value="${productoId}">
                 </div>
                 <div>
@@ -191,7 +186,6 @@ class InvPlanetApp {
         
         container.appendChild(ingredientRow);
         
-        // Si hay un productoId, buscar el nombre del producto en inventario
         if (productoId) {
             const producto = storage.getProducto(productoId);
             if (producto) {
@@ -203,7 +197,6 @@ class InvPlanetApp {
         this.calcularCostosReceta();
     }
 
-    // NUEVA FUNCIÓN: Buscar producto para ingrediente
     buscarProductoParaIngrediente(inputElement) {
         const query = inputElement.value.toLowerCase();
         if (query.length < 2) return;
@@ -211,16 +204,14 @@ class InvPlanetApp {
         const inventario = storage.getInventario();
         const productos = inventario.filter(p => 
             p.nombre.toLowerCase().includes(query) && 
-            !p.esKit // Solo ingredientes, no kits
+            !p.esKit
         );
         
-        // Crear un datalist o sugerencias
         let suggestions = '';
         productos.slice(0, 5).forEach(p => {
             suggestions += `<div class="suggestion-item" onclick="window.app.seleccionarProductoIngrediente('${p.id}', '${p.nombre}', ${p.costoUnitario || 0})">${p.nombre} - $${p.costoUnitario || 0}</div>`;
         });
         
-        // Mostrar sugerencias (implementación simple)
         const row = inputElement.closest('.ingrediente-row');
         let suggestionsDiv = row.querySelector('.ingrediente-suggestions');
         if (!suggestionsDiv) {
@@ -235,7 +226,6 @@ class InvPlanetApp {
     }
 
     seleccionarProductoIngrediente(productoId, nombre, precio) {
-        // Esta función se llamaría desde las sugerencias
         const activeRow = document.querySelector('.ingrediente-row:hover');
         if (activeRow) {
             const nombreInput = activeRow.querySelector('.ingrediente-nombre');
@@ -246,7 +236,6 @@ class InvPlanetApp {
             if (precioInput) precioInput.value = precio;
             if (productoIdInput) productoIdInput.value = productoId;
             
-            // Ocultar sugerencias
             const suggestionsDiv = activeRow.querySelector('.ingrediente-suggestions');
             if (suggestionsDiv) suggestionsDiv.style.display = 'none';
             
@@ -274,10 +263,8 @@ class InvPlanetApp {
                     costoTotal += subtotal;
                     if (subtotalSpan) subtotalSpan.textContent = subtotal.toFixed(0);
                     
-                    // Resaltar si falta algún campo
                     row.style.backgroundColor = '#f9f9f9';
                 } else {
-                    // Si falta algún campo, mostrar en color diferente
                     row.style.backgroundColor = '#fff3cd';
                     if (subtotalSpan) subtotalSpan.textContent = '0';
                 }
@@ -290,7 +277,6 @@ class InvPlanetApp {
         document.getElementById('costoTotalInsumos').textContent = costoTotal.toFixed(0);
         document.getElementById('costoPorUnidad').textContent = costoPorUnidad.toFixed(0);
 
-        // Mostrar margen de ganancia si hay un producto seleccionado
         const productoId = document.getElementById('recetaProductoId')?.value;
         if (productoId) {
             const producto = storage.getProducto(productoId);
@@ -316,7 +302,6 @@ class InvPlanetApp {
         console.log('🍳 Abriendo modal de receta manual...');
         
         const inventario = storage.getInventario();
-        // Mostrar todos los productos activos, pero marcar los que son kits
         const productosVenta = inventario.filter(p => p.activo);
         
         let productoSeleccionado = null;
@@ -324,7 +309,6 @@ class InvPlanetApp {
             productoSeleccionado = inventario.find(p => p.id === productoVentaId);
         }
 
-        // Opciones para el select de productos de venta
         let productosVentaOptions = '<option value="">🔍 Selecciona un producto del inventario</option>';
         productosVenta.sort((a, b) => a.nombre.localeCompare(b.nombre)).forEach(p => {
             const selected = (productoSeleccionado && productoSeleccionado.id === p.id) ? 'selected' : '';
@@ -343,7 +327,6 @@ class InvPlanetApp {
                     </div>
                     <div class="modal-body">
                         <form id="formReceta" onsubmit="return false;">
-                            <!-- PASO 1: Seleccionar el producto -->
                             <div class="card mb-4 p-4" style="background: #f0f7ff; border-left: 4px solid #3498db; border-radius: 8px;">
                                 <h4 style="margin-top:0; color:#2980b9;"><i class="fas fa-shopping-cart"></i> Paso 1: ¿Qué producto preparas?</h4>
                                 <div class="form-group">
@@ -355,7 +338,6 @@ class InvPlanetApp {
                                 </div>
                             </div>
 
-                            <!-- PASO 2: Cantidad que produce -->
                             <div class="card mb-4 p-4" style="background: #f5f0ff; border-left: 4px solid #9b59b6; border-radius: 8px;">
                                 <h4 style="margin-top:0; color:#8e44ad;"><i class="fas fa-cubes"></i> Paso 2: ¿Cuánto produces?</h4>
                                 <div class="form-group">
@@ -365,13 +347,11 @@ class InvPlanetApp {
                                 </div>
                             </div>
 
-                            <!-- PASO 3: Ingredientes manuales -->
                             <div class="card mb-4 p-4" style="background: #f0fff0; border-left: 4px solid #27ae60; border-radius: 8px;">
                                 <h4 style="margin-top:0; color:#27ae60;"><i class="fas fa-carrot"></i> Paso 3: Agrega los ingredientes manualmente</h4>
                                 <p class="text-muted mb-3">Escribe el nombre del ingrediente, su costo unitario y la cantidad que usas</p>
                                 
                                 <div id="listaIngredientesReceta" class="mb-3">
-                                    <!-- Los ingredientes se cargarán aquí -->
                                     ${recetaExistente ? '' : '<p class="text-center text-muted py-4">Haz clic en "Agregar Ingrediente" para comenzar</p>'}
                                 </div>
                                 
@@ -384,7 +364,6 @@ class InvPlanetApp {
                                 </button>
                             </div>
 
-                            <!-- PASO 4: Resumen de costos -->
                             <div class="card mb-4 p-4" style="background: linear-gradient(135deg, #2c3e50, #34495e); color: white; border-radius: 8px;">
                                 <h4 style="margin-top:0; color: white;"><i class="fas fa-chart-line"></i> 📊 Resumen de Costos</h4>
                                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 15px;">
@@ -417,7 +396,6 @@ class InvPlanetApp {
         document.getElementById('modalContainer').innerHTML = modalHTML;
         this.modalOpen = true;
 
-        // Si existe una receta, cargar sus ingredientes
         setTimeout(() => {
             if (recetaExistente) {
                 recetaExistente.ingredientes.forEach(ing => {
@@ -433,12 +411,10 @@ class InvPlanetApp {
             document.getElementById('recetaProductoId')?.addEventListener('change', () => this.calcularCostosReceta());
             document.getElementById('recetaRinde')?.addEventListener('input', () => this.calcularCostosReceta());
             
-            // Calcular costos iniciales si hay ingredientes
             this.calcularCostosReceta();
         }, 100);
     }
 
-    // NUEVA FUNCIÓN: Cargar ingredientes desde inventario
     cargarIngredientesDesdeInventario() {
         const inventario = storage.getInventario();
         const ingredientes = inventario.filter(p => !p.esKit && p.activo);
@@ -448,7 +424,6 @@ class InvPlanetApp {
             return;
         }
         
-        // Crear un modal simple para seleccionar ingredientes
         let ingredientesHTML = '<div style="max-height: 400px; overflow-y: auto;">';
         ingredientes.forEach(ing => {
             ingredientesHTML += `
@@ -545,7 +520,6 @@ class InvPlanetApp {
         this.guardarRecetas();
         this.cerrarModal('modalNuevaReceta');
         
-        // Actualizar la vista si estamos en inventario
         if (this.currentView === 'inventario') {
             this.loadInventarioView();
         }
@@ -992,7 +966,6 @@ class InvPlanetApp {
     }
 
     mostrarModalProveedores() {
-        // Implementación similar a clientes
         this.mostrarMensaje('Función de proveedores - implementar según necesidad', 'info');
     }
 
@@ -1657,7 +1630,6 @@ class InvPlanetApp {
 
             const tipo = p.esKit ? '🍳 Kit' : '📦 Producto';
             
-            // Calcular costo de producción si tiene receta
             const costoProduccion = this.calcularCostoProduccion(p.id);
             let costoDisplay = '-';
             let margenDisplay = '-';
@@ -1766,7 +1738,6 @@ class InvPlanetApp {
             proveedoresOptions += `<option value="${p.id}" ${selected}>${p.nombre}</option>`;
         });
 
-        // Calcular costo de producción si tiene receta
         let costoProduccionHTML = '';
         const costo = this.calcularCostoProduccion(producto.id);
         if (costo) {
@@ -2063,7 +2034,6 @@ class InvPlanetApp {
 
     eliminarProducto(id) {
         if (confirm('¿Estás seguro de eliminar este producto? Esta acción no se puede deshacer.')) {
-            // Verificar si tiene receta asociada
             const tieneReceta = this.recetas.some(r => r.productoId === id);
             if (tieneReceta) {
                 if (confirm('Este producto tiene una receta asociada. ¿Eliminar también la receta?')) {
@@ -2830,7 +2800,6 @@ class InvPlanetApp {
         const impuesto = subtotal * impuestoPorcentaje;
         const total = subtotal + impuesto + (ventaOriginal.valorDomicilio || 0);
 
-        // Calcular diferencia de stock
         const productosOriginales = ventaOriginal.productos || [];
         const productosNuevos = this.carritoModificacion;
 
@@ -2844,7 +2813,6 @@ class InvPlanetApp {
             cantidadesNuevas[item.productoId] = (cantidadesNuevas[item.productoId] || 0) + item.cantidad;
         });
 
-        // Procesar cambios en stock
         for (const productoId in cantidadesNuevas) {
             const cantidadNueva = cantidadesNuevas[productoId];
             const cantidadOriginal = cantidadesOriginales[productoId] || 0;
@@ -2948,7 +2916,6 @@ class InvPlanetApp {
             return;
         }
 
-        // Devolver stock
         venta.productos?.forEach(item => {
             const producto = storage.getProducto(item.productoId);
             if (producto) {
@@ -2957,7 +2924,6 @@ class InvPlanetApp {
             }
         });
 
-        // Restar puntos al cliente si aplica
         if (venta.clienteId) {
             const cliente = this.clientes.find(c => c.id === venta.clienteId);
             if (cliente) {
@@ -3061,7 +3027,7 @@ class InvPlanetApp {
     }
 
     // ============================================
-    // MODAL NUEVA VENTA
+    // MODAL NUEVA VENTA (CORREGIDO - Cálculo de totales y domicilio)
     // ============================================
 
     mostrarModalNuevaVenta() {
@@ -3088,7 +3054,6 @@ class InvPlanetApp {
             let stockText = `${producto.unidades} disponibles`;
             let advertenciaReceta = '';
 
-            // Verificar si es kit y tiene receta
             if (producto.esKit) {
                 const tieneReceta = this.recetas.some(r => r.productoId === producto.id);
                 if (!tieneReceta) {
@@ -3174,12 +3139,12 @@ class InvPlanetApp {
                                         </div>
                                     </div>
                                     
-                                    <div id="beneficiosClienteSection" style="margin-top: 15px; background: var(--points-50); padding: 15px; border-radius: 10px; display: none;">
-                                        <h5 style="color: var(--points-700);"><i class="fas fa-gift"></i> Beneficios del Cliente</h5>
+                                    <div id="beneficiosClienteSection" style="margin-top: 15px; background: #f0f8ff; padding: 15px; border-radius: 10px; display: none;">
+                                        <h5 style="color: #2c3e50;"><i class="fas fa-gift"></i> Beneficios del Cliente</h5>
                                         <p><strong>Puntos disponibles:</strong> <span id="puntosClienteDisplay">0</span></p>
                                         <div class="form-group" style="display: flex; gap: 10px;">
                                             <input type="number" id="puntosACanjearInput" class="form-control" placeholder="Puntos a canjear" min="0">
-                                            <button class="btn btn-sm btn-points" onclick="window.app.canjearPuntos()">Aplicar</button>
+                                            <button class="btn btn-sm btn-primary" onclick="window.app.canjearPuntos()">Aplicar</button>
                                         </div>
                                     </div>
                                 </div>
@@ -3226,7 +3191,7 @@ class InvPlanetApp {
                                         </div>
                                         <div class="form-group">
                                             <label>Valor del Domicilio ($)</label>
-                                            <input type="number" id="valorDomicilio" class="form-control" value="0" min="0" step="100">
+                                            <input type="number" id="valorDomicilio" class="form-control" value="0" min="0" step="500">
                                         </div>
                                     </div>
                                 </div>
@@ -3260,6 +3225,10 @@ class InvPlanetApp {
                                             <span id="impuestoCarrito">$0</span>
                                         </div>
                                         ` : ''}
+                                        <div style="display: flex; justify-content: space-between; margin-bottom: 15px; opacity: 0.9;" id="valorDomicilioDisplay">
+                                            <span>Domicilio:</span>
+                                            <span id="domicilioCarrito">$0</span>
+                                        </div>
                                         <div style="display: flex; justify-content: space-between; margin-bottom: 15px; opacity: 0.9;">
                                             <span>Descuento puntos:</span>
                                             <span id="descuentoPuntosDisplay">-$0</span>
@@ -3305,6 +3274,10 @@ class InvPlanetApp {
             } else {
                 document.getElementById('beneficiosClienteSection').style.display = 'none';
             }
+        });
+
+        document.getElementById('valorDomicilio')?.addEventListener('input', () => {
+            this.actualizarCarrito();
         });
 
         setTimeout(() => {
@@ -3401,13 +3374,11 @@ class InvPlanetApp {
             return;
         }
 
-        // Verificar stock
         if (producto.unidades <= 0) {
             this.mostrarMensaje('❌ Producto agotado', 'error');
             return;
         }
 
-        // Verificar si es kit y tiene receta
         if (producto.esKit) {
             const tieneReceta = this.recetas.some(r => r.productoId === producto.id);
             if (!tieneReceta) {
@@ -3452,6 +3423,7 @@ class InvPlanetApp {
         const carritoCount = document.getElementById('carritoItemsCount');
         const subtotalEl = document.getElementById('subtotalCarrito');
         const impuestoEl = document.getElementById('impuestoCarrito');
+        const domicilioEl = document.getElementById('domicilioCarrito');
         const descuentoPuntosEl = document.getElementById('descuentoPuntosDisplay');
         const totalEl = document.getElementById('totalCarrito');
 
@@ -3470,6 +3442,7 @@ class InvPlanetApp {
             `;
             if (subtotalEl) subtotalEl.textContent = '$0';
             if (impuestoEl) impuestoEl.textContent = '$0';
+            if (domicilioEl) domicilioEl.textContent = '$0';
             if (descuentoPuntosEl) descuentoPuntosEl.textContent = '-$0';
             if (totalEl) totalEl.textContent = '$0';
             return;
@@ -3514,14 +3487,19 @@ class InvPlanetApp {
         const config = storage.getConfig?.() || {};
         const impuestoPorcentaje = (config.impuesto || 0) / 100;
         const impuesto = subtotal * impuestoPorcentaje;
-
+        
+        const valorDomicilio = document.querySelector('input[name="tipoEntrega"]:checked')?.value === 'domicilio' 
+            ? parseFloat(document.getElementById('valorDomicilio')?.value) || 0 
+            : 0;
+        
         const descuentoPuntos = this.puntosACanjear * (this.configFidelizacion.valorPuntoEnPesos || 100);
-        const total = subtotal + impuesto - descuentoPuntos;
+        const total = subtotal + impuesto + valorDomicilio - descuentoPuntos;
 
         if (subtotalEl) subtotalEl.textContent = `$${subtotal.toLocaleString()}`;
         if (impuestoEl) impuestoEl.textContent = `$${impuesto.toLocaleString()}`;
+        if (domicilioEl) domicilioEl.textContent = `$${valorDomicilio.toLocaleString()}`;
         if (descuentoPuntosEl) descuentoPuntosEl.textContent = `-$${descuentoPuntos.toLocaleString()}`;
-        if (totalEl) totalEl.textContent = `$${total.toLocaleString()}`;
+        if (totalEl) totalEl.textContent = `$${Math.max(0, total).toLocaleString()}`;
     }
 
     aumentarCantidad(index) {
@@ -3616,19 +3594,31 @@ class InvPlanetApp {
 
         const metodoPago = document.getElementById('metodoPago')?.value || 'efectivo';
         const notaGeneral = document.getElementById('notaGeneral')?.value || '';
+        const direccion = document.getElementById('domicilioDireccion')?.value || '';
+        const referencia = document.getElementById('domicilioReferencia')?.value || '';
+        const telefono = document.getElementById('domicilioTelefono')?.value || '';
+        const valorDomicilio = tipoEntrega === 'domicilio' ? parseFloat(document.getElementById('valorDomicilio')?.value) || 0 : 0;
+        const mesaNumero = document.getElementById('mesaNumero')?.value || '';
+        const comensales = parseInt(document.getElementById('comensalesMesa')?.value) || 1;
 
         const subtotal = this.carritoVenta.reduce((sum, item) => sum + item.subtotal, 0);
         const impuesto = subtotal * impuestoPorcentaje;
         const descuentoPuntos = this.puntosACanjear * (this.configFidelizacion.valorPuntoEnPesos || 100);
-        const total = subtotal + impuesto - descuentoPuntos;
+        const total = subtotal + impuesto + valorDomicilio - descuentoPuntos;
 
         const venta = {
             id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
-            numero: `FAC-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}${String(storage.getVentas?.().length + 1).padStart(5, '0')}`,
+            numero: `FAC-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}${String((storage.getVentas?.() || []).length + 1).padStart(5, '0')}`,
             fecha: new Date().toISOString(),
             cliente: clienteNombre,
             clienteId: clienteId,
             tipoEntrega: tipoEntrega,
+            direccion: direccion,
+            referencia: referencia,
+            telefono: telefono,
+            valorDomicilio: valorDomicilio,
+            mesa: mesaNumero,
+            comensales: comensales,
             productos: this.carritoVenta.map(item => ({
                 productoId: item.productoId,
                 nombre: item.nombre,
@@ -3649,7 +3639,6 @@ class InvPlanetApp {
             estado: 'completada'
         };
 
-        // Descontar stock
         this.carritoVenta.forEach(item => {
             if (item.esCanjePuntos) return;
             const producto = storage.getProducto(item.productoId);
@@ -3663,7 +3652,6 @@ class InvPlanetApp {
         ventas.push(venta);
         storage.saveVentas?.(ventas);
 
-        // Actualizar puntos del cliente
         if (clienteId) {
             const cliente = this.clientes.find(c => c.id === clienteId);
             if (cliente) {
@@ -4208,7 +4196,6 @@ class InvPlanetApp {
         const totalGastos = gastos.reduce((s, g) => s + (g.monto || 0), 0);
         const utilidad = totalVentas - totalGastos;
 
-        // Calcular márgenes de recetas
         let recetasHTML = '';
         this.recetas.forEach(receta => {
             const producto = storage.getProducto(receta.productoId);
@@ -4346,7 +4333,7 @@ class InvPlanetApp {
                     </div>
 
                     <div class="config-card">
-                        <h3><i class="fas fa-gift" style="color: var(--points-500);"></i> Puntos</h3>
+                        <h3><i class="fas fa-gift" style="color: #9b59b6;"></i> Puntos</h3>
                         <div class="form-group">
                             <label>Puntos por cada $</label>
                             <input type="number" id="configPuntosPorCada" class="form-control" value="${this.configFidelizacion.puntosPorCada}">
@@ -4355,7 +4342,7 @@ class InvPlanetApp {
                             <label>Valor por punto ($)</label>
                             <input type="number" id="configValorPunto" class="form-control" value="${this.configFidelizacion.valorPuntoEnPesos}">
                         </div>
-                        <button class="btn btn-points" onclick="window.app.guardarConfigFidelizacion()">Guardar Puntos</button>
+                        <button class="btn btn-primary" onclick="window.app.guardarConfigFidelizacion()">Guardar Puntos</button>
                     </div>
 
                     <div class="config-card">
@@ -4495,4 +4482,4 @@ window.mostrarModalNuevaPromocion = () => app.mostrarModalNuevaPromocion();
 window.mostrarMapaMesas = () => app.mostrarMapaMesas();
 window.mostrarModalNuevaReceta = (productoId) => app.mostrarModalNuevaReceta(productoId);
 
-console.log('%c✅ InvPlanet App v4.0 - Sistema de Recetas Manuales', 'background: #9b59b6; color: white; padding: 10px; border-radius: 5px;');
+console.log('%c✅ InvPlanet App v4.1 - CORREGIDO (Ventas y Domicilio)', 'background: #9b59b6; color: white; padding: 10px; border-radius: 5px;'); white; padding: 10px; border-radius: 5px;');
