@@ -4482,4 +4482,4 @@ window.mostrarModalNuevaPromocion = () => app.mostrarModalNuevaPromocion();
 window.mostrarMapaMesas = () => app.mostrarMapaMesas();
 window.mostrarModalNuevaReceta = (productoId) => app.mostrarModalNuevaReceta(productoId);
 
-console.log('%c✅ InvPlanet App v4.1 - CORREGIDO (Ventas y Domicilio)', 'background: #9b59b6; color: white; padding: 10px; border-radius: 5px;'); white; padding: 10px; border-radius: 5px;');
+console.log('%c✅ InvPlanet App v4.1 - CORREGIDO (Ventas y Domicilio)', 'background: #9b59b6; color: white; padding: 10px; border-radius: 5px;');
